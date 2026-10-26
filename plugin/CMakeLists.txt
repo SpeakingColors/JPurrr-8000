@@ -21,11 +21,13 @@ juce_add_plugin(JPurrr8000
   VST3_CATEGORIES Instrument Synth
   COPY_PLUGIN_AFTER_BUILD FALSE)
 
+file(GLOB JPURRR_FONT_FILES CONFIGURE_DEPENDS Resources/fonts/*.ttf)
+juce_add_binary_data(JPurrrFonts SOURCES ${JPURRR_FONT_FILES})
 file(GLOB_RECURSE JPURRR_PLUGIN_SRC CONFIGURE_DEPENDS Source/*.cpp)
 target_sources(JPurrr8000 PRIVATE ${JPURRR_PLUGIN_SRC})
 target_include_directories(JPurrr8000 PRIVATE Source)
 target_compile_definitions(JPurrr8000 PUBLIC
   JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JUCE_REPORT_APP_USAGE=0)
-target_link_libraries(JPurrr8000 PRIVATE jpurrr_core
+target_link_libraries(JPurrr8000 PRIVATE jpurrr_core JPurrrFonts
   juce::juce_audio_utils juce::juce_dsp
   PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
