@@ -22,14 +22,15 @@ float nrm(const juce::Font& f) { return asc(f) + dsc(f); }
 constexpr float kPadX = 16 * Z, kPadY = 12 * Z, kGap = 10 * Z;
 const juce::Colour kGoText(0xff10141a);
 
-void drawRing(juce::Graphics& g, Fl r, float radius) {
-    g.setColour(juce::Colour(0xffe8eefc)); g.drawRoundedRectangle(r.expanded(1.0f), radius + 1.0f, 2.0f);
+// Focus ring: the mockup's accent outline on buttons and selects (2px, offset 1px, zoomed), Chrome's light ring on inputs.
+void drawRing(juce::Graphics& g, Fl r, float radius, juce::Colour c = juce::Colour(0xffe8eefc), float width = 2.0f, float off = 1.0f) {
+    g.setColour(c); g.drawRoundedRectangle(r.expanded(off + width / 2), radius + off + width / 2, width);
 }
 
 // ------------------------------------------------------------------------------------------------ plain widgets
 class DBtn : public juce::Component {
 public:
-    DBtn(Root& r, const String& t, bool g) : root(r), text(t.toUpperCase()), go(g) { setWantsKeyboardFocus(true); }
+    DBtn(Root& r, const String& t, bool g) : root(r), text(t.toUpperCase()), go(g) { setWantsKeyboardFocus(true); setPaintingIsUnclipped(true); }
     std::function<void()> onClick; bool ring = false;
     static juce::Font font() { return fc(18.4, 600, 0.06f); }
     float prefWidth() const { return 2.0f + 2 * 10 * Z + jp::textWidth(font(), text); }
@@ -41,7 +42,7 @@ public:
         g.setColour(go ? lk[layout::acc] : lk[layout::btnbd]); g.drawRoundedRectangle(r.reduced(0.5f), 4 * Z, 1.0f);
         const auto f = font(); g.setFont(f); g.setColour(go ? kGoText : lk[layout::lbl]);
         drawTextAt(g, text, r.getX() + 1 + 10 * Z, std::round(r.getY() + 1 + (r.getHeight() - 2 - nrm(f)) / 2 + asc(f)), 'l');
-        if (ring || hasKeyboardFocus(false)) drawRing(g, r, 4 * Z);
+        if (ring || hasKeyboardFocus(false)) drawRing(g, r, 4 * Z, lk[layout::acc], 2 * Z, 1 * Z);
     }
     void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); }
     void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); }
@@ -113,7 +114,7 @@ private:
 class DField : public juce::Component {
 public:
     DField(Root& r, const String& value, const String& placeholder, bool multiline, bool readOnly) : root(r), multi(multiline) {
-        addAndMakeVisible(ed);
+        setPaintingIsUnclipped(true); addAndMakeVisible(ed);
         ed.setMultiLine(multiline, multiline); ed.setReturnKeyStartsNewLine(multiline);
         ed.setReadOnly(readOnly); ed.setScrollbarsShown(multiline); ed.setPopupMenuEnabled(true);
         ed.setBorder(juce::BorderSize<int>(0)); ed.setIndents(0, 0);
@@ -152,7 +153,7 @@ private:
 // A <select>: the box with its chevron; the popup is a JUCE menu.
 class DSel : public juce::Component {
 public:
-    DSel(Root& r, juce::StringArray items, int sel) : root(r), items(std::move(items)), selected(sel) { setWantsKeyboardFocus(true); }
+    DSel(Root& r, juce::StringArray items, int sel) : root(r), items(std::move(items)), selected(sel) { setWantsKeyboardFocus(true); setPaintingIsUnclipped(true); }
     std::function<void(int)> onChange; bool ring = false;
     int selected; juce::StringArray items;
     void setSelected(int i) { if (i != selected) { selected = i; repaint(); } }
@@ -162,14 +163,14 @@ public:
         g.setColour(lk[layout::sel]); g.fillRoundedRectangle(r, 3 * Z);
         g.setColour(lk[layout::btnbd]); g.drawRoundedRectangle(r.reduced(0.5f), 3 * Z, 1.0f);
         if (hover) { g.setColour(lk[layout::hi]); g.fillRoundedRectangle(r, 3 * Z); }
-        const auto f = fb(19.5f, 500); g.setFont(f); g.setColour(lk[layout::selfg]);
+        const auto f = fb(19.5f, 500, 0.05f); g.setFont(f); g.setColour(lk[layout::selfg]);
         g.saveState(); g.reduceClipRegion(r.reduced(1.0f).withTrimmedRight(26).toNearestInt());
         drawTextAt(g, juce::isPositiveAndBelow(selected, items.size()) ? items[selected] : String(), 1 + 8 * Z + 4 * Z, std::round((r.getHeight() - nrm(f)) / 2.0f + asc(f)), 'l');
         g.restoreState();
         juce::Path ch; const float cx = r.getRight() - 11.5f, cy = r.getCentreY();
         ch.startNewSubPath(cx - 4.2f, cy - 2.0f); ch.lineTo(cx, cy + 2.2f); ch.lineTo(cx + 4.2f, cy - 2.0f);
         g.setColour(lk[layout::selfg]); g.strokePath(ch, juce::PathStrokeType(1.7f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        if (ring || hasKeyboardFocus(false)) drawRing(g, r, 3 * Z);
+        if (ring || hasKeyboardFocus(false)) drawRing(g, r, 3 * Z, lk[layout::acc], 2 * Z, 1 * Z);
     }
     void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); }
     void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); }
@@ -311,7 +312,7 @@ private:
 
 class Chip : public juce::Component {
 public:
-    Chip(Root& r, const String& t, const String& key) : root(r), text(t.toUpperCase()), id(key) {}
+    Chip(Root& r, const String& t, const String& key) : root(r), text(t.toUpperCase()), id(key) { setPaintingIsUnclipped(true); }
     String text, id; bool on = false; bool ring = false; std::function<void()> onClick;
     static juce::Font font() { return fc(16.7, 600, 0.06f); }
     float prefWidth() const { return 2.0f + 2 * 9 * Z + jp::textWidth(font(), text); }
@@ -465,6 +466,7 @@ void DialogLayer::finish(DialogFrame& f) {
 }
 
 namespace {
+void focusIf(juce::Component* c) { if (c != nullptr && c->isShowing()) c->grabKeyboardFocus(); }
 using PR = Para::Run;
 PR n(const String& t) { return { t, Para::N }; }
 PR b(const String& t) { return { t, Para::B }; }
@@ -487,7 +489,7 @@ void DialogLayer::openGuide() {
     f.layoutBody = [p0, ul](float w) { float y = 0; y += p0->layoutFor(w); p0->setTopLeftPosition(0, 0); y += kGap; ul->setTopLeftPosition(0, juce::roundToInt(y)); y += ul->layoutFor(w); return y; };
     auto* close = f.button("Close", false, [this] { this->close(); });
     close->ring = true;
-    finish(f); close->grabKeyboardFocus();
+    finish(f); focusIf(close);
 }
 
 // ------------------------------------------------------------------------------------------------ Settings
@@ -515,7 +517,7 @@ void DialogLayer::openSettings() {
     });
     f.button("Close", false, [this] { this->close(); });
     bub->ring = true; (void) done;
-    finish(f); bub->grabKeyboardFocus();
+    finish(f); focusIf(bub);
 }
 
 // ------------------------------------------------------------------------------------------------ About
@@ -540,7 +542,7 @@ void DialogLayer::openAbout() {
     f.button("Ko-fi", false, link("https://ko-fi.com/studio87"));
     f.button("Close", false, [this] { this->close(); });
     gh->ring = true;
-    finish(f); gh->grabKeyboardFocus();
+    finish(f); focusIf(gh);
 }
 
 // ------------------------------------------------------------------------------------------------ Save / replace / delete
@@ -580,7 +582,7 @@ void DialogLayer::openSave() {
     });
     f.button("Close", false, [this] { this->close(); });
     name->ring = true;
-    finish(f); name->ed.grabKeyboardFocus(); name->ed.selectAll();
+    finish(f); focusIf(&name->ed);
 }
 
 void DialogLayer::openReplace(const String& name, const String& type, const juce::StringArray& genres, const juce::StringArray& tags, const String& bank) {
@@ -590,7 +592,7 @@ void DialogLayer::openReplace(const String& name, const String& type, const juce
     auto* ow = f.button("Overwrite", true, [=] { auto& c = root.controller(); if (c.saveAs(name, type, genres, tags, bank, true)) { this->close(); c.say("Overwritten"); } });
     f.button("Save as new", false, [=] { auto& c = root.controller(); if (c.saveAs(name + " 2", type, genres, tags, bank, false)) { this->close(); c.say("Saved as new"); } });
     f.button("Cancel", false, [this] { openSave(); });
-    ow->ring = true; finish(f); ow->grabKeyboardFocus();
+    ow->ring = true; finish(f); focusIf(ow);
 }
 
 void DialogLayer::openDelete() {
@@ -601,7 +603,7 @@ void DialogLayer::openDelete() {
     f.layoutBody = [p](float w) { p->setTopLeftPosition(0, 0); return p->layoutFor(w); };
     auto* del = f.button("Delete", true, [this] { auto& cc = root.controller(); if (cc.deleteCurrent()) this->close(); });
     f.button("Close", false, [this] { this->close(); });
-    del->ring = true; finish(f); del->grabKeyboardFocus();
+    del->ring = true; finish(f); focusIf(del);
 }
 
 // ------------------------------------------------------------------------------------------------ Export / import
@@ -622,7 +624,7 @@ void DialogLayer::openExport() {
         });
     });
     f.button("Close", false, [this] { this->close(); });
-    copy->ring = true; finish(f); copy->grabKeyboardFocus();
+    copy->ring = true; finish(f); focusIf(copy);
 }
 
 void DialogLayer::openImport() {
@@ -647,7 +649,7 @@ void DialogLayer::openImport() {
         });
     });
     f.button("Close", false, [this] { this->close(); });
-    ta->ring = true; finish(f); ta->ed.grabKeyboardFocus();
+    ta->ring = true; finish(f); focusIf(&ta->ed);
     (void) imp;
 }
 

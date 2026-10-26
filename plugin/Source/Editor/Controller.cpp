@@ -34,7 +34,9 @@ int Controller::idx(const char* id) {
     cache[id] = i; return i;
 }
 
-Controller::Controller(JPurrr8000AudioProcessor& p) : proc(p), pm(p.presets) {}
+Controller::Controller(JPurrr8000AudioProcessor& p) : proc(p), pm(p.presets) {
+    if (pm.history.isEmpty()) { const int i = pm.indexOfCurrent(); if (i >= 0) pm.pushHistory(pm.at(i)); }   // the mockup starts with the first sound in its history
+}
 
 int Controller::get(int i) const {
     if (i == P_m2d) return proc.getInt(P_m2dp + juce::jlimit(0, 2, proc.getInt(P_m2s)));

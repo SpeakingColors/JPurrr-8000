@@ -21,7 +21,7 @@ PresetManager::PresetManager() {
         list.push_back(e);
     }
     nFactory = n;
-    // factory metadata of the mockup (start list)
+    for (int k = 0; k < jp::layout::kNumStartSlots; ++k) { const int s = jp::layout::kStartSlots[k] - 1; if (s >= 0 && s < n) list[(size_t) s].start = true; }   // the START HERE list of the mockup
     cur.name = list.empty() ? "Init" : list[0].name; cur.type = list.empty() ? "Lead" : list[0].type;
     scanUser();
 }

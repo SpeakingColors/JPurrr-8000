@@ -36,6 +36,10 @@ static const ModDesign kDesign[13] = {
     { 3, 0.f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0,                           0, 0, 0, 1, 0, 0,    1.f },   // DISTORTION
 };
 
+// Overall output trim at full level, from the pink-ish multi sine level test in tests/test_soundfx.cpp
+// (the trim fades in with the level knob, so level 0 stays bit exact). Brings every type within about 0.5 dB.
+static const float kTrim[13] = { 1.07f, 1.08f, 1.084f, 1.04f, 1.f, 1.f, 0.97f, 0.80f, 0.766f, 0.85f, 0.78f, 1.39f, 1.f };
+
 // ---- distortion waveshaper and its level match table
 
 static const float kBias = 0.1f;   // small asymmetry for some even harmonics; the DC it makes is removed after
@@ -119,7 +123,7 @@ void MultiFx::runChorus(const float* in[2], float* out[2], const float* lev, int
     for (int i = 0; i < n; ++i) {
         float ph = advanceLfo();
         float ds = std::min(1.f, std::max(0.25f, d.rate / std::max(rateCur_, 0.01f)));   // keep pitch wobble sane at fast sync rates
-        float g = mixNorm(lev[i]);
+        float g = mixNorm(lev[i]) * (1.f + lev[i] * (kTrim[type_] - 1.f));
         for (int c = 0; c < 2; ++c) {
             float x = in[c][i], v[2];
             for (int k = 0; k < 2; ++k) {
@@ -145,7 +149,7 @@ void MultiFx::runFlanger(const float* in[2], float* out[2], const float* lev, in
     const float wetScale = std::sqrt(std::max(0.f, 1.f - d.fb * d.fb)) * d.wetGain;   // average wet power 1 despite the feedback
     for (int i = 0; i < n; ++i) {
         float ph = advanceLfo();
-        float g = mixNorm(lev[i]);
+        float g = mixNorm(lev[i]) * (1.f + lev[i] * (kTrim[type_] - 1.f));
         for (int c = 0; c < 2; ++c) {
             float x = in[c][i];
             float u = 0.5f + 0.5f * std::sin(kTwoPi * (ph + (c ? d.lr : 0.f)));
@@ -171,7 +175,7 @@ void MultiFx::runPhaser(const float* in[2], float* out[2], const float* lev, int
     const float wetScale = std::sqrt(std::max(0.f, 1.f - d.fb * d.fb)) * d.wetGain;   // keeps the average wet power at 1
     for (int i = 0; i < n; ++i) {
         float ph = advanceLfo();
-        float g = 1.f / (1.f + lev[i]);      // allpass sums are in phase outside the notches: peak normalised
+        float g = (1.f + lev[i] * (kTrim[type_] - 1.f)) / (1.f + lev[i]);      // allpass sums are in phase outside the notches: peak normalised
         for (int c = 0; c < 2; ++c) {
             float x = in[c][i];
             float p = ph + (c ? d.lr : 0.f);

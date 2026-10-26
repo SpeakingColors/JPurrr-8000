@@ -38,7 +38,7 @@ static void fillLive(Live& L, const juce::var& lv, double sr) {
     L.activeVoices = (int) lv.getProperty("voices", kind == "silence" ? 0 : 1);
     L.gatePhase = (int) lv.getProperty("gatePhase", -1);
     L.gluGR = (float) (double) lv.getProperty("glu", 0); L.optoGR = (float) (double) lv.getProperty("opto", 0);
-    for (int i = 0; i < 3; ++i) L.ottGR[i] = (float) (double) lv.getProperty("ott", juce::var()).getArray()->getUnchecked(0) * 0 + (lv.hasProperty("ott") ? (float) (double) (*lv["ott"].getArray())[i] : 0.0f);
+    for (int i = 0; i < 3; ++i) L.ottGR[i] = lv.hasProperty("ott") ? (float) (double) (*lv["ott"].getArray())[i] : 0.0f;
     for (int i = 0; i < 4; ++i) {
         L.mbCompGR[i] = lv.hasProperty("mbc") ? (float) (double) (*lv["mbc"].getArray())[i] : 0.0f;
         L.mbLimGR[i] = lv.hasProperty("mbl") ? (float) (double) (*lv["mbl"].getArray())[i] : 0.0f;
@@ -61,8 +61,63 @@ static void savePng(const juce::Image& img, const juce::File& f) {
     if (os.openedOk()) juce::PNGImageFormat().writeImageToStream(img, os);
 }
 
+
+// ---- --selftest: drives the mouse interactions with synthetic events and checks the parameter values
+static juce::MouseEvent mkEvent(juce::Component& c, float x, float y, int clicks = 1, bool dragged = false) {
+    auto src = juce::Desktop::getInstance().getMainMouseSource();
+    return juce::MouseEvent(src, juce::Point<float>(x, y), juce::ModifierKeys(), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, &c, &c,
+                            juce::Time::getCurrentTime(), juce::Point<float>(x, y), juce::Time::getCurrentTime(), clicks, dragged);
+}
+static int selftest() {
+    int vals[kNumParams]; const Patch& base = factoryPatch(0); for (int i = 0; i < kNumParams; ++i) vals[i] = base.v[i];
+    int begun = 0, ended = 0, ribT = paramIndexById("fc");
+    jp::DisplayEnv env;
+    env.get = [&](int i) { return vals[i]; };
+    env.set = [&](int i, int v) { vals[i] = juce::jlimit(kParams[i].min, kParams[i].max, v); };
+    env.beginGesture = [&](int) { ++begun; }; env.endGesture = [&](int) { ++ended; };
+    env.ribbonTarget = [&] { return ribT; };
+    int fails = 0;
+    auto check = [&](const char* what, bool ok) { std::printf("%s %s\n", ok ? "ok  " : "FAIL", what); if (!ok) ++fails; };
+    auto idx = [](const char* id) { return paramIndexById(id); };
+    {   auto d = jp::makeDisplay("cv_pad", env); const float W = 112, H = 112;
+        d->mouseDown(mkEvent(*d, 1 + W * 0.75f, 1 + H * 0.25f)); check("pad bend", vals[idx("bend")] == 31); check("pad mod", vals[idx("mod")] == 95);
+        d->mouseUp(mkEvent(*d, 1, 1)); check("pad springs back", vals[idx("bend")] == 0 && vals[idx("mod")] == 0); }
+    {   auto d = jp::makeDisplay("cv_gate", env); vals[idx("gpat")] = 0; const float sw = 1100 / 16.0f;
+        d->mouseDown(mkEvent(*d, 1 + sw * 3.5f, 100)); check("gate step 3 on", vals[idx("gpat")] == 8);
+        d->mouseDrag(mkEvent(*d, 1 + sw * 5.5f, 100, 1, true)); check("gate drag paints 4,5", vals[idx("gpat")] == (8 | 16 | 32));
+        d->mouseUp(mkEvent(*d, 1, 1)); vals[idx("gpat")] = 0x00F0;
+        d->mouseDown(mkEvent(*d, 1 + sw * 4.5f, 100)); check("gate step off", vals[idx("gpat")] == 0x00E0); d->mouseUp(mkEvent(*d, 1, 1)); }
+    {   auto d = jp::makeDisplay("cv_rib", env); const float W = 250; const int fc = idx("fc"); vals[fc] = 40; vals[idx("rrel")] = 0; vals[idx("rhold")] = 0;
+        d->mouseDown(mkEvent(*d, 1 + W * 0.5f, 30)); check("ribbon rib value", vals[idx("rib")] == 64);
+        check("ribbon absolute target", vals[fc] == juce::roundToInt(kParams[fc].min + (64 / 127.0) * (kParams[fc].max - kParams[fc].min)));
+        d->mouseUp(mkEvent(*d, 1, 1)); check("ribbon release restores", vals[idx("rib")] == 0 && vals[fc] == 40);
+        vals[idx("rhold")] = 1; d->mouseDown(mkEvent(*d, 1 + W * 0.25f, 30)); d->mouseUp(mkEvent(*d, 1, 1)); check("ribbon hold stays", vals[idx("rib")] == 32); }
+    {   auto d = jp::makeDisplay("cv_qv", env); const auto G = jp::disp::ottGeo(490, 170);
+        const int dm = idx("qvdm"), um = idx("qvum"); vals[dm] = 0; vals[um] = 0;
+        const float cx = 1 + G.x0 + (G.bw + G.gap) + G.bw / 2;
+        d->mouseDown(mkEvent(*d, cx, 1 + G.yT + 0.45f * G.H * 0.5f)); check("ott top edge 50%", std::abs(vals[dm] - 64) <= 1 && vals[um] == 0);
+        d->mouseDrag(mkEvent(*d, cx, 1 + G.yT - 50, 1, true)); check("ott clamps at 0", vals[dm] == 0);
+        d->mouseUp(mkEvent(*d, cx, 1));
+        d->mouseDown(mkEvent(*d, cx, 1 + G.yB - 0.45f * G.H * 0.25f)); check("ott bottom edge 25%", std::abs(vals[um] - 32) <= 1); d->mouseUp(mkEvent(*d, cx, 1));
+        vals[dm] = 100; d->mouseDoubleClick(mkEvent(*d, cx, 40, 2)); check("ott double click resets", vals[dm] == kParams[dm].def && vals[um] == kParams[um].def); }
+    {   auto d = jp::makeDisplay("cv_qdm", env); const int x2 = idx("qmx2"); const auto fs = jp::disp::mbFr(env.get);
+        const float px = std::log(fs[1] / 20) / std::log(1000.0f) * 2320 + 1;
+        d->mouseDown(mkEvent(*d, px + 3, 100));
+        const float want = 2000.0f; d->mouseDrag(mkEvent(*d, std::log(want / 20) / std::log(1000.0f) * 2320 + 1, 100, 1, true));
+        d->mouseUp(mkEvent(*d, px, 100));
+        const auto f2 = jp::disp::mbFr(env.get); check("multiband crossover drag", std::abs(f2[1] - want) / want < 0.03f);
+        const int before = vals[idx("qmx1")]; d->mouseDown(mkEvent(*d, 1500, 100)); d->mouseUp(mkEvent(*d, 1500, 100)); check("multiband click away ignored", vals[idx("qmx1")] == before); (void) x2; }
+    {   auto d = jp::makeDisplay("cv_o1", env); jp::DisplayEnv e2 = env; e2.nowSeconds = 10; (void) d;
+        auto o = jp::makeDisplay("cv_o1", e2); check("o1 info plain", o->infoText().isNotEmpty());
+        const auto before = o->infoText(); jp::noteTouch(idx("o1c1")); check("o1 info changes on touch", o->infoText() != before);
+        e2.nowSeconds = 12; check("o1 param view ends after 1.7 s", o->infoText() == before); }
+    check("gestures balanced", begun == ended);
+    std::printf("%d failure(s)\n", fails); return fails ? 1 : 0;
+}
+
 int main(int argc, char** argv) {
     juce::ScopedJuceInitialiser_GUI init;
+    if (argc >= 2 && juce::String(argv[1]) == "--selftest") return selftest();
     if (argc < 3) { std::fprintf(stderr, "usage: jpurrr_displays states.json outdir [--chrome]\n"); return 1; }
     bool chrome = false; for (int i = 3; i < argc; ++i) if (juce::String(argv[i]) == "--chrome") chrome = true;
     const auto states = juce::JSON::parse(juce::File::getCurrentWorkingDirectory().getChildFile(argv[1]));

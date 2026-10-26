@@ -116,16 +116,20 @@ public:
     }
     void mouseDown(const juce::MouseEvent& e) override {
         on = true; if (env.beginGesture) { env.beginGesture(P_gpat); env.beginGesture(P_gpt); }
-        const int i = stepAt(e); val = ((v(P_gpat) >> i) & 1) ? 0 : 1; apply(e);
+        const int i = stepAt(e); val = ((v(P_gpat) >> i) & 1) ? 0 : 1; last = i; apply(e);
     }
     void mouseDrag(const juce::MouseEvent& e) override { if (on) apply(e); }
     void mouseUp(const juce::MouseEvent&) override { if (!on) return; on = false; if (env.endGesture) { env.endGesture(P_gpat); env.endGesture(P_gpt); } }
 private:
-    bool on = false; int val = 1;
+    bool on = false; int val = 1, last = 0;
     float floorLevel() const { const int d = v(P_gdep); return d >= 127 ? 0.0f : std::pow(10.0f, -d / 127.0f * 60 / 20); }
     int stepAt(const juce::MouseEvent& e) const { return clampv((int) std::floor(toCanvas(e.position).x / (float) W * 16), 0, 15); }
     void apply(const juce::MouseEvent& e) {
-        const int bit = 1 << stepAt(e), cur = v(P_gpat); const int nv = val ? (cur | bit) : (cur & ~bit);
+        // fill every step between the last and the current one, so a fast drag leaves no gaps (the mockup only sees the sampled steps)
+        const int now = stepAt(e); int bits = 0;
+        for (int k = std::min(last, now); k <= std::max(last, now); ++k) bits |= 1 << k;
+        last = now;
+        const int cur = v(P_gpat); const int nv = val ? (cur | bits) : (cur & ~bits);
         if (nv != cur) { env.set(P_gpat, nv); env.set(P_gpt, 0); repaint(); }
     }
 };

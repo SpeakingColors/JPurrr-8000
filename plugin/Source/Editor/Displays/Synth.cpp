@@ -6,7 +6,7 @@ namespace jp::disp {
 using namespace jpurrr;
 
 namespace {
-const float K7[7] = { -0.11002313f, -0.06288439f, -0.01952356f, 0.0f, 0.01991221f, 0.06216538f, 0.10745242f };
+const double K7[7] = { -0.11002313f, -0.06288439f, -0.01952356f, 0.0f, 0.01991221f, 0.06216538f, 0.10745242f };
 const char* const O1W[7] = { "SUPER SAW", "TRIANGLE MOD", "NOISE", "FEEDBACK OSC", "SQUARE (PWM)", "SAW", "TRIANGLE" };
 const char* const O1L[7][2] = { { "DETUNE", "MIX" }, { "OFFSET", "LFO1 DEPTH" }, { "CUTOFF FREQ", "RESONANCE" }, { "HARMONICS", "FEEDBACK AMT" },
                                 { "PULSE WIDTH", "PWM DEPTH" }, { "SHAPE", "LFO1 DEPTH" }, { "SHAPE", "LFO1 DEPTH" } };
@@ -125,9 +125,9 @@ public:
     }
     void draw(Ctx& x, float w, float h) override {
         const int wv = juce::jlimit(0, 6, v(P_o1w)); const bool param = paramView();
-        const float c1 = (float) v(P_o1c1), c2 = (float) v(P_o1c2);
-        const double crd = curveD((double) v(P_o1c1) / 127.0); const float cr = (float) crd, m = c2 / 127, n = c1 / 127;
-        const float gc = -0.55366f * m + 0.99785f, gs = -0.73764f * m * m + 1.2841f * m + 0.044372f;
+        const double c1 = v(P_o1c1), c2 = v(P_o1c2);
+        const double crd = curveD((double) v(P_o1c1) / 127.0); const float cr = (float) crd; const double m = c2 / 127.0, n = c1 / 127.0;
+        const double gc = -0.55366 * m + 0.99785, gs = -0.73764 * m * m + 1.2841 * m + 0.044372;
         auto wave = [&](double ph, double t) -> double {
             if (wv == 0) {
                 double sum = 0, tot = 0;   // double: the saw edges sit on pixel borders, float shifts them visibly
@@ -165,7 +165,7 @@ public:
     void touched(int idx) override { if (idx == P_o2c1 || idx == P_o2c2) bump(); }
     void draw(Ctx& x, float w, float h) override {
         const int wv = juce::jlimit(0, 3, v(P_o2w)); const bool param = paramView();
-        const float c1 = v(P_o2c1) / 127.0f, c2 = v(P_o2c2) / 127.0f;
+        const double c1 = v(P_o2c1) / 127.0, c2 = v(P_o2c2) / 127.0;
         auto wave = [&](double ph, double t) -> double {
             if (wv == 0) { const double d = 0.1 + c1 * 0.8 + std::sin(t * 6) * c2 * 0.3; return fr_(ph) < clampv(d, 0.05, 0.95) ? 1.0 : -1.0; }
             if (wv == 1) return sawW(ph);

@@ -43,7 +43,8 @@ struct FxChain::Impl {
     int lat = 0;
     float peakL = 0.f, peakR = 0.f;
 
-    int latencyFor(int look) const { return DriveStack::latency() + SoftClipper::latency() + TruePeakProbe::delay() + look; }
+    // limLat is TruePeakLimiter::latency(), which already contains the true peak probe delay
+    int latencyFor(int limLat) const { return DriveStack::latency() + SoftClipper::latency() + limLat; }
 
     void applyParams(const int* v) {
         std::memcpy(prm, v, sizeof(prm)); havePrm = true;
@@ -153,7 +154,7 @@ void FxChain::prepare(double sr, int maxBlock) {
     s.sr = sr; s.maxBlock = maxBlock;
     s.gate.prepare(sr);
     s.ch.prepare(sr);
-    unsigned n = 1024; while ((int) n < s.latencyFor((int) std::ceil(kMaxLookaheadSec * sr) + 2) + 4 * kSub) n <<= 1;
+    unsigned n = 1024; while ((int) n < s.latencyFor(TruePeakProbe::delay() + (int) std::ceil(kMaxLookaheadSec * sr) + 2) + 4 * kSub) n <<= 1;
     for (auto& h : s.hist) h.assign(n, 0.f);
     s.hmask = n - 1; s.hw = 0;
     s.qon.setRate(sr);

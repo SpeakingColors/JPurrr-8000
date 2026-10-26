@@ -74,7 +74,7 @@ void TruePeakLimiter::process(float* l, float* r, int n) {
         while (s.dqIdx[s.dqHead & s.dqMask] + W <= s.t) ++s.dqHead;
         const float m = s.dqVal[s.dqHead & s.dqMask];
         // box average of m over W values
-        const double old = s.mring[(s.mw) & s.mmask];
+        const double old = s.mring[(s.mw - W) & s.mmask];      // the value that leaves the window of W values
         s.mring[s.mw & s.mmask] = m; ++s.mw;
         s.msum += (double) m - old;
         if (++s.sumCount >= 65536u) { s.sumCount = 0; double acc = 0; for (unsigned k = 0; k < W; ++k) acc += s.mring[(s.mw - 1u - k) & s.mmask]; s.msum = acc; }

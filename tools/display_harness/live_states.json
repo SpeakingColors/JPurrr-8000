@@ -1,0 +1,8 @@
+[
+ {"name":"live_saw","t":2.0,"scr":0.3,"params":{"qvon":1,"gon":1,"pd":40},"live":{"kind":"saw","freq":220,"amp":0.5,"voices":1,"gatePhase":5,"glu":-4.5,"opto":-6,"ott":[-6,-12,-3],"mbc":[-3,-8,-12,-5],"mbl":[-1,-2,-4,0],"noteAgo":0.25}},
+ {"name":"live_note_rel","t":2.0,"scr":0.3,"live":{"kind":"sine","freq":440,"amp":0.3,"voices":0,"noteAgo":1.5,"offAgo":0.4}},
+ {"name":"live_noise","t":2.0,"scr":0.3,"live":{"kind":"noise","amp":0.4,"voices":1}},
+ {"name":"live_stereo","t":2.0,"scr":0.3,"live":{"kind":"stereo","freq":330,"amp":0.6,"voices":1}},
+ {"name":"live_silence","t":2.0,"scr":0.3,"live":{"kind":"silence","voices":0}},
+ {"name":"live_loud","t":2.0,"scr":0.3,"live":{"kind":"sine","freq":100,"amp":1.4,"voices":1}}
+]

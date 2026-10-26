@@ -207,6 +207,7 @@ TEST(fxchain_true_peak_limiter_ceiling) {
             }
             g.run(in, inR, oL, oR);
             double pk = std::max(truePeakDb(oL), truePeakDb(oR));
+            std::printf("    limiter qlc %d look %d kind %d: true peak %.3f dB, ceiling %.1f\n", c.qlc, c.look, kind, pk, ceilDb);
             CHECK(pk <= ceilDb + 0.1);
             if (kind == 0 || kind == 2) CHECK(pk > ceilDb - 1.5);       // and it is actually loud, not just silent
         }
