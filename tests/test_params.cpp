@@ -8,3 +8,13 @@ TEST(params_table) {
         CHECK(paramIndexById(kParams[i].id) == i);
     }
 }
+#include "jpurrr/patch.h"
+TEST(factory_presets) {
+    CHECK(factoryCount() == 51);
+    for (int i = 0; i < factoryCount(); ++i) {
+        const Patch& p = factoryPatch(i);
+        CHECK(!p.name.empty());
+        for (int k = 0; k < kNumParams; ++k) CHECK(p.v[k] >= kParams[k].min && p.v[k] <= kParams[k].max);
+    }
+    CHECK(factoryPatch(0).name == "Anthem Cat");
+}
