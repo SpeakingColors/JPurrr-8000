@@ -35,6 +35,7 @@ MenuLnF& menuLnF() { static MenuLnF l; return l; }
 }
 
 void jp::styleMenu(juce::LookAndFeel_V4& lf, const Look& L) { (void) lf; (void) L; }
+juce::LookAndFeel_V4& jp::popupLnF(const Look& L) { auto& l = menuLnF(); l.L = &L; return l; }
 
 // =========================================================================================== knob
 KnobW::KnobW(Ctx& c, int i) : Ctrl(c), idx(i) {
@@ -265,7 +266,7 @@ void SelectW::drawBox(juce::Graphics& g, juce::Rectangle<float> r, const juce::S
     const float asc = f.getAscent(), desc = f.getDescent();
     const float base = r.getY() + 1.0f + (r.getHeight() - 2.0f - (asc + desc)) / 2.0f + asc;
     g.saveState(); g.reduceClipRegion(r.reduced(1.0f).withTrimmedRight(16.0f).toNearestInt());
-    g.drawSingleLineText(text, juce::roundToInt(r.getX() + 5.0f), juce::roundToInt(base));
+    drawTextAt(g, text, r.getX() + 8.6f, std::round(base) + 1.0f, 'l');
     g.restoreState();
     // chevron
     juce::Path ch; const float cx = r.getRight() - 9.5f, cy = r.getCentreY();

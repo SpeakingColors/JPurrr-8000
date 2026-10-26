@@ -28,6 +28,7 @@ fs.writeFileSync(tmp, html);
       window.__SCR = st.scr != null ? st.scr : 0; window.__T = st.t != null ? st.t : 0;
       const f0 = J.FACTORY[0];
       const v = Object.assign({}, f0.v, st.params || {});
+      for (const id of J.ORDER) if (P[id].nosave && id !== 'm2d') P[id].v = P[id].def;
       // nosave params (bend, mod, rib...) survive loadPreset, so set them first
       for (const id in (st.params || {})) if (P[id] && P[id].nosave) P[id].v = st.params[id];
       J.loadPreset(Object.assign({}, f0, { v }));

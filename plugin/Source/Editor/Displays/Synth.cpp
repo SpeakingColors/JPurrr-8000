@@ -12,13 +12,13 @@ const char* const O1L[7][2] = { { "DETUNE", "MIX" }, { "OFFSET", "LFO1 DEPTH" },
                                 { "PULSE WIDTH", "PWM DEPTH" }, { "SHAPE", "LFO1 DEPTH" }, { "SHAPE", "LFO1 DEPTH" } };
 const char* const O2L[4][2] = { { "PULSE WIDTH", "PWM DEPTH" }, { "SHAPE", "LFO1 DEPTH" }, { "SHAPE", "LFO1 DEPTH" }, { "CUTOFF FREQ", "RESONANCE" } };
 
-float sawW(float p) { return 1 - 2 * fr_(p); }
-float triW(float p) { p = fr_(p); return p < 0.5f ? p * 4 - 1 : 3 - p * 4; }
+template <class T> T sawW(T p) { return 1 - 2 * fr_(p); }
+template <class T> T triW(T p) { p = fr_(p); return p < T(0.5) ? p * 4 - 1 : 3 - p * 4; }
 const std::array<float, 64>& nzTab() {
     static std::array<float, 64> a = [] { std::array<float, 64> t{}; for (int i = 0; i < 64; ++i) t[(size_t) i] = (float) (std::sin(i * 91.7) * std::cos(i * 13.3)); return t; }();
     return a;
 }
-float noiseAt(float ph, float t) { return nzTab()[(size_t) std::floor(fr_(ph * 1.7f + t * 3) * 63)]; }
+float noiseAt(double ph, double t) { return nzTab()[(size_t) std::floor(fr_(ph * 1.7 + t * 3) * 63)]; }
 int rnd(float x) { return (int) std::floor(x + 0.5f); }
 
 // Last note, like the mockup's LV.last, rebuilt from the note counters of env.live.
@@ -67,22 +67,22 @@ class OscBase : public CanvasDisplay {
 public:
     using CanvasDisplay::CanvasDisplay;
 protected:
-    double viewUntil = -1; float scr = 0;
+    double viewUntil = -1; double scr = 0;
     bool paramView() const { return env.nowSeconds < viewUntil; }
     void bump() { viewUntil = env.nowSeconds + 1.7; repaint(); }
     void update() override {
-        if (env.animPhase >= 0) { scr = (float) env.animPhase; return; }
+        if (env.animPhase >= 0) { scr = env.animPhase; return; }
         const bool voices = env.live && env.live->activeVoices.load() > 0;
-        scr = std::fmod(scr + dt() * (voices ? 2.2f : 0.9f), 1000.0f);
+        scr = std::fmod(scr + dt() * (voices ? 2.2 : 0.9), 1000.0);
     }
-    float clockT() const { return (float) env.nowSeconds * 0.35f; }
+    double clockT() const { return env.nowSeconds / 1.0 * 0.35; }
     template <class F> void waveView(Ctx& x, float w, float h, F fn) const {
-        const float t = clockT(); const float mid = (h + 14) / 2, amp = (h - 14) / 2 - 5;
+        const double t = clockT(); const float mid = (h + 14) / 2, amp = (h - 14) / 2 - 5;
         x.strokeStyle(x.pal.grid); x.lineWidth = 1; x.line(0, mid + 0.5f, w, mid + 0.5f);
         x.strokeStyle(x.pal.line); x.lineWidth = 1.6f; x.beginPath();
         const int N = (int) std::floor(w);
         for (int i = 0; i <= N; ++i) {
-            const float ph = i / w * 2.5f + scr; const float y = fn(ph, i, t);
+            const double ph = (double) i / w * 2.5 + scr; const float y = (float) fn(ph, i, t);
             const float py = mid - clampv(y, -1.2f, 1.2f) * amp;
             if (i == 0) x.moveTo((float) i, py); else x.lineTo((float) i, py);
         }
@@ -116,7 +116,7 @@ public:
     juce::String infoText(int) const override {
         const int wv = juce::jlimit(0, 6, v(P_o1w));
         if (!paramView()) return O1W[wv];
-        const float cr = curveD(v(P_o1c1) / 127.0f);
+        const double cr = curveD((double) v(P_o1c1) / 127.0);
         if (wv == 0) {
             const int lo = rnd(1200 * std::log2(1 + K7[0] * cr)), hi = rnd(1200 * std::log2(1 + K7[6] * cr));
             return juce::String::fromUTF8("7 saws \xC2\xB7 ") + juce::String(lo) + juce::String::fromUTF8(" \xE2\x80\xA6 +") + juce::String(hi) + " ct";
@@ -126,22 +126,22 @@ public:
     void draw(Ctx& x, float w, float h) override {
         const int wv = juce::jlimit(0, 6, v(P_o1w)); const bool param = paramView();
         const float c1 = (float) v(P_o1c1), c2 = (float) v(P_o1c2);
-        const float cr = curveD(c1 / 127), m = c2 / 127, n = c1 / 127;
+        const double crd = curveD((double) v(P_o1c1) / 127.0); const float cr = (float) crd, m = c2 / 127, n = c1 / 127;
         const float gc = -0.55366f * m + 0.99785f, gs = -0.73764f * m * m + 1.2841f * m + 0.044372f;
-        auto wave = [&](float ph, float t) -> float {
+        auto wave = [&](double ph, double t) -> double {
             if (wv == 0) {
-                float sum = 0, tot = 0;
-                for (int i = 0; i < 7; ++i) { const float g = i == 3 ? gc : gs; const float k = 1 + K7[i] * cr * 3; sum += g * sawW(ph * k + t * k); tot += g; }
-                return sum / std::max(0.5f, tot * 0.62f);
+                double sum = 0, tot = 0;   // double: the saw edges sit on pixel borders, float shifts them visibly
+                for (int i = 0; i < 7; ++i) { const double g = i == 3 ? gc : gs; const double k = 1 + (double) K7[i] * crd * 3; const double p = (double) ph * k + (double) t * k; sum += g * (1 - 2 * (p - std::floor(p))); tot += g; }
+                return sum / std::max(0.5, tot * 0.62);
             }
-            if (wv == 1) return triW(ph) * (1 - n * 0.5f) + std::sin(ph * 6.2831853f * 3) * n * 0.4f;
+            if (wv == 1) return triW(ph) * (1 - n * 0.5) + std::sin(ph * 6.283185307179586 * 3) * n * 0.4;
             if (wv == 2) return noiseAt(ph, t);
-            if (wv == 3) return std::sin(ph * 6.2831853f + std::sin(ph * 12.566371f) * m * 3) * (0.4f + n * 0.6f);
-            if (wv == 4) { const float d = 0.1f + n * 0.8f + std::sin(t * 6) * m * 0.3f; return fr_(ph) < clampv(d, 0.05f, 0.95f) ? 1.0f : -1.0f; }
+            if (wv == 3) return std::sin(ph * 6.283185307179586 + std::sin(ph * 12.566370614359172) * m * 3) * (0.4 + n * 0.6);
+            if (wv == 4) { const double d = 0.1 + n * 0.8 + std::sin(t * 6) * m * 0.3; return fr_(ph) < clampv(d, 0.05, 0.95) ? 1.0 : -1.0; }
             if (wv == 5) return sawW(ph);
             return triW(ph);
         };
-        if (!param) { waveView(x, w, h, [&](float ph, int, float t) { return wave(ph, t); }); return; }
+        if (!param) { waveView(x, w, h, [&](double ph, int, double t) { return wave(ph, t); }); return; }
         x.strokeStyle(x.pal.grid); x.lineWidth = 1; x.line(0, h - 14.5f, w, h - 14.5f);
         if (wv == 0) {
             const float R = 215;
@@ -153,7 +153,7 @@ public:
             x.fillStyle(x.pal.txt); x.mono(15.5f); x.textAlign(0);
             x.fillText("-250", 14, h - 3); x.fillText("0", w / 2, h - 3); x.fillText("+250 ct", w - 20, h - 3);
         } else {
-            shapeView(x, w, h, [&](float ph) { return wave(ph, 0.0f); }, wv == 4 ? n : -1.0f, wv == 4 ? m : 0.0f);
+            shapeView(x, w, h, [&](double ph) { return wave(ph, 0.0); }, wv == 4 ? n : -1.0f, wv == 4 ? m : 0.0f);
         }
     }
 };
@@ -166,14 +166,14 @@ public:
     void draw(Ctx& x, float w, float h) override {
         const int wv = juce::jlimit(0, 3, v(P_o2w)); const bool param = paramView();
         const float c1 = v(P_o2c1) / 127.0f, c2 = v(P_o2c2) / 127.0f;
-        auto wave = [&](float ph, float t) -> float {
-            if (wv == 0) { const float d = 0.1f + c1 * 0.8f + std::sin(t * 6) * c2 * 0.3f; return fr_(ph) < clampv(d, 0.05f, 0.95f) ? 1.0f : -1.0f; }
+        auto wave = [&](double ph, double t) -> double {
+            if (wv == 0) { const double d = 0.1 + c1 * 0.8 + std::sin(t * 6) * c2 * 0.3; return fr_(ph) < clampv(d, 0.05, 0.95) ? 1.0 : -1.0; }
             if (wv == 1) return sawW(ph);
             if (wv == 2) return triW(ph);
             return noiseAt(ph, t);
         };
-        if (!param) { waveView(x, w, h, [&](float ph, int, float t) { return wave(ph, t); }); return; }
-        shapeView(x, w, h, [&](float ph) { return wave(ph, 0.0f); }, wv == 0 ? c1 : -1.0f, wv == 0 ? c2 : 0.0f);
+        if (!param) { waveView(x, w, h, [&](double ph, int, double t) { return wave(ph, t); }); return; }
+        shapeView(x, w, h, [&](double ph) { return wave(ph, 0.0); }, wv == 0 ? c1 : -1.0f, wv == 0 ? c2 : 0.0f);
         x.fillStyle(x.pal.txt); x.mono(15.5f); x.textAlign(-1);
         x.fillText(juce::String(O2L[wv][0]) + " " + juce::String(v(P_o2c1)) + juce::String::fromUTF8(" \xC2\xB7 ") + O2L[wv][1] + " " + juce::String(v(P_o2c2)), 3, h - 3);
     }

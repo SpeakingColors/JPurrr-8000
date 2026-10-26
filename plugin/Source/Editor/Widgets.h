@@ -140,5 +140,6 @@ void mpApply(Controller& c, int mpIndex, int presetIndex);
 
 // Popup menu look
 void styleMenu(juce::LookAndFeel_V4& lf, const Look& L);
+juce::LookAndFeel_V4& popupLnF(const Look& L);       // shared popup menu look (selects, preset menus)
 
 } // namespace jp

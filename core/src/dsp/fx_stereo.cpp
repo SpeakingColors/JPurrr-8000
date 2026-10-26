@@ -111,19 +111,19 @@ void Widener::run(float* l, float* r, int n) {
 }
 
 // ---------------------------------------------------------------- auto pan
-void AutoPan::prepare(double sr) { prepareBase(sr); depth_.setTime(0.05, sr / kSub); rate_.setTime(0.05, sr / kSub); resetState(); }
-void AutoPan::resetState() { phase_ = 0; }
-void AutoPan::wake() { depth_.snap(depth_.tgt); rate_.snap(rate_.tgt); }
-void AutoPan::setParams(bool on, int rate, int depth) {
-    setOn(on);
-    depth_.tgt = depth / 127.0; rate_.tgt = std::log(hzv(rate, 0.05, 4.0));
-}
 namespace {
 struct PanTable {    // cos and sin of x * pi / 2 for x in [0, 1], 1024 steps
     float c[1026], s[1026];
     PanTable() { for (int i = 0; i < 1026; ++i) { c[i] = (float) std::cos(kPi * 0.5 * i / 1024.0); s[i] = (float) std::sin(kPi * 0.5 * i / 1024.0); } }
 };
 const PanTable& panTable() { static const PanTable t; return t; }
+}
+void AutoPan::prepare(double sr) { panTable(); prepareBase(sr); depth_.setTime(0.05, sr / kSub); rate_.setTime(0.05, sr / kSub); resetState(); }
+void AutoPan::resetState() { phase_ = 0; }
+void AutoPan::wake() { depth_.snap(depth_.tgt); rate_.snap(rate_.tgt); }
+void AutoPan::setParams(bool on, int rate, int depth) {
+    setOn(on);
+    depth_.tgt = depth / 127.0; rate_.tgt = std::log(hzv(rate, 0.05, 4.0));
 }
 void AutoPan::run(float* l, float* r, int n) {
     const PanTable& T = panTable();

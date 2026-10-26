@@ -79,7 +79,7 @@ inline float hzv(float v, float lo, float hi) { return lo * std::pow(hi / lo, v 
 inline float tm(float v, float lo, float hi) { return lo * std::pow(hi / lo, v / 127.0f); }
 inline float mbThr(float v) { return -48.0f * (1.0f - v / 127.0f); }
 inline float mbRat(float v) { return 1.0f + 19.0f * std::pow(v / 127.0f, 1.6f); }
-float curveD(float x);
+double curveD(double x);   // degree 11 polynomial with large coefficients: needs double
 std::vector<float> shapeCurve(int dv, int dx, int df);   // 2048 points, as the mockup's drive curve
 struct OttGeo { float gap, x0, yT, yB, H, bw; };
 inline OttGeo ottGeo(float w, float h) { OttGeo g; g.gap = 14; g.x0 = 10; g.yT = 8; g.yB = h - 24; g.H = g.yB - g.yT; g.bw = (w - 2 * g.x0 - 2 * g.gap) / 3; return g; }
@@ -90,7 +90,7 @@ juce::String toFixed(double v, int digits); // JS toFixed
 
 // param index of "qm<b><suffix>" etc. ("qm1o"), cached
 int pid(const juce::String& id);
-inline float fr_(float p) { return p - std::floor(p); }
+template <class T> inline T fr_(T p) { return p - std::floor(p); }
 
 // ---------------------------------------------------------------- AnalyserNode style spectrum
 // fftSize 1024, Blackman window, smoothingTimeConstant 0.6, output in dB like getFloatFrequencyData (512 bins).

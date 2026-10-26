@@ -2,6 +2,7 @@
 """Compare ref (mockup) and mine (JUCE) renders: compare.py refdir minedir outdir [state ...]
 Writes <outdir>/<state>_cmp.png (rows: ref | mine | diff x4) and prints the mean abs difference per display."""
 import sys, os
+import numpy as np
 from PIL import Image, ImageChops, ImageDraw
 ref, mine, out = sys.argv[1:4]
 states = sys.argv[4:] or sorted(d for d in os.listdir(mine) if os.path.isdir(os.path.join(mine, d)))
@@ -16,9 +17,10 @@ for st in states:
         if a.size != b.size:
             print(st, f, 'SIZE MISMATCH', a.size, b.size); b = b.resize(a.size)
         d = ImageChops.difference(a, b)
-        px = list(d.getdata()); m = sum(sum(p) for p in px) / (3 * len(px))
+        m = float(np.asarray(d).mean())
         dd = d.point(lambda v: min(255, v * 4))
         print('%-10s %-12s mean|d|=%.2f' % (st, f[:-4], m))
+        if m < float(os.environ.get('CMP_MIN', '0')): continue
         gap = 8; w = a.width * 3 + gap * 2 if a.width < 700 else a.width
         if a.width < 700:
             row = Image.new('RGB', (w, a.height + 14), (35, 43, 88)); row.paste(a, (0, 14)); row.paste(b, (a.width + gap, 14)); row.paste(dd, (2 * (a.width + gap), 14))

@@ -144,6 +144,9 @@ pp = d['dyn']['pages']
 rows = ['{nullptr}']
 for i in range(1, 7): rows.append('{' + ','.join(cs(x) for x in pp[str(i)]) + ',nullptr}')
 w('const char* const kParamPages[7][13] = {%s};' % ',\n  '.join(rows))
+sc = d['dyn']['scope']
+w('const char* const kScope[] = {%s};' % ','.join(cs(x) for x in sc))
+w('const int kNumScope = %d;' % len(sc))
 w('}')
 open(os.path.join(root, 'plugin/Source/Editor/layout_gen.cpp'), 'w').write('\n'.join(out) + '\n')
 print('layout_gen.cpp', sum(len(x) for x in out))

@@ -131,7 +131,7 @@ void PageView::drawText(juce::Graphics& g, const Text& t, const juce::String* ov
     }
     if (wrapsCentred(id)) {
         const float maxW = id.startsWith("lb_") ? 76.0f : t.r.w;
-        auto lines = wrapWords(ov->toUpperCase(), f, maxW);
+        auto lines = wrapWords((id.startsWith("lb_") ? ov->toUpperCase() : *ov), f, maxW);
         const float lh = t.f.size * 1.05f, last = t.lines[t.lines.n - 1].base, cx = t.r.x + t.r.w / 2.0f;
         for (int i = 0; i < lines.size(); ++i) drawTextAt(g, lines[i], cx, last - lh * (float) (lines.size() - 1 - i), 'c');
     } else {
@@ -143,7 +143,8 @@ void PageView::drawText(juce::Graphics& g, const Text& t, const juce::String* ov
 void PageView::paint(juce::Graphics& g) {
     const Look& L = x.L();
     for (auto& s : page.secs) {
-        juce::Rectangle<float> r(s.r.x, s.r.y, s.r.w, s.r.h);
+        const float sx0 = std::round(s.r.x), sy0 = std::round(s.r.y), sx1 = std::round(s.r.x + s.r.w), sy1 = std::round(s.r.y + s.r.h);
+        juce::Rectangle<float> r(sx0, sy0, sx1 - sx0, sy1 - sy0);   // browsers snap box edges to device pixels
         g.setColour(juce::Colours::black.withAlpha(0.25f)); g.fillRoundedRectangle(r.translated(0, 1), 3.0f);
         g.setColour(L[pnl2]); g.fillRoundedRectangle(r, 3.0f);
         g.setColour(L[hi]); g.fillRect(juce::Rectangle<float>(r.getX() + 1, r.getY() + 1, r.getWidth() - 2, 1.0f));
@@ -155,7 +156,8 @@ void PageView::paint(juce::Graphics& g) {
         g.fillRect(s.span.x + s.span.w + 8.0f, ly, juce::jmax(0.0f, s.ttl.x + s.ttl.w - 8.0f - (s.span.x + s.span.w + 8.0f)), 1.0f);
     }
     for (auto& m : page.mbps) {
-        juce::Rectangle<float> r(m.x, m.y, m.w, m.h);
+        const float mx0 = std::round(m.x), my0 = std::round(m.y);
+        juce::Rectangle<float> r(mx0, my0, std::round(m.x + m.w) - mx0, std::round(m.y + m.h) - my0);
         g.setColour(L[pnl2]); g.fillRoundedRectangle(r, 6.0f);
         g.setColour(L[sbd]); g.drawRoundedRectangle(r.reduced(0.5f), 6.0f, 1.0f);
     }

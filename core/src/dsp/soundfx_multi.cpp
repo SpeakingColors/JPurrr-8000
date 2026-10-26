@@ -29,7 +29,7 @@ static const ModDesign kDesign[13] = {
     { 1, 0.22f, { 0, 0 }, { 0, 0 }, 0, 0, 0.25f, 9.0f, 0.80f,              0, 0, 0, 1, 0.25f, 0, 1.f },   // FLANGER DEEP
     { 1, 0.90f, { 0, 0 }, { 0, 0 }, 0, 0, 0.5f, 3.5f, 0.55f,               0, 0, 0, 1, 0.25f, 0, 1.f },   // FLANGER FAST
     { 2, 0.15f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.65f,                     8, 250, 3500, 1, 0.25f, 0, 1.f },   // DEEP PHASING SLW
-    { 2, 0.06f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.82f,                     6, 120, 9000, 1, 0.15f, 0, 1.f },  // JET PHASING
+    { 2, 0.06f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.82f,                     6, 120, 5000, 1, 0.15f, 0, 1.f },  // JET PHASING
     { 2, 0.45f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.50f,                     6, 300, 4200, 1, 0.50f, 0.35f, 1.f }, // TWISTING
     { 2, 0.03f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.72f,                     8, 860, 900, 1.45f, 0.50f, 0, 1.f }, // FREEZE PHASE 1
     { 2, 0.025f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, -0.72f,                   10, 420, 440, 2.6f, 0.50f, 0, 1.f },  // FREEZE PHASE 2
@@ -171,7 +171,7 @@ void MultiFx::runPhaser(const float* in[2], float* out[2], const float* lev, int
     const float wetScale = std::sqrt(std::max(0.f, 1.f - d.fb * d.fb)) * d.wetGain;   // keeps the average wet power at 1
     for (int i = 0; i < n; ++i) {
         float ph = advanceLfo();
-        float g = mixNorm(lev[i]);
+        float g = 1.f / (1.f + lev[i]);      // allpass sums are in phase outside the notches: peak normalised
         for (int c = 0; c < 2; ++c) {
             float x = in[c][i];
             float p = ph + (c ? d.lr : 0.f);

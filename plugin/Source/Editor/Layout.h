@@ -63,5 +63,6 @@ extern const char* const kO1L[7][2]; extern const char* const kO2L[4][2];
 extern const char* const kVmc[27];
 extern const int kStartSlots[]; extern const int kNumStartSlots;      // factory 'START HERE' slots
 extern const char* const kBanks[8]; extern const char* const kTypes[10]; extern const char* const kGenres[9];
+extern const char* const kScope[]; extern const int kNumScope;          // SCOPE page: ids of the panel controls, in panel order
 extern const char* const kParamPages[7][13]; // EDIT pages 1..6 (index 0 unused): param ids, nullptr terminated
 }

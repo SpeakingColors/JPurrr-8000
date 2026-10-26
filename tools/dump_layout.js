@@ -183,7 +183,8 @@ function walk() {
     const secp = {}; document.querySelectorAll('.mpsel').forEach(s => { secp[s.dataset.mp] = true; });
     const fmt = {}; J.ORDER.forEach(id => { const q = J.P[id]; if (q.fmt && q.max - q.min <= 600) { const a = []; for (let v = q.min; v <= q.max; v++) a.push(q.fmt(v)); fmt[id] = a; } });
     const factoryMeta = J.FACTORY.map(f => ({ name: f.name, type: f.type, genres: f.genres, slot: f.slot, start: f.start }));
-    return { fmt, mpd, qvals: qv, o1l: J.O1L, o2l: J.O2L, o1w: J.O1W, vmc: J.VMC, pages: J.PAGES, banks: J.BANKS, types: J.TYPES, genres: J.GENRES, gpats: J.GPATS, factoryMeta };
+    return { fmt, mpd, qvals: qv, o1l: J.O1L, o2l: J.O2L, o1w: J.O1W, vmc: J.VMC, pages: J.PAGES, banks: J.BANKS, types: J.TYPES, genres: J.GENRES, gpats: J.GPATS, factoryMeta,
+      scope: J.ORDER.filter(id => !J.P[id].hid && ['k', 's', 'o', 'd', 'w'].includes(J.P[id].t)) };
   });
   // parameter metadata needed by the pages (labels, tips of controls without .ctl)
   out.design.h = out.pageH;

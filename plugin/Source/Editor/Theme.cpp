@@ -24,7 +24,7 @@ Palette jp::paletteOf(const Look& l) {
 
 juce::Font jp::fontOf(layout::Fam fam, float px, int weight, float ls) {
     juce::Font f = fam == kBody ? fonts::body(px, weight) : fam == kCond ? fonts::cond(px, weight) : fonts::mono(px, weight);
-    if (ls != 0.0f) f = f.withExtraKerningFactor(ls);
+    if (ls != 0.0f) f = f.withExtraKerningFactor(ls * px / f.getHeight());   // JUCE tracking is relative to the font height, CSS to the em size
     return f;
 }
 juce::Font jp::fontOf(const layout::Font& f) { return fontOf(f.fam, f.size, f.weight, f.ls); }
@@ -84,7 +84,7 @@ void jp::drawCat(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour fill)
     juce::Path w;
     w.startNewSubPath(3, 26); w.lineTo(12, 25); w.startNewSubPath(3, 30); w.lineTo(12, 28);
     w.startNewSubPath(37, 26); w.lineTo(28, 25); w.startNewSubPath(37, 30); w.lineTo(28, 28);
-    g.strokePath(w, juce::PathStrokeType(1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), t);
+    g.strokePath(w, juce::PathStrokeType(1.0f * s, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), t);
 }
 
 void jp::drawWood(juce::Graphics& g, juce::Rectangle<float> r, bool left) {

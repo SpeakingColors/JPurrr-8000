@@ -251,8 +251,10 @@ juce::Image jp::panelTexture(const Look& L) {
     juce::Image img(juce::Image::ARGB, 35, 35, true);
     juce::Graphics g(img);
     // radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.2px) every 5 px; black .08 dots every 7 px, offset (2,3); opacity .5
-    for (int j = 0; j < 7; ++j) for (int i = 0; i < 7; ++i) { g.setColour(juce::Colours::white.withAlpha(0.025f)); g.fillEllipse((float) i * 5 + 2.5f - 1.1f, (float) j * 5 + 2.5f - 1.1f, 2.2f, 2.2f); }
-    for (int j = 0; j < 5; ++j) for (int i = 0; i < 5; ++i) { g.setColour(juce::Colours::black.withAlpha(0.04f)); g.fillEllipse((float) i * 7 + 5.5f - 1.1f, (float) j * 7 + 6.5f - 1.1f, 2.2f, 2.2f); }
+    // a 1 px radius dot lights the centre pixel and its four neighbours (as the browser rasterises it)
+    auto dot = [&](int cx, int cy, juce::Colour c) { g.setColour(c); for (auto o : { std::pair<int,int>{0,0}, {1,0}, {-1,0}, {0,1}, {0,-1} }) g.fillRect(cx + o.first, cy + o.second, 1, 1); };
+    for (int j = 0; j < 7; ++j) for (int i = 0; i < 7; ++i) dot(i * 5 + 2, j * 5 + 2, juce::Colours::white.withAlpha(0.027f));
+    for (int j = 0; j < 5; ++j) for (int i = 0; i < 5; ++i) dot(i * 7 + 5, j * 7 + 6, juce::Colours::black.withAlpha(0.04f));
     return img;
 }
 

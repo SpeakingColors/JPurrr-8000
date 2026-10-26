@@ -26,12 +26,12 @@ void Ctx::fillText(const juce::String& s, float x, float y) {
 }
 
 // ---------------------------------------------------------------- helper maths
-float curveD(float x) {
+double curveD(double x) {
     static const double co[12] = { 10028.7312891634, -50818.8652045924, 111363.4808729368, -138150.6761080548, 106649.6679158292, -53046.9642751875,
                                    17019.9518580080, -3425.0836591318, 404.2703938388, -24.1878824391, 0.6717417634, 0.0030115596 };
     double r = 0;
     for (double k : co) r = r * x + k;
-    return (float) r;
+    return r;
 }
 
 std::vector<float> shapeCurve(int dv, int dx, int df) {

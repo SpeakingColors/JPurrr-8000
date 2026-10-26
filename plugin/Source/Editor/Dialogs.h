@@ -1,11 +1,12 @@
 // In-window dialogs of the mockup (scrim + panel): Guide, Settings, About, Save, Replace, Delete, Export, Import,
-// Preset browser and the EDIT parameter pages.
+// Preset browser and the EDIT parameter pages. All sizes are the mockup's CSS values times its dialog zoom (1.3).
 #pragma once
 #include "Widgets.h"
 
 namespace jp {
 
 class Root;
+class DialogFrame;
 
 class DialogLayer : public juce::Component {
 public:
@@ -21,16 +22,19 @@ public:
     void close();
     void openGuide(); void openSettings(); void openAbout(); void openSave(); void openBrowser();
     void openExport(); void openImport(); void openDelete(); void openPage(int bank);
-    void refresh();                                    // 30 Hz
+    void refresh();                                    // 30 Hz: live values on the pages, frees closed dialogs
     void lookChanged();
-    class Panel; 
+    void relayout();                                   // after the content of the open dialog changed size
 
 private:
+    friend class DialogFrame;
     Root& root;
-    std::unique_ptr<juce::Component> panel;
+    std::unique_ptr<DialogFrame> panel;
+    std::vector<std::unique_ptr<juce::Component>> graveyard;     // closed dialogs are freed on the next tick (a button may close its own dialog)
     bool pageMode = false;
-    void show(std::unique_ptr<juce::Component> p, bool page = false);
-    friend class Panel;
+    void openReplace(const juce::String& name, const juce::String& type, const juce::StringArray& genres, const juce::StringArray& tags, const juce::String& bank);
+    DialogFrame& begin(const juce::String& title, float widthCss, bool page = false);
+    void finish(DialogFrame& f);
 };
 
 } // namespace jp
