@@ -316,8 +316,8 @@ const ctr=sec('CONTROLLER',0,240,
  `<div class="row" style="gap:8px">${btn('rba','RIBBON / CTRL ASSIGN','Press, then move a knob or slider: the ribbon controller and the control lever will move that parameter.')}${btn('va','VELOCITY ASSIGN','Press, then move a knob or slider to set how velocity changes it (morphing).')}</div>`+
  `<div class="row" style="gap:6px">${K('bu','BEND UP',0,24,2,'Pitch bend range up, in semitones (0 to +24).',{fmt:v=>'+'+v+' st'})}${K('bd','BEND DOWN',-24,0,-2,'Pitch bend range down, in semitones (-24 to 0).',{fmt:v=>v+' st'})}</div>`);
 const rbn=sec('BEND / MOD LEVER AND RIBBON',0,230,
- `<div class="row" style="gap:10px;align-items:flex-start"><div class="col" data-tip="Bend and mod lever: drag left or right to bend the pitch, up to add LFO 2 (the modulation lever). It springs back when let go.">${CV('cv_pad',92,92)}<div class="lb dim w">BEND / MOD</div></div>
-  <div class="col" style="gap:4px" data-tip="Ribbon controller: touch and slide. It moves the parameter set with RIBBON / CTRL ASSIGN (or nothing). In RELATIVE mode it works around the current value.">${CV('cv_rib',220,50)}<div class="row" style="gap:14px">${T('rrel','RELATIVE',1,'Relative: the ribbon changes the value around where it is now. Dark is absolute.')}${T('rhold','HOLD',0,'Hold: the ribbon value stays when you lift your finger.')}</div><div class="lb dim w">RIBBON CONTROLLER</div></div></div>`);
+ `<div class="row" style="gap:10px;align-items:flex-start"><div class="col" data-tip="Bend and mod lever: drag left or right to bend the pitch, up to add LFO 2 (the modulation lever). It springs back when let go.">${CV('cv_pad',112,112)}<div class="lb dim w">BEND / MOD</div></div>
+  <div class="col" style="gap:4px" data-tip="Ribbon controller: touch and slide. It moves the parameter set with RIBBON / CTRL ASSIGN (or nothing). In RELATIVE mode it works around the current value.">${CV('cv_rib',250,64)}<div class="row" style="gap:14px">${T('rrel','RELATIVE',1,'Relative: the ribbon changes the value around where it is now. Dark is absolute.')}${T('rhold','HOLD',0,'Hold: the ribbon value stays when you lift your finger.')}</div><div class="lb dim w">RIBBON CONTROLLER</div></div></div>`);
 const fxs=sec('EFFECTS',0,240,
  `<div class="row" style="gap:6px">${K('tb','BASS',-64,63,0,'Tone control: low shelf. Right of centre adds low end, left cuts it.')}${K('tt','TREBLE',-64,63,0,'Tone control: high shelf. Right of centre adds highs, left cuts them.')}${K('xl','MULTI-FX LEVEL',0,127,55,'Level of the chorus, flanger, phaser or distortion chosen below.')}${K('dt','DELAY TIME',0,127,70,'Delay time. The range depends on the delay type.')}${K('dfb','FEEDBACK',0,127,40,'How much of the delay comes back into itself.')}${K('dl','DELAY LEVEL',0,127,22,'Delay level. 0 is off.')}${T('vsend','VOICE MOD SEND',0,'Send the patch into the Voice Modulator.')}</div>`+
  `<div class="row" style="gap:20px;align-items:flex-end">${D('xt','MULTI-FX TYPE',FX,1,'Multi effects type. Twelve chorus, flanger and phaser types plus DISTORTION (new on the JP-8080). Distortion takes the place of the chorus.')}${D('dty','DELAY TYPE',DLY,0,'Delay type: panning left to right, right to left, short panning, mono short or mono long.')}</div>`);
@@ -529,7 +529,8 @@ win.addEventListener('pointerleave',hideTip);win.addEventListener('pointerdown',
 /* ================= displays (canvas) ================= */
 let CC={};
 function cacheColors(){const cs=getComputedStyle(win);const g=n=>cs.getPropertyValue(n).trim();CC={bg:g('--dsp'),line:g('--dspline'),fill:g('--dspfill'),grid:g('--dspgrid'),acc:g('--dspaccent'),txt:g('--lbl2')};}
-function cx(id){const c=$('#'+id,win);if(!c)return null;const x=c.getContext('2d');x.setTransform(2,0,0,2,0,0);x.clearRect(0,0,c.dataset.w,c.dataset.h);return {x,w:+c.dataset.w,h:+c.dataset.h};}
+function fixCtx(x){if(!x._ft){x._ft=x.fillText.bind(x);x.fillText=function(t,a,b,m){const fs=parseFloat(x.font)||12;if(x.textBaseline==='alphabetic'&&b<fs*.8+1)b=fs*.8+1;return x._ft(t,a,b,m)}}return x}
+function cx(id){const c=$('#'+id,win);if(!c)return null;const x=fixCtx(c.getContext('2d'));x.setTransform(2,0,0,2,0,0);x.clearRect(0,0,c.dataset.w,c.dataset.h);return {x,w:+c.dataset.w,h:+c.dataset.h};}
 const K7=[-0.11002313,-0.06288439,-0.01952356,0,0.01991221,0.06216538,0.10745242];
 const view={o1:0,o2:0};
 function poke(o){view[o]=performance.now()+1700;requestDraw();}
@@ -736,7 +737,7 @@ const LIVE={
 function lvFlow(x,w,h,rows){if(!LV.act)return;const per=Math.ceil(FLOW.length/rows),gap=5,bw=(w-(per-1)*gap)/per,bh=(h-12-(rows-1)*8)/rows;
  const KEY=['drv','eq','eq','eq','eq','opt','ott','mb','glu','out','out','out','out'];
  FLOW.forEach((m,i)=>{const r=Math.floor(i/per),k=i%per,X=k*(bw+gap),Y=12+r*(bh+8);const on=P.qon.v&&P[m[1]].v;if(!on)return;const u=clamp((LV.lvl[KEY[i]]+50)/50,0,1);x.fillStyle=CC.acc;x.globalAlpha=.9;x.fillRect(X+3,Y+bh-6,(bw-6)*u,3);x.globalAlpha=1;});}
-function cx2(id){const c=$('#'+id,win);if(!c||!c.offsetParent)return null;const x=c.getContext('2d');x.setTransform(2,0,0,2,0,0);return {x,w:+c.dataset.w,h:+c.dataset.h};}
+function cx2(id){const c=$('#'+id,win);if(!c||!c.offsetParent)return null;const x=fixCtx(c.getContext('2d'));x.setTransform(2,0,0,2,0,0);return {x,w:+c.dataset.w,h:+c.dataset.h};}
 Object.keys(LIVE).forEach(k=>{const o=D3[k];D3[k]=function(){o();if(!LV.built)return;const c=cx2(k);if(c)LIVE[k](c.x,c.w,c.h);};});
 const LV_ANIM=['cv_f','cv_q','cv_qd','cv_ql','cv_qm','cv_qt','cv_qr','cv_qg','cv_qw','cv_qp','cv_qo','cv_pe','cv_fe','cv_ae','cv_qf','cv_qf2','cv_qa','cv_qv','cv_qdm'];
 function lvTick(){lvUpdate();if(!(LV.act||LV.was))return;LV_ANIM.forEach(k=>{const c=$('#'+k,win);if(c&&c.offsetParent)D3[k]();});}
