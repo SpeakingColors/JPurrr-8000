@@ -1,0 +1,22 @@
+# Build output
+build/
+cmake-build-*/
+out/
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dylib
+*.vst3
+*.clap
+# IDE and OS
+.vscode/
+.idea/
+.vs/
+*.user
+.DS_Store
+Thumbs.db
+# Python
+__pycache__/
+*.pyc
