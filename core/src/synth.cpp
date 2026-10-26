@@ -445,6 +445,7 @@ struct Synth::Impl {
         modCur += (mt - modCur) * bendA;
         ctl.bend = bendCur; ctl.mod = modCur;
         ctl.bpm = bpm(); ctl.playing = playing; ctl.ppq = beatPos;
+        ctl.parallelOut = keyMode != 0 && mainV[P_oas] == 1;
         for (auto& v : voices) if (v.sounding()) v.control(parts[v.part].cur, ctl, false);
     }
     // master stage for k samples: volume, trim, duck, limiter
@@ -472,10 +473,10 @@ struct Synth::Impl {
             const int k = std::min(m - done, kControlBlock - cbPos);
             for (auto& v : voices) if (v.st != VState::Idle) v.render(k, L + done, R + done);
             masterStage(L + done, R + done, k);
+            if (playing) beatPos += k * bpm() / 60.0 / sr;
             cbPos += k; if (cbPos >= kControlBlock) cbPos = 0;
             done += k;
         }
-        if (playing) beatPos += m * bpm() / 60.0 / sr;
     }
     void process(float* L, float* R, int n) {
         NoDenormals nd;

@@ -289,6 +289,7 @@ void Voice::control(const PatchParams& P, const BlockCtl& C, bool snap) {
         float pan = 0.f;
         if (P.ap == 1) pan = clampf(P.s[PatchParams::S_al] * l1, -1.f, 1.f);
         else if (P.ap == 2) pan = clampf(P.s[PatchParams::S_al], -1.f, 1.f);
+        if (C.parallelOut) pan = part == 1 ? -1.f : 1.f;
         const float velG = std::pow(vel / 127.f, 0.6f);
         const float aT = P.s[PatchParams::S_level] * velG * uniGain * trem;
         const float plT = panL(pan), prT = panR(pan);

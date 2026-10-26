@@ -61,6 +61,7 @@ struct BlockCtl {
     double bpm = 120.0;
     bool playing = false;
     double ppq = 0.0;        // quarter note position at the start of this control block
+    bool parallelOut = false; // dual / split with OUTPUT ASSIGN = PARALLEL OUT: lower part left, upper part right
 };
 
 enum class VState : uint8_t { Idle, Held, Released, Fading };
