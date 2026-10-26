@@ -2,7 +2,7 @@
 
 Nice twist on a trance classic, a nod to the famous JP-8000.
 
-A free and open source VST3 synth for Linux, in the spirit of the late 90s JP-8000 and JP-8080. Clean-room: no Roland code, ROM or samples are used.
+A free and open source VST3 synth for Linux, in the spirit of the late 90s JP-8000 and JP-8080.
 
 ![JPurrr-8000 design mockup](docs/screenshot.png)
 

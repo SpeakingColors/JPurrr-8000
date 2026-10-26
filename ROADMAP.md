@@ -7,7 +7,7 @@ Rough order. Nothing here is promised for a date.
 - Live displays fed by the real audio (the mockup already shows how they should move).
 
 ## 2. Sound engine
-- Super Saw oscillator and the other waveforms, built clean-room.
+- Super Saw oscillator and the other waveforms.
 - Real unison with a measured spread law, filter, envelopes, LFOs, arpeggiator, key modes (single, dual, split).
 - Dual: two patches layered, one per part. Split: a split point, each part with its own patch. Part selection through the PART and PANEL SELECT controls.
 
