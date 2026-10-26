@@ -104,7 +104,7 @@ body{background:var(--bg);color:var(--fg);font-family:'Barlow',system-ui,sans-se
 .sw.mom:active{filter:brightness(1.6)}
 select{background:var(--sel);color:var(--selfg);border:1px solid var(--btnbd);border-radius:3px;font:600 16.7px 'Barlow Condensed',sans-serif;letter-spacing:.05em;height:22px;padding:0 4px;max-width:175px;cursor:pointer}
 canvas.cv{display:block;background:var(--dsp);border:1px solid var(--edge);border-radius:2px;box-shadow:inset 0 0 6px rgba(0,0,0,.6)}
-.note{font:400 13.8px 'JetBrains Mono',monospace;color:var(--lbl2);text-align:center;line-height:1.2;max-width:150px}
+.note{font:400 15.5px 'JetBrains Mono',monospace;color:var(--lbl2);text-align:center;line-height:1.2;max-width:150px}
 .lcd{background:var(--lcdbg);border:2px solid var(--edge);border-radius:3px;padding:6px 10px;font:500 23.6px 'JetBrains Mono',monospace;color:var(--lcdfg);line-height:1.35;box-shadow:inset 0 0 10px rgba(0,0,0,.8);min-width:250px}
 .lcd div{white-space:pre;overflow:hidden}
 .lcd .dm{color:var(--lcdoff)}
@@ -168,7 +168,7 @@ canvas.cv#cv_pad,canvas.cv#cv_rib{cursor:crosshair;touch-action:none}
 .dlg{zoom:1.3}#pmenu{zoom:1.25}#tip{zoom:1.2}
 </style>
 
-<div class="pagebar"><b>JPurrr-8000</b><span>Design mockup v3.2: the JP-8000 front panel plus the MIX READY and MASTER pages. This is the plugin window. Drag any edge or corner to resize, double click a wood cheek for 100%.</span></div>
+<div class="pagebar"><b>JPurrr-8000</b><span>Design mockup v3.2: the JP-8000 front panel plus the MIX READY and MASTER pages. This is the plugin window at its real size. In a narrow pane, scroll sideways or press Fit width. Drag any edge or corner to resize, double click a wood cheek for 100%.</span></div>
 <div id="stageWrap"><div id="holder"><div id="win"></div></div></div>
 <div class="zoomrow"><button id="zOut" aria-label="Zoom out">−</button><button id="zIn" aria-label="Zoom in">+</button><button id="zFit">Fit width</button><button id="z100">100%</button><output id="zOutp" aria-label="Zoom"></output>
 <span>The keys at the bottom are a preview rig, not part of the plugin. Sound is a rough preview (no chorus, unison, voice count or LFOs).</span></div>
@@ -405,13 +405,13 @@ const MBD={1:{t:64,r:46,a:30,l:21,y:0},2:{t:64,r:45,a:110,l:0,y:64},3:{t:64,r:29
 const MBP=(b,name,rng,on)=>`<div class="mbp"><div class="row" style="gap:12px;align-items:flex-end;justify-content:space-between;width:100%"><div class="mbn"><b>${name}</b><span id="mbr${b}">${rng}</span></div><div class="row" style="gap:10px">${T('qm'+b+'o','BAND',on,name+' band on or off. Off bands pass the sound untouched.')}${Tn('qm'+b+'u','MUTE',0,'Silence this band to hear what the others do. Not saved with the sound.')}${Tn('qm'+b+'s','SOLO',0,'Hear only this band. Not saved with the sound.')}</div></div>`+
  `<div class="mbrow"><div class="mbl">COMP</div>${K('qm'+b+'t','THRESH',0,127,MBD[b].t,name+' compressor threshold. The signal above it is turned down.',{fmt:v=>mbThr(v).toFixed(0)+' dB'})}${K('qm'+b+'r','RATIO',0,127,MBD[b].r,name+' compressor ratio, 1:1 to 1:20.',{fmt:v=>'1:'+mbRat(v).toFixed(1)})}${K('qm'+b+'a','ATTACK',0,127,MBD[b].a,name+' compressor attack, 0.1 to 100 ms.',{fmt:v=>msF(mbAtk(v))})}${K('qm'+b+'l','RELEASE',0,127,MBD[b].l,name+' compressor release, 1 ms to 1 s. Far left is AUTO.',{fmt:v=>v===0?'AUTO':msF(mbRel(v))})}${K('qm'+b+'b','BOOST',-12,12,0,name+' make up gain after the compressor.',{fmt:v=>(v>0?'+':'')+v+' dB'})}</div>`+
  `<div class="mbrow"><div class="mbl">LIMITER</div>${T('qm'+b+'x','ON',1,name+' limiter on or off. Every band has its own limiter at the end, so a loud band cannot punch through the others.')}${K('qm'+b+'y','RELEASE',0,127,MBD[b].y,name+' limiter release, 5 to 500 ms. Far left is AUTO.',{fmt:v=>v===0?'AUTO':msF(mbLrl(v))})}${K('qm'+b+'z','OUTPUT',-12,0,0,name+' limiter ceiling, the loudest this band can get.',{fmt:v=>v+' dB'})}</div></div>`;
-const dm=sec('MULTIBAND COMPRESSOR & LIMITER',2506,580,
+const dm=sec('MULTIBAND COMPRESSOR & LIMITER',2506,582,
  `<div class="row" style="gap:24px;align-items:flex-start;margin-top:12px"><div class="col" style="gap:12px;width:300px;flex:none">${mprow('mb')}<div class="row" style="gap:16px;align-items:flex-end">${T('qmon','ON',1,'Multiband compressor and limiter on or off. Four bands, each with its own compressor and its own limiter at the end.')}${K('qmmx','MIX',0,127,95,'Blend of the squeezed and the dry sound. Below 100 percent is parallel compression.',{fmt:v=>Math.round(v/127*100)+' %'})}</div><div class="row" style="gap:8px">${K('qmx1','LOW X',0,127,57,'Crossover between band 1 and band 2, 40 to 400 Hz. You can also drag the line in the display.',{fmt:hzf(40,400)})}${K('qmx2','MID X',0,127,84,'Crossover between band 2 and band 3, 300 Hz to 3 kHz.',{fmt:hzf(300,3000)})}${K('qmx3','HIGH X',0,127,65,'Crossover between band 3 and band 4, 4 to 16 kHz.',{fmt:hzf(4000,16000)})}</div><div class="note" style="max-width:300px">Four bands, 24 dB crossovers. Pink bar: compressor. Blue bar: limiter. Dashed line: threshold. Default preset: Trance Master 2.</div></div>`+
  `<div data-tip="Gain reduction per band. Pink bar: compressor. Blue bar: limiter. Dashed line: threshold. Drag a crossover line to move it.">${CV('cv_qdm',2320,236)}</div></div>`+
  `<div class="row" style="gap:10px;margin-top:10px">${MBP(1,'LOW','20 Hz to 113 Hz',0)}${MBP(2,'LOW MID','113 Hz to 1.4 kHz',1)}${MBP(3,'HIGH MID','1.4 kHz to 8.2 kHz',1)}${MBP(4,'HIGH','8.2 kHz up',1)}</div>`);
 const fxpage=`<div class="fxtabs"><button class="hb tab on" id="tfx1" data-tip="CHAIN page: the mix ready tools in signal order.">CHAIN</button><button class="hb tab" id="tfx2" data-tip="MASTER page: opto leveller, OTT squeeze, multiband compressor and limiter, clipper and limiter.">MASTER</button></div>`+
  `<div id="fx1" class="fxp"><div class="rowS" style="height:330px">${gate}${mst}${rsp}</div><div class="rowS" style="height:484px">${dr}${lo}${ms}${tr}${tm2}${gl}${wd}${ap}</div></div>`+
- `<div id="fx2" class="fxp" hidden><div class="rowS" style="height:362px">${opto}${ott}${ou}${flow2}</div><div class="rowS" style="height:580px">${dm}</div></div>`;
+ `<div id="fx2" class="fxp" hidden><div class="rowS" style="height:369px">${opto}${ott}${ou}${flow2}</div><div class="rowS" style="height:589px">${dm}</div></div>`;
 const logo=`<div class="logo">${CAT}<div><small>STUDIO 87</small><div class="big">JPurrr-8000</div><div class="sub">SYNTHESIZER</div></div></div>`;
 return `<div id="pgSound" class="pg"><div class="rowS"><div class="lblk" style="width:max-content">${logo}<div class="rowS">${ctr}${lfo2}${kbs}</div></div><div class="mblk"><div class="rowS">${fixW(lfo1,165)}${com}${osc1}${osc2}${flt}${amp}</div><div class="rowS">${fixW(vol,165)}${arp}${kpn}${disp}${fxs}</div></div></div><div class="rowS r4">${rbn}${mot}${ctrl}${vmod}${ext}${pfm}${outp}</div></div>`+`<div id="pgFx" class="pg" hidden>${fxpage}</div><div id="kbd"><span class="tag">Preview keyboard · not part of the plugin</span></div>`;
 }
@@ -1099,19 +1099,20 @@ function bindLever(){bindGate();const c=$('#cv_pad'),r=$('#cv_rib');
 function ribApply(){if(!ribT)return;const t=P[ribT],n=P.rib.v/127;const v=P.rrel.v?ribBase+(n-.5)*(t.max-t.min):t.min+n*(t.max-t.min);setP(ribT,v,false);}
 
 /* ================= window scale, eight handles, zoom row ================= */
-const holder=$('#holder'),wrap=$('#stageWrap');let scale=1,defScale=1;
+const holder=$('#holder'),wrap=$('#stageWrap');let scale=1,defScale=1;const NAT=.72,MINS=.6;
 function availW(){return Math.max(240,wrap.clientWidth-2);}
-function setScale(s){scale=clamp(s,defScale*.5,defScale*2.2);holder.style.width=W*scale+'px';holder.style.height=H*scale+'px';win.style.transform=`scale(${scale})`;
- const pct=Math.round(scale/defScale*100);$('#zOutp').textContent=pct+'%';$('#sizeRO').textContent=`${Math.round(W*scale)} × ${Math.round(H*scale)} px · ${pct}%`;}
+function setScale(s){scale=clamp(s,.25,1.8);holder.style.width=W*scale+'px';holder.style.height=H*scale+'px';win.style.transform=`scale(${scale})`;
+ const pct=Math.round(scale/NAT*100);$('#zOutp').textContent=pct+'%';$('#sizeRO').textContent=`${Math.round(W*scale)} × ${Math.round(H*scale)} px · ${pct}%`;}
 function fit(){return availW()/W;}
-function initScale(){defScale=Math.min(1,fit());setScale(defScale);}
+function pickDef(){return Math.max(MINS,Math.min(NAT,fit()));}
+function initScale(){defScale=pickDef();setScale(defScale);}
 ['n','s','e','w','ne','nw','se','sw'].forEach(c=>{const d=document.createElement('div');d.className='hd '+c;d.dataset.h=c;holder.appendChild(d);});
 let hd=null;holder.addEventListener('pointerdown',e=>{const h=e.target.closest('.hd');if(!h)return;e.preventDefault();hd={c:h.dataset.h,x:e.clientX,y:e.clientY,s:scale};h.setPointerCapture(e.pointerId);});
 holder.addEventListener('pointermove',e=>{if(!hd)return;const c=hd.c;const sx=c.includes('e')?1:c.includes('w')?-1:0,sy=c.includes('s')?1:c.includes('n')?-1:0;const n=(sx!==0)+(sy!==0);
  const ds=(sx*(e.clientX-hd.x)/W+sy*(e.clientY-hd.y)/H)/n;setScale(hd.s+ds);});
 holder.addEventListener('pointerup',()=>{hd=null;});holder.addEventListener('pointercancel',()=>{hd=null;});
-$('#zIn').onclick=()=>setScale(scale*1.1);$('#zOut').onclick=()=>setScale(scale/1.1);$('#zFit').onclick=()=>setScale(fit());$('#z100').onclick=()=>setScale(defScale);
-let rsT=0;addEventListener('resize',()=>{clearTimeout(rsT);rsT=setTimeout(()=>{const was=Math.abs(scale-defScale)<.001;defScale=Math.min(1,fit());if(was)setScale(defScale);else setScale(scale);},120);});
+$('#zIn').onclick=()=>setScale(scale*1.1);$('#zOut').onclick=()=>setScale(scale/1.1);$('#zFit').onclick=()=>setScale(fit());$('#z100').onclick=()=>setScale(NAT);
+let rsT=0;addEventListener('resize',()=>{clearTimeout(rsT);rsT=setTimeout(()=>{const was=Math.abs(scale-defScale)<.001;defScale=pickDef();if(was)setScale(defScale);else setScale(scale);},120);});
 
 /* ================= main loop (pauses when hidden) ================= */
 let visible=true;try{new IntersectionObserver(es=>{visible=es[0].isIntersecting;}).observe(win);}catch(e){}
