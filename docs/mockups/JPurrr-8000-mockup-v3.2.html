@@ -176,7 +176,7 @@ canvas.cv#cv_pad,canvas.cv#cv_rib{cursor:crosshair;touch-action:none}
 <script>
 (()=>{
 'use strict';
-const W=2950,H=1300;
+const W=2990,H=1300;
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -278,7 +278,7 @@ const mbFr=()=>{const f1=hzv(P.qmx1.v,40,400),f2=Math.max(hzv(P.qmx2.v,300,3000)
 const OTTW=490,OTTH=170;
 const ottGeo=(w,h)=>{const gap=14,x0=10,yT=8,yB=h-24;return {gap,x0,yT,yB,H:yB-yT,bw:(w-2*x0-2*gap)/3};};
 function buildPanel(){
-const lfo1=sec('LFO 1',120,330,
+const lfo1=sec('LFO 1',175,330,
  O('l1w','WAVEFORM',['TRI','SAW','SQR','S/H'],0,'LFO 1 waveform: TRI, SAW, SQR or S/H (random steps). It modulates pitch, filter and amp by the depth knobs.','two')+
  CV('cv_l1',100,34)+
  `<div class="row" style="gap:4px">${K('l1r','RATE',0,127,60,'LFO 1 speed.')}${K('l1f','FADE',0,127,0,'LFO 1 fade time: how long it takes to reach full depth after a key press.')}</div>`+
@@ -297,7 +297,7 @@ const osc2=sec('OSC 2',254,330,
   <div class="col">${CV('cv_o2',100,58)}<div class="row" style="gap:2px">${SL('o2c1','PULSE WIDTH',0,127,64,'CONTROL 1 of OSC 2. For SQR it is the pulse width.')}${SL('o2c2','PWM DEPTH',0,127,0,'CONTROL 2 of OSC 2. For SQR it is how far LFO 1 moves the pulse width.')}</div></div></div>`);
 const flt=sec('FILTER',560,330,
  `<div class="cols" style="gap:18px;align-items:flex-start;justify-content:space-between"><div class="col" style="gap:8px">${O('ft','TYPE',['HPF','BPF','LPF'],2,'Filter type: high pass, band pass or low pass.')}${T('f24','24 dB',1,'Filter slope: lit is 24 dB per octave, dark is 12 dB per octave.')}
-   <div class="row" style="gap:22px">${SL('fc','CUTOFF FREQ',0,127,92,'Filter cutoff frequency.',{h:142})}${SL('fr','RESONANCE',0,127,24,'Resonance. At the top the filter rings on its own and gives a sine tone.',{h:142})}</div></div>
+   <div class="row" style="gap:22px">${SL('fc','CUTOFF FREQ',0,127,92,'Filter cutoff frequency.',{h:118})}${SL('fr','RESONANCE',0,127,24,'Resonance. At the top the filter rings on its own and gives a sine tone.',{h:118})}</div></div>
   <div class="col" style="gap:10px">${CV('cv_f',220,150)}<div class="row" style="gap:6px">${K('fk','KEY FOLLOW',-64,63,32,'How much the cutoff follows the key. +32 keeps the brightness the same over the keyboard.')}${K('fl','LFO1 DEPTH',-64,63,0,'How much LFO 1 moves the cutoff.')}${K('fe','ENV DEPTH',-64,63,28,'How much the filter envelope moves the cutoff. Negative values invert it.')}</div></div>
   <div class="col" style="gap:10px">${CV('cv_fe',170,110)}<div class="row" style="gap:6px;margin-top:6px">${SL('fea','A',0,127,2,'Filter envelope attack time.',{h:104})}${SL('fed','D',0,127,60,'Filter envelope decay time.',{h:104})}${SL('fes','S',0,127,50,'Filter envelope sustain level.',{h:104})}${SL('fer','R',0,127,40,'Filter envelope release time.',{h:104})}</div></div></div>`);
 const amp=sec('AMP',226,330,
@@ -322,8 +322,9 @@ const fxs=sec('EFFECTS',480,240,
  `<div class="row" style="gap:6px">${K('tb','BASS',-64,63,0,'Tone control: low shelf. Right of centre adds low end, left cuts it.')}${K('tt','TREBLE',-64,63,0,'Tone control: high shelf. Right of centre adds highs, left cuts them.')}${K('xl','MULTI-FX LEVEL',0,127,55,'Level of the chorus, flanger, phaser or distortion chosen below.')}${K('dt','DELAY TIME',0,127,70,'Delay time. The range depends on the delay type.')}${K('dfb','FEEDBACK',0,127,40,'How much of the delay comes back into itself.')}${K('dl','DELAY LEVEL',0,127,22,'Delay level. 0 is off.')}${T('vsend','VOICE MOD SEND',0,'Send the patch into the Voice Modulator.')}</div>`+
  `<div class="row" style="gap:20px;align-items:flex-end">${D('xt','MULTI-FX TYPE',FX,1,'Multi effects type. Twelve chorus, flanger and phaser types plus DISTORTION (new on the JP-8080). Distortion takes the place of the chorus.')}${D('dty','DELAY TYPE',DLY,0,'Delay type: panning left to right, right to left, short panning, mono short or mono long.')}</div>`);
 
-const vol=sec('VOLUME',96,240,
+const vol=sec('VOLUME',175,240,
  K('vol','LEVEL',0,127,100,'Master volume of the plugin.')+T('prev','PREVIEW',1,'Preview: shows the on-screen keyboard to play sounds without a MIDI keyboard.'));
+const fixW=(h,w)=>h.replace('style="min-width:'+w+'px;','style="flex:0 0 '+w+'px;width:'+w+'px;min-width:'+w+'px;');
 P.prev.nosave=1;
 const arp=sec('ARPEGGIATOR / RPS',300,240,
  `<div class="row" style="gap:8px">${T('aon','ON / OFF',0,'Arpeggiator or RPS on or off.')}${T('ahold','HOLD',0,'Hold: keep the arpeggio going after you let go.')}${btn('arec','REC','Record an RPS pattern (comes with the plugin).')}${btn('arom','ROM PLAY','Play a built in RPS pattern (comes with the plugin).')}</div>`+
@@ -412,7 +413,7 @@ const fxpage=`<div class="fxtabs"><button class="hb tab on" id="tfx1" data-tip="
  `<div id="fx1" class="fxp"><div class="rowS" style="height:330px">${gate}${mst}${rsp}</div><div class="rowS" style="height:484px">${dr}${lo}${ms}${tr}${tm2}${gl}${wd}${ap}</div></div>`+
  `<div id="fx2" class="fxp" hidden><div class="rowS" style="height:362px">${opto}${ott}${ou}${flow2}</div><div class="rowS" style="height:580px">${dm}</div></div>`;
 const logo=`<div class="logo">${CAT}<div><small>STUDIO 87</small><div class="big">JPurrr-8000</div><div class="sub">SYNTHESIZER</div></div></div>`;
-return `<div id="pgSound" class="pg"><div class="rowS"><div class="lblk" style="width:760px">${logo}<div class="rowS">${ctr}${lfo2}${kbs}</div></div><div class="mblk"><div class="rowS">${lfo1}${com}${osc1}${osc2}${flt}${amp}</div><div class="rowS">${vol}${arp}${kpn}${disp}${fxs}</div></div></div><div class="rowS">${rbn}${mot}${ctrl}${vmod}${ext}${pfm}${outp}</div></div>`+`<div id="pgFx" class="pg" hidden>${fxpage}</div><div id="kbd"><span class="tag">Preview keyboard · not part of the plugin</span></div>`;
+return `<div id="pgSound" class="pg"><div class="rowS"><div class="lblk" style="width:760px">${logo}<div class="rowS">${ctr}${lfo2}${kbs}</div></div><div class="mblk"><div class="rowS">${fixW(lfo1,175)}${com}${osc1}${osc2}${flt}${amp}</div><div class="rowS">${fixW(vol,175)}${arp}${kpn}${disp}${fxs}</div></div></div><div class="rowS">${rbn}${mot}${ctrl}${vmod}${ext}${pfm}${outp}</div></div>`+`<div id="pgFx" class="pg" hidden>${fxpage}</div><div id="kbd"><span class="tag">Preview keyboard · not part of the plugin</span></div>`;
 }
 
 const CAT=`<svg viewBox="0 0 40 40" aria-hidden="true"><path fill="currentColor" d="M5 5l10 8c3-1 7-1 10 0l10-8 1 19c0 8-7 13-16 13S4 32 4 24z"/><circle cx="14.5" cy="23" r="2.6" fill="#0b1018"/><circle cx="25.5" cy="23" r="2.6" fill="#0b1018"/><path d="M18.3 27h3.4L20 29.2z" fill="#0b1018"/><path d="M3 26l9-1M3 30l9-2M37 26l-9-1M37 30l-9-2" stroke="#0b1018" stroke-width="1" fill="none" stroke-linecap="round"/></svg>`;
