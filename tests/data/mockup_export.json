@@ -1,0 +1,16 @@
+{
+ "app": "JPurr-8000",
+ "format": 1,
+ "name": "Pasted From Mockup",
+ "type": "Pad",
+ "futureKey": { "ignored": [1, 2, 3] },
+ "v": {
+  "fc": 64,
+  "fr": 90,
+  "ob": -10,
+  "xt": 12,
+  "bend": 30,
+  "notAParam": 5,
+  "o1w": 5
+ }
+}
