@@ -1,0 +1,293 @@
+name: Release
+
+# Builds Linux, Windows and macOS in Release, packages them and publishes a GitHub Release.
+# Start it by pushing a tag like v0.1.0, or by hand (Actions, Release, Run workflow) with the tag as input.
+# The tag must match the version in CMakeLists.txt (project(... VERSION x.y.z)). A suffix such as
+# v0.1.0-rc1 is allowed and makes it a pre-release (test build).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, for example v0.1.0 (created on main if it does not exist)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as test build (pre-release)'
+        required: false
+        default: false
+        type: boolean
+      skip_macos:
+        description: 'Skip the macOS job (use if macOS runners are stuck in the queue)'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  meta:
+    name: Check tag and version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+      skip_macos: ${{ steps.v.outputs.skip_macos }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read and check the version
+        id: v
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_PRE: ${{ github.event.inputs.prerelease }}
+          INPUT_SKIP_MACOS: ${{ github.event.inputs.skip_macos }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          tag=${INPUT_TAG:-$REF_NAME}
+          case "$tag" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "Tag '$tag' is not like v1.2.3" >&2; exit 1 ;;
+          esac
+          printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$' || { echo "Tag '$tag' has odd characters" >&2; exit 1; }
+          sh scripts/check_version.sh "$tag"
+          pre=false
+          case "$tag" in *-*) pre=true ;; esac
+          [ "${INPUT_PRE:-false}" = true ] && pre=true
+          {
+            echo "tag=$tag"
+            echo "version=${tag#v}"
+            echo "prerelease=$pre"
+            echo "skip_macos=${INPUT_SKIP_MACOS:-false}"
+          } >> "$GITHUB_OUTPUT"
+
+  linux:
+    name: Linux
+    needs: meta
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build ccache \
+            libasound2-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libfreetype-dev libfontconfig1-dev libgl1-mesa-dev libxext-dev
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-release-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-release-${{ runner.os }}-
+            ccache-plugin-${{ runner.os }}-
+      - name: Build
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DJPURRR_BUILD_PLUGIN=ON -DJPURRR_BUILD_TESTS=OFF \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build build --parallel 4
+      - name: Package
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          manual=""
+          [ -f docs/manual/JPurrr-8000-manual.pdf ] && manual=docs/manual/JPurrr-8000-manual.pdf
+          sh scripts/package_linux.sh "build/plugin/JPurrr8000_artefacts/$BUILD_TYPE" "$VERSION" dist "$manual"
+      - name: Test the tarball (unpack, install, uninstall, missing libraries)
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          set -eu
+          tmp=$(mktemp -d)
+          tar -xzf "dist/JPurrr-8000-$VERSION-Linux-x86_64.tar.gz" -C "$tmp"
+          d="$tmp/JPurrr-8000-$VERSION-Linux-x86_64"
+          export HOME="$tmp/home"; mkdir -p "$HOME"
+          sh "$d/install.sh"
+          test -f "$HOME/.vst3/JPurrr-8000.vst3/Contents/x86_64-linux/JPurrr-8000.so"
+          test -x "$HOME/.local/bin/JPurrr-8000"
+          if ldd "$HOME/.vst3/JPurrr-8000.vst3/Contents/x86_64-linux/JPurrr-8000.so" | grep 'not found'; then echo "missing libraries in the VST3" >&2; exit 1; fi
+          if ldd "$HOME/.local/bin/JPurrr-8000" | grep 'not found'; then echo "missing libraries in the standalone" >&2; exit 1; fi
+          sh "$d/install.sh" --uninstall
+          test ! -e "$HOME/.vst3/JPurrr-8000.vst3"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-linux
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  windows:
+    name: Windows
+    needs: meta
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (static runtime, x64)
+        run: |
+          cmake -S . -B build -A x64 \
+            '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>' \
+            -DJPURRR_BUILD_PLUGIN=ON -DJPURRR_BUILD_TESTS=OFF
+          cmake --build build --config "$BUILD_TYPE" --parallel 4
+      - name: Make sure Inno Setup is installed
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe')) {
+            choco install innosetup -y --no-progress
+          }
+      - name: Package
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          manual=""
+          [ -f docs/manual/JPurrr-8000-manual.pdf ] && manual=docs/manual/JPurrr-8000-manual.pdf
+          bash scripts/package_windows.sh "build/plugin/JPurrr8000_artefacts/$BUILD_TYPE" "$VERSION" dist "$manual"
+      - name: Test the installer (silent install, check files, uninstall)
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          $setup = (Resolve-Path "dist/JPurrr-8000-$env:VERSION-Windows-x64-Setup.exe").Path
+          $p = Start-Process -FilePath $setup -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/LOG=setup.log' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content setup.log -ErrorAction SilentlyContinue; throw "setup exit code $($p.ExitCode)" }
+          $vst3 = Join-Path $env:CommonProgramFiles 'VST3\JPurrr-8000.vst3\Contents\x86_64-win\JPurrr-8000.vst3'
+          $app = Join-Path $env:ProgramFiles 'Studio 87\JPurrr-8000\JPurrr-8000.exe'
+          if (-not (Test-Path $vst3)) { throw "missing $vst3" }
+          if (-not (Test-Path $app)) { throw "missing $app" }
+          $unins = Join-Path $env:ProgramFiles 'Studio 87\JPurrr-8000\unins000.exe'
+          if (-not (Test-Path $unins)) { throw "missing uninstaller" }
+          Start-Process -FilePath $unins -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          for ($i = 0; $i -lt 30 -and (Test-Path $vst3); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $vst3) { throw "uninstall left $vst3" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-windows
+          path: dist/*.exe
+          if-no-files-found: error
+
+  macos:
+    name: macOS
+    needs: meta
+    if: ${{ needs.meta.outputs.skip_macos != 'true' }}
+    # macos-15 instead of macos-latest: macos-latest sat queued for hours on 2026-10-24.
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (universal arm64 + x86_64)
+        run: |
+          command -v ninja >/dev/null || brew install ninja
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 \
+            -DJPURRR_BUILD_PLUGIN=ON -DJPURRR_BUILD_TESTS=OFF
+          cmake --build build --parallel 3
+      - name: Package
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          manual=""
+          [ -f docs/manual/JPurrr-8000-manual.pdf ] && manual=docs/manual/JPurrr-8000-manual.pdf
+          bash scripts/package_macos.sh "build/plugin/JPurrr8000_artefacts/$BUILD_TYPE" "$VERSION" dist "$manual"
+      - name: Test the package (install, check files, uninstall)
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          set -eu
+          pkgutil --check-signature "dist/JPurrr-8000-$VERSION-macOS.pkg" || true
+          sudo installer -pkg "dist/JPurrr-8000-$VERSION-macOS.pkg" -target /
+          test -f /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3/Contents/MacOS/JPurrr-8000
+          test -d /Applications/JPurrr-8000.app
+          test -x "/Library/Application Support/Studio 87/JPurrr-8000/uninstall.command"
+          lipo -archs /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3/Contents/MacOS/JPurrr-8000
+          codesign --verify --deep --strict /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3
+          sh "/Library/Application Support/Studio 87/JPurrr-8000/uninstall.command"
+          test ! -e /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3
+          test ! -e /Applications/JPurrr-8000.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-macos
+          path: dist/*.pkg
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [meta, linux, windows, macos]
+    # Runs when macOS was skipped on purpose, but not when anything failed or was cancelled.
+    if: ${{ !cancelled() && needs.linux.result == 'success' && needs.windows.result == 'success' && (needs.macos.result == 'success' || needs.macos.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pkg-*
+          path: dist
+          merge-multiple: true
+      - name: Collect files and checksums
+        run: |
+          set -eu
+          [ -f docs/manual/JPurrr-8000-manual.pdf ] && cp docs/manual/JPurrr-8000-manual.pdf dist/JPurrr-8000-manual.pdf
+          cd dist
+          ls -l
+          sha256sum -- * | grep -v ' SHA256SUMS.txt$' > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Write release notes
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+          PRE: ${{ needs.meta.outputs.prerelease }}
+          SKIP_MACOS: ${{ needs.meta.outputs.skip_macos }}
+        run: |
+          sh scripts/release_notes.sh "$TAG" "$PRE" > notes.md
+          if [ "$SKIP_MACOS" = true ]; then
+            printf '\nThe macOS package is not part of this release (that build was skipped).\n' >> notes.md
+          fi
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          PRE: ${{ needs.meta.outputs.prerelease }}
+        run: |
+          set -eu
+          flag=""
+          [ "$PRE" = true ] && flag="--prerelease"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists: replacing its files and text"
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --title "JPurrr-8000 $VERSION" --notes-file notes.md --prerelease="$PRE"
+          else
+            # shellcheck disable=SC2086
+            gh release create "$TAG" dist/* --title "JPurrr-8000 $VERSION" --notes-file notes.md --target "$GITHUB_SHA" $flag
+          fi
+      - name: Check the release has every file
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          SKIP_MACOS: ${{ needs.meta.outputs.skip_macos }}
+        run: |
+          set -eu
+          gh release view "$TAG" --json assets --jq '.assets[].name' | tee assets.txt
+          need="JPurrr-8000-$VERSION-Linux-x86_64.tar.gz JPurrr-8000-$VERSION-Windows-x64-Setup.exe SHA256SUMS.txt"
+          [ "$SKIP_MACOS" = true ] || need="$need JPurrr-8000-$VERSION-macOS.pkg"
+          for f in $need; do grep -qxF "$f" assets.txt || { echo "Missing asset: $f" >&2; exit 1; }; done
+          echo "Release page: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG}"

@@ -1,0 +1,214 @@
+name: CI
+
+# Core tests with sanitizers, then the plugin (VST3 + Standalone) on Linux, Windows and macOS.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  core-tests:
+    name: Core tests (Linux, ASan + UBSan)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build ccache
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-tests-${{ runner.os }}-${{ github.sha }}
+          restore-keys: ccache-tests-${{ runner.os }}-
+      - name: Build and run the core tests
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
+        run: sh tests/run.sh
+
+  scripts:
+    name: Scripts and workflows (lint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          shellcheck -s sh installer/linux/install.sh installer/macos/uninstall.command scripts/check_version.sh scripts/package_linux.sh scripts/release_notes.sh
+          shellcheck -s bash scripts/package_macos.sh scripts/package_windows.sh
+      - name: Installer round trip (fake build tree)
+        run: |
+          set -eu
+          tmp=$(mktemp -d)
+          mkdir -p "$tmp/art/VST3/JPurrr-8000.vst3/Contents/x86_64-linux" "$tmp/art/Standalone"
+          : > "$tmp/art/VST3/JPurrr-8000.vst3/Contents/x86_64-linux/JPurrr-8000.so"
+          printf '#!/bin/sh\n' > "$tmp/art/Standalone/JPurrr-8000"
+          export HOME="$tmp/home"; mkdir -p "$HOME"
+          sh installer/linux/install.sh --from "$tmp/art"
+          test -f "$HOME/.vst3/JPurrr-8000.vst3/Contents/x86_64-linux/JPurrr-8000.so"
+          test -x "$HOME/.local/bin/JPurrr-8000"
+          test -f "$HOME/.local/share/applications/jpurrr-8000.desktop"
+          sh installer/linux/install.sh --from "$tmp/art"
+          sh installer/linux/install.sh --uninstall
+          test ! -e "$HOME/.vst3/JPurrr-8000.vst3"
+          test ! -e "$HOME/.local/bin/JPurrr-8000"
+
+  plugin:
+    name: Plugin (${{ matrix.name }})
+    needs: core-tests
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+          - name: Windows
+            os: windows-latest
+          # macos-15 instead of macos-latest: macos-latest sat queued for hours on 2026-10-24.
+          - name: macOS
+            os: macos-15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build ccache xvfb \
+            libasound2-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libfreetype-dev libfontconfig1-dev libgl1-mesa-dev libxext-dev
+
+      - name: Cache ccache (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-plugin-${{ runner.os }}-${{ github.sha }}
+          restore-keys: ccache-plugin-${{ runner.os }}-
+
+      - name: Configure (Linux)
+        if: runner.os == 'Linux'
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DJPURRR_BUILD_PLUGIN=ON -DJPURRR_BUILD_TESTS=OFF \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      # ccache cannot cache universal (two architecture) compiles, so it is not used on macOS.
+      - name: Configure (macOS universal)
+        if: runner.os == 'macOS'
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 \
+            -DJPURRR_BUILD_PLUGIN=ON -DJPURRR_BUILD_TESTS=OFF
+
+      # Static runtime: the plugin must not need the Visual C++ redistributable on the user's PC.
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build -A x64 \
+            '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>' \
+            -DJPURRR_BUILD_PLUGIN=ON -DJPURRR_BUILD_TESTS=OFF
+
+      - name: Install Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: command -v ninja >/dev/null || brew install ninja
+
+      - name: Build
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+        run: cmake --build build --config "$BUILD_TYPE" --parallel 4 2>&1 | tee build.log; exit "${PIPESTATUS[0]}"
+
+      - name: Check the build output
+        run: |
+          art=build/plugin/JPurrr8000_artefacts/$BUILD_TYPE
+          find "$art" -maxdepth 3 | sort
+          test -d "$art/VST3/JPurrr-8000.vst3"
+          case "$RUNNER_OS" in
+            Linux)   test -f "$art/VST3/JPurrr-8000.vst3/Contents/x86_64-linux/JPurrr-8000.so"; test -f "$art/Standalone/JPurrr-8000" ;;
+            Windows) test -f "$art/VST3/JPurrr-8000.vst3/Contents/x86_64-win/JPurrr-8000.vst3"; test -f "$art/Standalone/JPurrr-8000.exe" ;;
+            macOS)   test -f "$art/VST3/JPurrr-8000.vst3/Contents/MacOS/JPurrr-8000"; test -d "$art/Standalone/JPurrr-8000.app"
+                     lipo -archs "$art/VST3/JPurrr-8000.vst3/Contents/MacOS/JPurrr-8000" ;;
+          esac
+
+      # Informational: pluginval is downloaded from its latest release and does not fail the build.
+      - name: pluginval (informational)
+        continue-on-error: true
+        run: |
+          art=build/plugin/JPurrr8000_artefacts/$BUILD_TYPE
+          case "$RUNNER_OS" in
+            Linux)   zip=pluginval_Linux.zip ;;
+            Windows) zip=pluginval_Windows.zip ;;
+            macOS)   zip=pluginval_macOS.zip ;;
+          esac
+          curl -fsSL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/latest/download/$zip"
+          mkdir -p pluginval && unzip -q -o pluginval.zip -d pluginval
+          case "$RUNNER_OS" in
+            Linux)   chmod +x pluginval/pluginval; xvfb-run -a ./pluginval/pluginval --strictness-level 5 --skip-gui-tests --validate-in-process --output-dir pluginval-out "$art/VST3/JPurrr-8000.vst3" ;;
+            Windows) ./pluginval/pluginval.exe --strictness-level 5 --skip-gui-tests --validate-in-process --output-dir pluginval-out "$art/VST3/JPurrr-8000.vst3" ;;
+            macOS)   ./pluginval/pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --skip-gui-tests --validate-in-process --output-dir pluginval-out "$art/VST3/JPurrr-8000.vst3" ;;
+          esac
+
+      - name: Pack artifact (Linux keeps file permissions in a tarball)
+        if: runner.os == 'Linux'
+        run: tar -C build/plugin/JPurrr8000_artefacts/"$BUILD_TYPE" -czf JPurrr-8000-ci-linux.tar.gz VST3 Standalone
+
+      - name: Upload (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: JPurrr-8000-linux-x86_64
+          path: JPurrr-8000-ci-linux.tar.gz
+          if-no-files-found: error
+
+      - name: Upload (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: JPurrr-8000-windows-x64
+          path: |
+            build/plugin/JPurrr8000_artefacts/Release/VST3
+            build/plugin/JPurrr8000_artefacts/Release/Standalone/*.exe
+          if-no-files-found: error
+
+      - name: Upload (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: JPurrr-8000-macos-universal
+          path: |
+            build/plugin/JPurrr8000_artefacts/Release/VST3
+            build/plugin/JPurrr8000_artefacts/Release/Standalone
+          if-no-files-found: error
+
+      - name: Upload build log and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.name }}
+          path: |
+            build.log
+            pluginval-out
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+  <title>JPurrr-8000 @VERSION@</title>
+  <welcome file="welcome.html" mime-type="text/html"/>
+  <license file="license.txt" mime-type="text/plain"/>
+  <options customize="allow" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+  <choices-outline>
+    <line choice="vst3"/>
+    <line choice="app"/>
+  </choices-outline>
+  <choice id="vst3" title="VST3 plugin" description="Installs JPurrr-8000.vst3 into /Library/Audio/Plug-Ins/VST3 for your DAW." start_selected="true">
+    <pkg-ref id="music.studio87.jpurrr8000.vst3"/>
+  </choice>
+  <choice id="app" title="Standalone app and manual" description="Installs JPurrr-8000.app into Applications, plus the manual and the uninstaller." start_selected="true">
+    <pkg-ref id="music.studio87.jpurrr8000.app"/>
+  </choice>
+  <pkg-ref id="music.studio87.jpurrr8000.vst3" version="@NUMVERSION@" onConclusion="none">vst3.pkg</pkg-ref>
+  <pkg-ref id="music.studio87.jpurrr8000.app" version="@NUMVERSION@" onConclusion="none">app.pkg</pkg-ref>
+</installer-gui-script>

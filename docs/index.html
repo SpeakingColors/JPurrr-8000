@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JPurrr-8000 - free JP-8000 style synth for Linux, Windows and macOS</title>
+<meta name="description" content="JPurrr-8000 is a free and open source VST3 and standalone synth in the spirit of the late 90s JP-8000 and JP-8080, with a mix ready FX chain.">
+<style>
+:root{--bg:#0e1116;--card:#171c26;--line:#272d38;--fg:#e8ebf1;--mut:#97a0b0;--pink:#ff5fa8;--teal:#2fe0c0;--amber:#f2a43a;color-scheme:dark}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--pink)}
+a:hover{color:#ff8cc3}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+header.wrap{padding:40px 16px 8px}
+.brand{display:flex;align-items:center;gap:16px}
+.brand svg{width:64px;height:64px;flex:none}
+h1{margin:0;font-size:clamp(30px,6vw,48px);line-height:1.05;font-style:italic;letter-spacing:.01em}
+.tag{color:var(--mut);margin:2px 0 0}
+.lead{font-size:1.15rem;max-width:46em;margin:20px 0 8px}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
+.btn{display:inline-block;padding:10px 18px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);text-decoration:none;font-weight:600}
+.btn.main{background:var(--amber);border-color:var(--amber);color:#1b1305}
+.btn:hover{border-color:var(--pink);color:var(--fg)}
+.btn.main:hover{color:#1b1305;filter:brightness(1.08)}
+.shot{margin:26px 0 8px}
+.shot img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px;background:#0b0f2c}
+.shot figcaption{color:var(--mut);font-size:.85rem;margin-top:6px}
+h2{font-size:1.35rem;margin:38px 0 12px;color:var(--teal)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.card h3{margin:0 0 6px;font-size:1.05rem;color:var(--teal)}
+.card p,.card ul{margin:0;color:var(--fg)}
+.card ul{padding-left:1.1em}
+.card li{margin:3px 0}
+code{font:0.88em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0b0e14;border:1px solid var(--line);border-radius:4px;padding:1px 5px;word-break:break-word}
+.note{color:var(--mut);font-size:.92rem}
+footer{border-top:1px solid var(--line);margin-top:44px;padding:22px 0 40px;color:var(--mut);font-size:.9rem}
+footer p{margin:6px 0}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <div class="brand">
+    <svg viewBox="0 0 40 40" role="img" aria-label="JPurrr-8000 cat logo"><path fill="#f2a43a" d="M5 5l10 8c3-1 7-1 10 0l10-8 1 19c0 8-7 13-16 13S4 32 4 24z"/><circle cx="14.5" cy="23" r="2.6" fill="#0e1116"/><circle cx="25.5" cy="23" r="2.6" fill="#0e1116"/><path d="M18.3 27h3.4L20 29.2z" fill="#0e1116"/><path d="M3 26l9-1M3 30l9-2M37 26l-9-1M37 30l-9-2" stroke="#0e1116" stroke-width="1" fill="none" stroke-linecap="round"/></svg>
+    <div><h1>JPurrr-8000</h1><p class="tag">STUDIO 87 &middot; free and open source synthesizer</p></div>
+  </div>
+  <p class="lead">A free VST3 and standalone synth in the spirit of the late 90s JP-8000 and JP-8080: Super Saw, filter, LFOs, arpeggiator and effects, plus our own FX page that makes every sound mix ready. For Linux, Windows and macOS. Works 100% offline.</p>
+  <div class="cta">
+    <a class="btn main" href="https://github.com/SpeakingColors/JPurrr-8000/releases/latest">Download the latest release</a>
+    <a class="btn" href="manual/JPurrr-8000-manual.pdf">Manual (PDF)</a>
+    <a class="btn" href="https://github.com/SpeakingColors/JPurrr-8000">Source code</a>
+    <a class="btn" href="https://ko-fi.com/studio87">Ko-fi</a>
+  </div>
+  <figure class="shot">
+    <img src="screenshot.png" alt="The JPurrr-8000 window with the Sound page, wooden side cheeks and the keyboard" width="2104" height="936">
+    <figcaption>The JPurrr-8000 window (design mockup picture).</figcaption>
+  </figure>
+</header>
+
+<main class="wrap">
+  <h2>What is in it</h2>
+  <div class="grid">
+    <div class="card"><h3>Sound page</h3><ul>
+      <li>Super Saw and the other oscillators</li>
+      <li>12 or 24 dB filter, envelopes, two LFOs</li>
+      <li>Arpeggiator, key modes (single, dual, split)</li>
+      <li>Chorus, flanger, phaser, distortion and delay</li>
+    </ul></div>
+    <div class="card"><h3>FX page: CHAIN</h3><ul>
+      <li>Trance gate with a drawable 16 step pattern</li>
+      <li>Drive stack, low end, M/S EQ, transient shaper, resonance tamer</li>
+      <li>Glue compressor, widener, slow auto pan</li>
+    </ul></div>
+    <div class="card"><h3>FX page: MASTER</h3><ul>
+      <li>Opto leveller and OTT style squeeze</li>
+      <li>Four band compressor and limiter</li>
+      <li>Soft clipper and true peak limiter</li>
+    </ul></div>
+    <div class="card"><h3>Made for production</h3><ul>
+      <li>Live displays that move with the sound</li>
+      <li>51 factory sounds, your own banks, preset browser</li>
+      <li>Resizable window, four colour looks</li>
+      <li>Presets as plain text (JSON)</li>
+    </ul></div>
+  </div>
+  <p class="note">Planned: import and export of JP-8000 and JP-8080 patches over SysEx, and a list of MIDI controllers. The manual says exactly what is in each version.</p>
+
+  <h2>Install</h2>
+  <div class="grid">
+    <div class="card"><h3>Windows</h3>
+      <p>Download <code>JPurrr-8000-&lt;version&gt;-Windows-x64-Setup.exe</code> and run it. SmartScreen may warn because the setup is not signed: More info, then Run anyway.</p></div>
+    <div class="card"><h3>macOS</h3>
+      <p>Open <code>JPurrr-8000-&lt;version&gt;-macOS.pkg</code> (Apple silicon and Intel). It is not notarized: on macOS 14 and older right click, Open; on macOS 15 and newer use System Settings, Privacy &amp; Security, Open Anyway.</p></div>
+    <div class="card"><h3>Linux</h3>
+      <p>Unpack <code>JPurrr-8000-&lt;version&gt;-Linux-x86_64.tar.gz</code> and run <code>./install.sh</code>. It installs for your user, no root needed. Or copy <code>JPurrr-8000.vst3</code> to <code>~/.vst3/</code>.</p></div>
+  </div>
+  <p class="note">Close your DAW first, then rescan plugins. Every release lists a SHA-256 checksum for each file.</p>
+
+  <h2>Free software</h2>
+  <p>JPurrr-8000 is licensed under the GNU AGPL-3.0-or-later. You can use it, study it, change it and share it. If you like it, you can leave a tip on <a href="https://ko-fi.com/studio87">Ko-fi</a>. Nothing is locked and there are no reminders. Found a problem? <a href="https://github.com/SpeakingColors/JPurrr-8000/issues">Tell us on GitHub</a>.</p>
+</main>
+
+<footer class="wrap">
+  <p>Not affiliated with or endorsed by Roland or Arturia. All names belong to their owners.</p>
+  <p>&copy; Studio 87. Free software under AGPL-3.0-or-later. This page loads nothing from other sites.</p>
+</footer>
+</body>
+</html>
