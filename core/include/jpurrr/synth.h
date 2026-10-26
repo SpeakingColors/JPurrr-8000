@@ -1,6 +1,7 @@
 // Synth voice engine contract. Owner: synth DSP. Pure C++17, no JUCE, no allocation in process().
 #pragma once
 #include "jpurrr/params_gen.h"
+#include "jpurrr/live.h"
 #include <memory>
 namespace jpurrr {
 class Synth {
@@ -18,6 +19,7 @@ public:
     void channelPressure(int ch, int value);
     void setTempo(double bpm);
     void setTransport(bool playing, double ppqPosition);
+    void setLive(Live* live);                      // optional readouts for the editor, may stay null
     void process(float* left, float* right, int n); // overwrites the buffers
     int latencySamples() const { return 0; }
 private:
