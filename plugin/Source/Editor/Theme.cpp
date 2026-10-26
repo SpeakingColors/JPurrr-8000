@@ -29,7 +29,19 @@ juce::Font jp::fontOf(layout::Fam fam, float px, int weight, float ls) {
 }
 juce::Font jp::fontOf(const layout::Font& f) { return fontOf(f.fam, f.size, f.weight, f.ls); }
 
-void jp::drawTextAt(juce::Graphics& g, const juce::String& s, float x, float base, char al) {
+float jp::textWidth(const juce::Font& f, const juce::String& s) {
+    juce::GlyphArrangement ga; ga.addLineOfText(f, s, 0, 0);
+    return ga.getBoundingBox(0, -1, true).getWidth();
+}
+
+void jp::drawTextAt(juce::Graphics& g, const juce::String& s, float x, float base, char al, bool italic) {
+    if (italic) {   // the mockup fonts have no italic: the browser slants them by 0.25 (synthetic oblique)
+        g.saveState();
+        g.addTransform(juce::AffineTransform::translation(-x, -base).sheared(-0.25f, 0.0f).translated(x, base));
+        drawTextAt(g, s, x, base, al, false);
+        g.restoreState();
+        return;
+    }
     g.drawSingleLineText(s, juce::roundToInt(x), juce::roundToInt(base),
         al == 'c' ? juce::Justification::horizontallyCentred : al == 'r' ? juce::Justification::right : juce::Justification::left);
 }

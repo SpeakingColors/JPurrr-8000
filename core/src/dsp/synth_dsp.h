@@ -174,7 +174,7 @@ struct VoiceFilter {
         double out;
         if (type == 2) out = v2;
         else if (type == 0) out = v0 - k * v1 - v2;
-        else out = v1 * (0.35 + 0.325 * k);
+        else out = v1 * (0.5 + 0.5 * k);
         return (float) out;
     }
     // Reset when the state ever leaves a sane range (never expected; keeps NaN out for good).
@@ -184,7 +184,7 @@ struct VoiceFilter {
 };
 
 // Filter resonance mapping (resonance knob 0..127 -> feedback). Own law, unverified against hardware.
-inline double ladderK(double r01) { return 4.4 * std::pow(r01, 1.8); }       // self oscillation from about 0.95
+inline double ladderK(double r01) { return 4.6 * std::pow(r01, 1.8); }       // self oscillation (k >= 4) from about 0.93
 inline double svfK(double r01) {
     double k = 2.0 * std::pow(1.0 - r01, 1.3);
     const double t = std::min(1.0, std::max(0.0, (r01 - 0.93) / 0.07));

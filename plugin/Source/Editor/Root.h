@@ -1,0 +1,63 @@
+// The editor content at design size (2920 x page height), scaled by the editor with a transform.
+#pragma once
+#include "PageView.h"
+#include "Dialogs.h"
+
+namespace jp {
+
+class PnameW;
+class MenuPanel;
+class Bubble;
+
+class Root : public juce::Component, private juce::Timer {
+public:
+    explicit Root(JPurrr8000AudioProcessor& p);
+    ~Root() override;
+    void paint(juce::Graphics&) override;
+    void tick(double nowSeconds);                      // 30 Hz from the editor
+    void showPage(int p);
+    int pageIndex() const { return page; }
+    int designHeight() const { return layout::kPages[page].h; }
+    std::function<void()> onPageChanged;               // the editor resizes itself
+    void applyLook(const juce::String& id);
+    bool applyState(const juce::String& name);          // test hook (snapshot tool): sound chain master guide ... look_navy reset
+
+    Controller& controller() { return ctl; }
+    Ctx& context() { return ctx; }
+    const Look& look() const { return lookByIndex(ctx.lookIdx); }
+    DisplayEnv& displayEnv() { return env; }
+    void mouseMove(const juce::MouseEvent&) override;
+    void mouseExit(const juce::MouseEvent&) override;
+    void mouseDown(const juce::MouseEvent&) override;
+    void mouseUp(const juce::MouseEvent&) override;
+    void mouseDrag(const juce::MouseEvent&) override;
+    bool keyPressed(const juce::KeyPress&) override;
+    void showValueBubble(juce::Component& c, int idx);
+    void hideValueBubble();
+    void hideTip();
+    void showMenu(bool show);
+    float scale = 1.0f;                                // current editor scale, for the size readout
+
+private:
+    JPurrr8000AudioProcessor& proc;
+    Controller ctl;
+    Ctx ctx;
+    DisplayEnv env;
+    int page = 0, lastFx = 1;
+    juce::OwnedArray<PageView> pages;
+    juce::OwnedArray<HBtnW> header;
+    std::unique_ptr<PnameW> pname;
+    std::unique_ptr<MenuPanel> menu;
+    std::unique_ptr<Bubble> tipBubble, valBubble;
+    std::unique_ptr<DialogLayer> dialogs;
+    juce::Image texture;
+    juce::String lastInfo, lastMsg, lastTitle;
+    const layout::Tip* hoverTip = nullptr; juce::Point<float> hoverPos; juce::uint32 hoverSince = 0;
+    void timerCallback() override;
+    void updateTip();
+    const layout::Tip* tipAtPoint(juce::Point<float> p, juce::Rectangle<float>& region) const;
+    juce::String tipText(const layout::Tip&) const;
+    float ftrDy() const { return (float) designHeight() - 1300.0f; }
+};
+
+} // namespace jp

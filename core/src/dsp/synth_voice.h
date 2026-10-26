@@ -1,6 +1,6 @@
 // One synth voice and the per patch parameter set it reads. Pure C++17, no allocation.
 #pragma once
-#include "dsp/synth_dsp.h"
+#include "synth_dsp.h"
 #include "jpurrr/params_gen.h"
 #include "jpurrr/synth_math.h"
 
@@ -45,7 +45,12 @@ struct PatchParams {
 
     // v: kNumParams ints. partDetuneCents: from the Part Detune parameter in dual and split.
     void derive(const int* v, float partDetuneCents);
-    void smoothToward(const PatchParams& target, float a);     // moves s[] toward target.s, copies the rest
+    // Fields that rebuild the signal path (waves, filter type and slope, ring, sync, pan mode, LFO wave): changing them
+    // while notes sound would click, so the engine ducks the output around the change.
+    int structKey() const { return o1w | (o2w << 3) | (od << 5) | (ft << 7) | (ap << 9) | (l1w << 11) | ((f24 ? 1 : 0) << 13) | ((ring ? 1 : 0) << 14) | ((sync ? 1 : 0) << 15); }
+    void copyStruct(const PatchParams& t) { o1w = t.o1w; o2w = t.o2w; od = t.od; ft = t.ft; ap = t.ap; l1w = t.l1w; f24 = t.f24; ring = t.ring; sync = t.sync; }
+    // Moves s[] toward target.s and copies the other fields (not the structural ones unless applyStruct).
+    void smoothToward(const PatchParams& target, float a, bool applyStruct = true);
 };
 
 // Controller state shared by all voices for one control block.
@@ -67,7 +72,8 @@ struct Voice {
     uint32_t age = 0;
     bool sustained = false;       // key is up but the pedal holds the note
     bool solo = false;            // belongs to the mono / legato / unison group of its part
-    float uniCents = 0.f, uniGain = 1.f;
+    int uniIdx = 0, uniN = 1;     // position in the unison stack
+    float uniGain = 1.f;
 
     // setup
     double sr = 48000.0, osr = 96000.0; int osFactor = 2;
@@ -77,7 +83,7 @@ struct Voice {
 
     // events
     void start(const PatchParams& P, int partIdx, int ch_, int note_, int vel_, uint32_t age_, uint32_t seed,
-               double fromSemis, bool glideFrom, bool retriggerOnly, double ppq, bool playing);
+               double fromSemis, bool glideFrom);
     void retrigger(const PatchParams& P, int vel_, bool keepEnv);          // mono: new note on a sounding group voice
     void setNote(int note_, int vel_) { note = note_; vel = vel_; tgtSemis = note_; }
     void release();
@@ -113,7 +119,7 @@ struct Voice {
     float pw1 = 0.5f, pw2 = 0.5f;
     float w1Saw = 1.f, w1Tri = 0.f, w1Sin = 0.f, w2Saw = 1.f, w2Tri = 0.f, w2Sin = 0.f;
     float triModA = 0.f, fbBeta = 0.f, fbLp = 0.5f;
-    float noiseA1 = 0.f, noiseK1 = 1.f, noiseG1 = 0.5f, noiseA2 = 0.f, noiseK2 = 1.f, noiseG2 = 0.5f;
+    float noiseA1 = 0.f, noiseK1 = 1.f, noiseG1 = 0.5f, noiseA2 = 0.f, noiseK2 = 1.f, noiseG2 = 0.5f, nzG1 = 0.f, nzG2 = 0.f;
     float mix1 = 0.7f, mix2 = 0.f;
     float xmodOct = 0.f;
     bool ringOn = false, syncOn = false;

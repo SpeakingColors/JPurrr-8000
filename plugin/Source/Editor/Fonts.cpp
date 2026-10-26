@@ -3,8 +3,9 @@
 #include <map>
 namespace jp::fonts {
 namespace {
+std::map<juce::String, juce::Typeface::Ptr>& cacheMap() { static std::map<juce::String, juce::Typeface::Ptr> c; return c; }
 juce::Typeface::Ptr load(const juce::String& file) {
-    static std::map<juce::String, juce::Typeface::Ptr> cache;
+    auto& cache = cacheMap();
     auto it = cache.find(file);
     if (it != cache.end()) return it->second;
     juce::Typeface::Ptr tf;
@@ -26,6 +27,7 @@ juce::Font make(const char* fam, int w, float px, int lo, int mid, int hi) {
     return juce::Font(juce::FontOptions(tf)).withPointHeight(px);
 }
 }
+void clearCache() { cacheMap().clear(); }
 juce::Font body(float px, int w) { return make("Barlow", w, px, 400, 500, 600); }
 juce::Font cond(float px, int w) { return make("BarlowCondensed", w, px, 500, 600, 700); }
 juce::Font mono(float px, int w) { return make("JetBrainsMono", w, px, 400, 500, 600); }

@@ -71,6 +71,7 @@ public:
 
     // ---- hooks set by the editor
     std::function<void()> openSave, openBrowser, startRename, closeDialog, openDelete;
+    std::function<void()> openGuide, openSettings, openAbout, toggleMenu;
     std::function<void(int)> openPage;
     std::function<void(int)> touched;                   // user changed a parameter: displays show their parameter view
 

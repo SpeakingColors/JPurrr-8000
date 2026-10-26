@@ -12,7 +12,7 @@ let html = fs.readFileSync(mockup, 'utf8');
 const rep = (a, b) => { if (!html.includes(a)) throw new Error('hook anchor missing: ' + a.slice(0, 60)); html = html.replace(a, b); };
 rep('scr=(scr+dt*(voices.size?2.2:.9))%1000;', 'scr=(window.__SCR!=null)?window.__SCR:(scr+dt*(voices.size?2.2:.9))%1000;');
 rep('const t=performance.now()/1000*.35;const mid=(h+14)/2', 'const t=(window.__T!=null?window.__T:performance.now()/1000)*.35;const mid=(h+14)/2');
-rep('window.__JP={P,', 'window.__JP={setP,poke,noteOn,noteOff,voices,ensureAudio,view,P,');
+rep('window.__JP={P,', 'window.__JP={setRibT:(i)=>{ribT=i},setP,poke,noteOn,noteOff,voices,ensureAudio,view,P,');
 const tmp = path.join(path.dirname(path.resolve(statesFile)), '_mockup_hooked.html');
 fs.writeFileSync(tmp, html);
 
@@ -24,6 +24,7 @@ fs.writeFileSync(tmp, html);
     const dir = path.join(outDir, st.name); fs.mkdirSync(dir, { recursive: true });
     await p.evaluate(({ st }) => {
       const J = window.__JP; const P = J.P;
+      J.view.o1 = 0; J.view.o2 = 0;
       window.__SCR = st.scr != null ? st.scr : 0; window.__T = st.t != null ? st.t : 0;
       const f0 = J.FACTORY[0];
       const v = Object.assign({}, f0.v, st.params || {});
@@ -31,6 +32,7 @@ fs.writeFileSync(tmp, html);
       for (const id in (st.params || {})) if (P[id] && P[id].nosave) P[id].v = st.params[id];
       J.loadPreset(Object.assign({}, f0, { v }));
       for (const id of (st.touch || [])) J.poke(id.startsWith('o2') ? 'o2' : 'o1');
+      J.setRibT(st.ribbonTarget || null);
     }, { st });
     await p.waitForTimeout(250);
     const urls = await p.evaluate(() => {

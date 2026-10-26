@@ -18,8 +18,11 @@ Palette paletteOf(const Look& l);                        // for the displays (CC
 juce::Font fontOf(const layout::Font& f);
 juce::Font fontOf(layout::Fam fam, float px, int weight, float ls = 0.0f);
 
+float textWidth(const juce::Font& f, const juce::String& s);
+
 // Text at an exact baseline. al: 'l' x = left edge, 'c' x = centre, 'r' x = right edge.
-void drawTextAt(juce::Graphics& g, const juce::String& s, float x, float base, char al);
+void drawTextAt(juce::Graphics& g, const juce::String& s, float x, float base, char al, bool italic = false);
+inline void drawTextAt(juce::Graphics& g, const char* utf8, float x, float base, char al, bool italic = false) { drawTextAt(g, juce::String::fromUTF8(utf8), x, base, al, italic); }
 
 // Mockup widgets painted in code
 void drawLed(juce::Graphics& g, juce::Rectangle<float> r, bool on, const Look& L);

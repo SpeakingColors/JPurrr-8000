@@ -156,7 +156,7 @@ public:
     void setTarget(int type, double timeSamples, float fb, float lev) {
         tType_ = type; tFb_ = fb; tLev_ = lev;
         tTime_ = (float)std::min(std::max(timeSamples, 8.0), maxSamp_);
-        if (snap_) { tCur_ = tTime_; fb_ = tFb_; snap_ = false; }
+        if (snap_) { tCur_ = tTime_; fb_ = tFb_; type_ = tType_; fade_ = 1.f; snap_ = false; }
     }
     void process(float* l, float* r, int n) {
         const float sq2 = 1.41421356f;
@@ -240,7 +240,7 @@ struct SoundFx::Impl {
         } else {
             samples = ms * 0.001 * sr;
         }
-        delay.setTarget(std::min(std::max(pDty, 0), 4), samples, (float)pDfb / 127.f * 0.92f, (float)pDl / 127.f);
+        delay.setTarget(std::min(std::max(pDty, 0), 4), samples, (float)pDfb / 127.f * 0.88f, (float)pDl / 127.f);
     }
     void updateRate() {
         double hz = 0.0;
@@ -279,7 +279,6 @@ void SoundFx::reset() {
     m.fx[0].reset(); m.fx[1].reset();
     m.cur = 0; m.xfading = false; m.wasActive = false; m.snapLev = true; m.levCur = 0.f;
     m.fx[0].setType(m.typeT);
-    m.updateDelay();
 }
 
 void SoundFx::setTempo(double bpm) {

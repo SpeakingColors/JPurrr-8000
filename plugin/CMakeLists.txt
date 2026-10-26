@@ -31,3 +31,11 @@ target_compile_definitions(JPurrr8000 PUBLIC
 target_link_libraries(JPurrr8000 PRIVATE jpurrr_core JPurrrFonts
   juce::juce_audio_utils juce::juce_dsp
   PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
+
+# Headless verification tool (not built by default): writes PNGs of every page and dialog at design scale 1.
+#   cmake --build <dir> --target jpurrr_snapshot && <dir>/plugin/jpurrr_snapshot <outdir> [sound chain master guide ...]
+add_executable(jpurrr_snapshot EXCLUDE_FROM_ALL snapshot/snapshot.cpp)
+# Reuse the compiled plugin library (JPurrr8000 is a static library underneath); nothing is compiled twice.
+target_include_directories(jpurrr_snapshot PRIVATE Source $<TARGET_PROPERTY:JPurrr8000,INCLUDE_DIRECTORIES>)
+target_compile_definitions(jpurrr_snapshot PRIVATE $<TARGET_PROPERTY:JPurrr8000,COMPILE_DEFINITIONS>)
+target_link_libraries(jpurrr_snapshot PRIVATE JPurrr8000 jpurrr_core JPurrrFonts)

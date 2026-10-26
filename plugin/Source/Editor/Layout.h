@@ -13,7 +13,7 @@ template <class T> struct Span {
 
 struct Rect { float x, y, w, h; };
 enum Fam : uint8_t { kBody = 0, kCond = 1, kMono = 2 };
-struct Font { Fam fam; float size; short weight; float ls; };           // ls = letter spacing in em
+struct Font { Fam fam; float size; short weight; float ls; bool italic; };           // ls = letter spacing in em
 struct Line { const char* t; float x, w, base; };                        // x,w: measured by the browser, base = baseline y
 struct Text { const char* id; Font f; char al; signed char tok; uint32_t col; Rect r; Span<Line> lines; };
 struct Knob { const char* id; Rect r; };

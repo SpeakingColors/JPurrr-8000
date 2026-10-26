@@ -17,7 +17,7 @@ def cs(s):
 def f(x): return ('%.2f' % x).rstrip('0') + 'f' if x != int(x) else '%d.f' % int(x)
 def R(r): return '{%s,%s,%s,%s}' % (f(r['x']), f(r['y']), f(r['w']), f(r['h']))
 FAM = {'Barlow': 'kBody', 'Barlow Condensed': 'kCond', 'JetBrains Mono': 'kMono'}
-def F(o): return '{%s,%s,%d,%s}' % (FAM[o['fam']], f(o['size']), o['weight'], f(o['ls']))
+def F(o): return '{%s,%s,%d,%s,%s}' % (FAM[o['fam']], f(o['size']), o['weight'], f(o['ls']), 'true' if o.get('italic') else 'false')
 TOKS = ['pnl','pnl2','pnl3','edge','sbd','hi','ttl','lbl','lbl2','knob','knobhi','ind','cap','led','ledoff','acc','acc2','lcdbg','lcdfg','lcdoff','hdr','hdrfg','sel','selfg','dsp','dspline','dspfill','dspgrid','dspaccent','logo','btnbg','btnbd','wordmark']
 def col(c):
     m = re.match(r'rgba?\(([^)]*)\)', c); p = [float(x) for x in m.group(1).replace('/', ',').split(',')]
@@ -30,7 +30,7 @@ w('namespace jp::layout {')
 w('namespace {')
 
 hb_ids = set(i['id'] for p in [d['chrome']] + list(d['pages'].values()) for i in p if i['k'] == 'hbtn')
-drop_text_ids = hb_ids | {'pname', 'pinfo', 'l1', 'l2', 'msg'}
+drop_text_ids = {'msg'}
 
 lines_all = []; opts_all = []
 def emit_page(name, items, h):
@@ -67,7 +67,7 @@ def emit_page(name, items, h):
     P['opts'] = arr('Opts', 'opts', ['{%s,%s,{%s_optv+%d,%d}}' % (cs(i['id']), R(i['rect']), name, st, n) for i, st, n in orow])
     P['selects'] = arr('Select', 'selects', ['{%s,%s,%s,%s,%d}' % (cs(i['id']), cs(i['mp']), R(i['rect']), F(i['f']), i['n']) for i in items if i['k'] == 'select'])
     P['canvases'] = arr('Canvas', 'canvases', ['{%s,%s,%d,%d}' % (cs(i['id']), R(i['rect']), i['cw'], i['ch']) for i in items if i['k'] == 'canvas'])
-    P['tips'] = arr('Tip', 'tips', ['{%s,%s,%s}' % (R(i['rect']), cs(i['tip']), cs(i['for'])) for i in items if i['k'] == 'tip' and i['tip']])
+    P['tips'] = arr('Tip', 'tips', ['{%s,%s,%s}' % (R(i['rect']), cs(i['tip']), cs(i.get('for', ''))) for i in items if (i['k'] in ('tip', 'hbtn', 'pname')) and i.get('tip')])
     P['hbtns'] = arr('HBtn', 'hbtns', ['{%s,%s,%s,%s,%s}' % (cs(i['id']), R(i['rect']), cs(i['t']), 'true' if i.get('tab') else 'false', 'true' if i.get('sq') else 'false') for i in items if i['k'] == 'hbtn'])
     P['mbps'] = arr('Rect', 'mbps', [R(i['rect']) for i in items if i['k'] == 'mbp'])
     P['vtexts'] = arr('VText', 'vtexts', ['{%s,%s,%s}' % (cs(i['t']), R(i['rect']), F(i['f'])) for i in items if i['k'] == 'vtext'])

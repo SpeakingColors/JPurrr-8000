@@ -13,7 +13,8 @@ struct Ctx {
     const Look& L() const { return lookByIndex(lookIdx); }
     std::function<void(juce::Component&, int)> showVal;     // value bubble under a control
     std::function<void()> hideVal, hideTip;
-    std::function<void()> userAction;                       // any user edit (power saving timers etc.)
+    std::function<void(int)> gotoPage;                      // 0 sound, 1 chain, 2 master
+    int page = 0;
 };
 
 class Ctrl : public juce::Component {
@@ -106,6 +107,22 @@ public:
 private:
     const layout::Select& s; juce::String text; bool hover = false;
     juce::String currentText() const;
+};
+
+// Header and tab buttons (.hb)
+class HBtnW : public Ctrl {
+public:
+    HBtnW(Ctx& c, const layout::HBtn& b, const layout::Text* t, float dy);
+    void paint(juce::Graphics&) override;
+    void mouseDown(const juce::MouseEvent&) override;
+    void mouseUp(const juce::MouseEvent&) override;
+    void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); }
+    void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); }
+    void refresh() override;
+    std::function<bool()> isOn; std::function<void()> onClick;
+    const layout::HBtn& b;
+private:
+    const layout::Text* txt; float dy; bool hover = false, on = false;
 };
 
 class LcdW : public Ctrl {

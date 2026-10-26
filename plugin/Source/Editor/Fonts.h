@@ -5,5 +5,6 @@
 namespace jp::fonts {
 juce::Font body(float px, int weight = 400);   // Barlow 400, 500, 600
 juce::Font cond(float px, int weight = 600);   // Barlow Condensed 500, 600, 700
-juce::Font mono(float px, int weight = 400);   // JetBrains Mono 400, 500, 600
+juce::Font mono(float px, int weight = 400);
+void clearCache();                             // call before shutdown to avoid leak reports   // JetBrains Mono 400, 500, 600
 }

@@ -34,9 +34,9 @@ public:
     void mono(float px) { font = env.mono(px); fontPx = px; }
     void textAlign(int a) { align = a; }  // -1 left, 0 center, 1 right
 
-    void beginPath() { path.clear(); }
-    void moveTo(float x, float y) { path.startNewSubPath(x, y); }
-    void lineTo(float x, float y) { if (path.isEmpty()) path.startNewSubPath(x, y); else path.lineTo(x, y); }
+    void beginPath() { path.clear(); started = false; }
+    void moveTo(float x, float y) { path.startNewSubPath(x, y); started = true; }
+    void lineTo(float x, float y) { if (!started) { path.startNewSubPath(x, y); started = true; } else path.lineTo(x, y); }
     void closePath() { path.closeSubPath(); }
     void rect(float x, float y, float w, float h) { path.addRectangle(x, y, w, h); }
     void arc(float cx, float cy, float r, float a0, float a1);   // canvas angles (0 = 3 o'clock, clockwise)
@@ -47,7 +47,7 @@ public:
         juce::Path d; juce::PathStrokeType(lineWidth).createDashedStroke(d, path, dash.data(), (int) dash.size());
         g.fillPath(d);
     }
-    void fill() { applyFill(); g.fillPath(path); }
+    void fill() { applyFill(); juce::Path p(path); p.closeSubPath(); g.fillPath(p); }
     void fillRect(float x, float y, float w, float h) { applyFill(); g.fillRect(x, y, w, h); }
     void strokeRect(float x, float y, float w, float h) {
         juce::Path p; p.addRectangle(x, y, w, h); g.setColour(strokeCol.withMultipliedAlpha(globalAlpha));
@@ -67,10 +67,11 @@ private:
         if (grad) { auto cg = fillGrad; for (int i = 0; i < cg.getNumColours(); ++i) cg.setColour(i, cg.getColour(i).withMultipliedAlpha(globalAlpha)); g.setGradientFill(cg); }
         else g.setColour(fillCol.withMultipliedAlpha(globalAlpha));
     }
+    bool started = false;
     juce::Colour fillCol { 0xff000000 }, strokeCol { 0xff000000 };
     juce::ColourGradient fillGrad; bool grad = false;
     std::vector<float> dash;
-    juce::Font font; float fontPx = 12.0f; int align = -1;
+    juce::Font font { juce::FontOptions() }; float fontPx = 12.0f; int align = -1;
 };
 
 // ---------------------------------------------------------------- mockup helper maths

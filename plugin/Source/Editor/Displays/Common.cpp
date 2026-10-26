@@ -140,6 +140,7 @@ void LiveCtx::update(const DisplayEnv& env, unsigned specMask, unsigned lvlMask,
 }
 
 void LiveCtx::pushHist(bool) {
+    if (!built) return;
     hist.push_back(act ? lvl[jpurrr::kTapDrive] : -90.0f);
     if (hist.size() > 160) hist.erase(hist.begin());
 }

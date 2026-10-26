@@ -25,14 +25,14 @@ static const ModDesign kDesign[13] = {
     { 0, 0.70f, { 8.0f, 11.5f }, { 1.6f, 1.9f }, 8500, 120, 0, 0, 0,        0, 0, 0, 1, 0, 0,    1.f },   // SUPER CHORUS MID
     { 0, 1.60f, { 7.0f, 10.0f }, { 0.9f, 1.1f }, 9000, 120, 0, 0, 0,        0, 0, 0, 1, 0, 0,    1.f },   // SUPER CHORUS FST
     { 0, 0.90f, { 10.0f, 14.5f }, { 1.3f, 1.6f }, 0,    80, 0, 0, 0,        0, 0, 0, 1, 0, 0,    1.f },   // SUPER CHORUS CLR (no wet low pass)
-    { 1, 0.12f, { 0, 0 }, { 0, 0 }, 0, 0, 0.5f, 7.0f, 0.60f,               0, 0, 0, 1, 0.25f, 0, 0.8f },   // FLANGER SLOW
-    { 1, 0.22f, { 0, 0 }, { 0, 0 }, 0, 0, 0.25f, 9.0f, 0.80f,              0, 0, 0, 1, 0.25f, 0, 0.6f },   // FLANGER DEEP
-    { 1, 0.90f, { 0, 0 }, { 0, 0 }, 0, 0, 0.5f, 3.5f, 0.55f,               0, 0, 0, 1, 0.25f, 0, 0.8f },   // FLANGER FAST
+    { 1, 0.12f, { 0, 0 }, { 0, 0 }, 0, 0, 0.5f, 7.0f, 0.60f,               0, 0, 0, 1, 0.25f, 0, 1.f },   // FLANGER SLOW
+    { 1, 0.22f, { 0, 0 }, { 0, 0 }, 0, 0, 0.25f, 9.0f, 0.80f,              0, 0, 0, 1, 0.25f, 0, 1.f },   // FLANGER DEEP
+    { 1, 0.90f, { 0, 0 }, { 0, 0 }, 0, 0, 0.5f, 3.5f, 0.55f,               0, 0, 0, 1, 0.25f, 0, 1.f },   // FLANGER FAST
     { 2, 0.15f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.65f,                     8, 250, 3500, 1, 0.25f, 0, 1.f },   // DEEP PHASING SLW
-    { 2, 0.06f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.82f,                     6, 120, 9000, 1, 0.15f, 0, 0.7f },  // JET PHASING
+    { 2, 0.06f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.82f,                     6, 120, 9000, 1, 0.15f, 0, 1.f },  // JET PHASING
     { 2, 0.45f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.50f,                     6, 300, 4200, 1, 0.50f, 0.35f, 1.f }, // TWISTING
-    { 2, 0.03f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.72f,                     8, 820, 1000, 1.45f, 0.50f, 0, 0.9f }, // FREEZE PHASE 1
-    { 2, 0.025f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, -0.72f,                   10, 390, 470, 2.6f, 0.50f, 0, 0.9f },  // FREEZE PHASE 2
+    { 2, 0.03f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.72f,                     8, 860, 900, 1.45f, 0.50f, 0, 1.f }, // FREEZE PHASE 1
+    { 2, 0.025f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, -0.72f,                   10, 420, 440, 2.6f, 0.50f, 0, 1.f },  // FREEZE PHASE 2
     { 3, 0.f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0,                           0, 0, 0, 1, 0, 0,    1.f },   // DISTORTION
 };
 
@@ -142,6 +142,7 @@ void MultiFx::runChorus(const float* in[2], float* out[2], const float* lev, int
 void MultiFx::runFlanger(const float* in[2], float* out[2], const float* lev, int n) {
     const ModDesign& d = *des_;
     const float l2 = std::log2(d.dMax / d.dMin);
+    const float wetScale = std::sqrt(std::max(0.f, 1.f - d.fb * d.fb)) * d.wetGain;   // average wet power 1 despite the feedback
     for (int i = 0; i < n; ++i) {
         float ph = advanceLfo();
         float g = mixNorm(lev[i]);
@@ -152,18 +153,22 @@ void MultiFx::runFlanger(const float* in[2], float* out[2], const float* lev, in
             float y = line_[c].read(std::max(dl, DelayBuf::kMinDelay));
             float f = fbHp_[c].process(fbLp_[c].process(y)) * d.fb;
             line_[c].push(flush(x + loopSat(f)));
-            out[c][i] = (x + lev[i] * y * d.wetGain) * g;
+            out[c][i] = (x + lev[i] * y * wetScale) * g;
         }
     }
 }
 
 // Phaser family: first order allpass chain, swept exponentially, damped feedback.
+// The feedback loop is solved without a unit delay (the chain is affine in its input, so the loop closes in
+// one division), which keeps the resonance independent of the sample rate.
 // Freeze types hardly move: the notches sit still and the two channels sit at different places.
 void MultiFx::runPhaser(const float* in[2], float* out[2], const float* lev, int n) {
     const ModDesign& d = *des_;
     const float l2 = std::log2(d.fHi / d.fLo);
     const float fmax = (float)(0.45 * sr_);
     const float piOverSr = (float)(kPi / sr_);
+    const float hpk = fbHp_[0].a, oneMinusK = 1.f - hpk;
+    const float wetScale = std::sqrt(std::max(0.f, 1.f - d.fb * d.fb)) * d.wetGain;   // keeps the average wet power at 1
     for (int i = 0; i < n; ++i) {
         float ph = advanceLfo();
         float g = mixNorm(lev[i]);
@@ -177,12 +182,17 @@ void MultiFx::runPhaser(const float* in[2], float* out[2], const float* lev, int
             f = std::min(f, fmax);
             float t = std::tan(f * piOverSr);
             float a = (1.f - t) / (1.f + t);
-            float v = x + d.fb * fbHp_[c].process(fbPrev_[c]);
-            v = loopSat(v);
             float* s = apS_[c];
-            for (int k = 0; k < d.stages; ++k) { float y = a * v + s[k]; s[k] = flush(v - a * y); v = y; }
-            fbPrev_[c] = flush(v);
-            out[c][i] = (x + lev[i] * v * d.wetGain) * g;
+            // free response of the chain (zero input) and its direct gain a^N
+            float v = 0.f, aN = 1.f;
+            for (int k = 0; k < d.stages; ++k) { v = a * v + s[k]; aN *= a; }
+            float hs = fbHp_[c].s, q = aN * d.fb * oneMinusK;
+            float y = (aN * x + v - q * hs) / (1.f - q);
+            float xin = x + d.fb * oneMinusK * (y - hs);
+            fbHp_[c].s = hs + hpk * (y - hs);
+            v = xin;
+            for (int k = 0; k < d.stages; ++k) { float yy = a * v + s[k]; s[k] = flush(v - a * yy); v = yy; }
+            out[c][i] = (x + lev[i] * v * wetScale) * g;
         }
     }
 }

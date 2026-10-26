@@ -54,8 +54,8 @@ juce::String Controller::fmt(int i) const {
         for (int k = 0; k < L::kNumFmt; ++k) { const int pi = paramIndexById(L::kFmt[k].id); if (pi >= 0) tab[(size_t) pi] = &L::kFmt[k]; }
     }
     const int v = get(i); const ParamDef& d = kParams[i];
-    if (auto* t = tab[(size_t) i]) { const int k = v - t->min; if (k >= 0 && k < t->n) return t->s[k]; }
-    if (d.optCount > 0 && v >= d.min && v - d.min < d.optCount) return kOptionText[d.optStart + (v - d.min)];
+    if (auto* t = tab[(size_t) i]) { const int k = v - t->min; if (k >= 0 && k < t->n) return juce::String::fromUTF8(t->s[k]); }
+    if (d.optCount > 0 && v >= d.min && v - d.min < d.optCount) return juce::String::fromUTF8(kOptionText[d.optStart + (v - d.min)]);
     if (d.type == PType::Switch) return v ? "ON" : "OFF";
     return d.min < 0 ? sg(v) : juce::String(v);
 }
@@ -125,7 +125,7 @@ juce::String Controller::lcd1() const {
 }
 juce::String Controller::title() const { return pm.cur.name + (pm.cur.dirty ? " *" : ""); }
 juce::String Controller::info() const {
-    return pm.cur.bank + (pm.cur.slot ? juce::String(pm.cur.slot).paddedLeft('0', 3) : juce::String()) + (pm.cur.factory ? juce::String(" \xc2\xb7 factory") : juce::String(" \xc2\xb7 mine"));
+    return pm.cur.bank + (pm.cur.slot ? juce::String(pm.cur.slot).paddedLeft('0', 3) : juce::String()) + (pm.cur.factory ? juce::String::fromUTF8(" \xc2\xb7 factory") : juce::String::fromUTF8(" \xc2\xb7 mine"));
 }
 void Controller::say(const juce::String& t) { msgText = t; msgUntil = juce::Time::getMillisecondCounter() + 3200; }
 juce::String Controller::message() const {
@@ -271,7 +271,7 @@ void Controller::action(const juce::String& id) {
         const int t = juce::jlimit(0, 5, get(P_qtg));
         const auto& q = L::kQvals[t];
         for (int k = 0; k < q.n; ++k) { const juce::String key = q.ids[k]; if (key == "qon" || key == "qtg") continue; user(idx(q.ids[k]), q.vals[k]); }
-        say("Chain set for " + juce::String(kOptionText[kParams[P_qtg].optStart + t]));
+        say("Chain set for " + juce::String::fromUTF8(kOptionText[kParams[P_qtg].optStart + t]));
     }
     else if (id == "rba") { assigning = kRib; say("Move a knob or slider to give it to the ribbon"); }
     else if (id == "va") { assigning = kVel; say("Move a knob or slider to set its velocity morph"); }

@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
     juce::ScopedJuceInitialiser_GUI init;
     if (argc < 3) { std::fprintf(stderr, "usage: jpurrr_displays states.json outdir [--chrome]\n"); return 1; }
     bool chrome = false; for (int i = 3; i < argc; ++i) if (juce::String(argv[i]) == "--chrome") chrome = true;
-    const auto states = juce::JSON::parse(juce::File(argv[1]));
+    const auto states = juce::JSON::parse(juce::File::getCurrentWorkingDirectory().getChildFile(argv[1]));
     const juce::File outDir(juce::File::getCurrentWorkingDirectory().getChildFile(argv[2]));
     if (!states.isArray()) { std::fprintf(stderr, "bad states file\n"); return 1; }
 

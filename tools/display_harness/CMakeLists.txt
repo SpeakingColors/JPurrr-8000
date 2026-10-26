@@ -22,7 +22,7 @@ endif()
 # only the parameter tables and the factory presets of the core (no audio code)
 add_library(jpurrr_displays_core STATIC
   ${JPURRR_ROOT}/core/src/params_gen.cpp ${JPURRR_ROOT}/core/src/factory_gen.cpp
-  ${JPURRR_ROOT}/core/src/patch.cpp ${JPURRR_ROOT}/core/src/patch_json_stub.cpp)
+  ${JPURRR_ROOT}/core/src/patch.cpp)
 target_include_directories(jpurrr_displays_core PUBLIC ${JPURRR_ROOT}/core/include)
 
 file(GLOB FONT_FILES CONFIGURE_DEPENDS ${JPURRR_ROOT}/plugin/Resources/fonts/*.ttf)

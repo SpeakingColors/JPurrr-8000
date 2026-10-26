@@ -192,6 +192,8 @@ public:
         env_(clampv(a, 0.3f, 1.5f), clampv(s, 0.1f, 0.9f)); x.strokeStyle(x.pal.line); x.lineWidth = 1.8f; x.stroke();
         x.fillStyle(x.pal.txt); x.mono(15.5f); x.textAlign(-1); x.fillText("NOTE SHAPE", 3, 10);
         const int n = (int) lv.hist.size(); if (n < 2) return;
+        bool any = false; for (float hv : lv.hist) if (hv > -90) any = true;
+        if (!any) return;   // the mockup draws the line once audio runs; a flat line at the floor adds nothing
         x.beginPath();
         for (int i = 0; i < n; ++i) { const float px = (float) i / (n - 1) * w, py = h - 6 - clampv((lv.hist[(size_t) i] + 60) / 60, 0.0f, 1.0f) * (h - 16); if (i == 0) x.moveTo(px, py); else x.lineTo(px, py); }
         x.strokeStyle(x.pal.acc); x.lineWidth = 1.6f; x.stroke();
@@ -367,8 +369,17 @@ public:
             const float ys[2] = { ty, by }; const juce::Colour cs[2] = { hex(0xff1383), hex(0x6cc9f5) };
             for (int k = 0; k < 2; ++k) { x.fillStyle(cs[k]); x.fillRect(X - 3, ys[k] - 3, G.bw + 6, 6); x.fillStyle(rgba(255, 255, 255, 0.85f)); x.fillRect(X + G.bw / 2 - 10, ys[k] - 1, 20, 2); }
             x.fillStyle(x.pal.txt);
-            x.fillText(juce::String::fromUTF8("\xE2\x96\xBC ") + juce::String(rnd(dnv * 100)) + "%", X + G.bw / 2 - 4, G.yT + 13);
-            x.fillText(juce::String::fromUTF8("\xE2\x96\xB2 ") + juce::String(rnd(upv * 100)) + "%", X + G.bw / 2, G.yB - 5);
+            // the mockup's triangle glyphs come from a fallback font (9 px wide); drawn as shapes here, digits stay in the mono font
+            auto edgeLabel = [&](bool upTri, float cxx, float base, int pct) {
+                const juce::String d = juce::String(pct) + "%"; const float dw = 10.2f * (float) d.length(); const float totalW = 22.4f + dw, left = cxx - totalW / 2;
+                x.beginPath();
+                if (upTri) { x.moveTo(left + 1, base); x.lineTo(left + 10, base); x.lineTo(left + 5.5f, base - 9); }
+                else { x.moveTo(left + 1, base - 9.5f); x.lineTo(left + 10, base - 9.5f); x.lineTo(left + 5.5f, base - 0.5f); }
+                x.closePath(); x.fillStyle(x.pal.txt); x.fill();
+                x.textAlign(-1); x.fillText(d, left + 21.6f, base); x.textAlign(0);
+            };
+            edgeLabel(false, X + G.bw / 2 - 4, G.yT + 13, rnd(dnv * 100));
+            edgeLabel(true, X + G.bw / 2, G.yB - 5, rnd(upv * 100));
             x.fillText(names[i], X + G.bw / 2, h - 6);
             x.globalAlpha = 1;
         }
