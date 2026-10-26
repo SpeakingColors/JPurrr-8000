@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.22)
+project(JPurrr-8000 VERSION 0.1.0 LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+option(JPURRR_BUILD_TESTS "Build the core tests" ON)
+option(JPURRR_BUILD_PLUGIN "Build the JUCE plugin (VST3 + Standalone)" OFF)
+option(JPURRR_SANITIZE "Build core tests with address and undefined behaviour sanitizers" OFF)
+
+add_subdirectory(core)
+if(JPURRR_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()
+if(JPURRR_BUILD_PLUGIN)
+  add_subdirectory(plugin)
+endif()

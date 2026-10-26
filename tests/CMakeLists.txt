@@ -1,0 +1,5 @@
+file(GLOB JPURRR_TESTS CONFIGURE_DEPENDS *.cpp)
+add_executable(jpurrr_tests ${JPURRR_TESTS})
+target_link_libraries(jpurrr_tests PRIVATE jpurrr_core)
+target_compile_definitions(jpurrr_tests PRIVATE JPURRR_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME core COMMAND jpurrr_tests)
