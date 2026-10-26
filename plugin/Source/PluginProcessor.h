@@ -4,6 +4,9 @@
 #include "jpurrr/params_gen.h"
 #include "jpurrr/synth.h"
 #include "jpurrr/fxchain.h"
+#include "jpurrr/soundfx.h"
+#include "jpurrr/live.h"
+#include "PresetManager.h"
 
 // Parameter values are plain integers in the units of jpurrr::kParams (same as the mockup).
 // Params flagged kNoSave in kParams (levers, display buttons, preview) are UI state, not host parameters:
@@ -44,12 +47,15 @@ public:
 
     juce::String presetName { "Init" };
     juce::AudioProcessorValueTreeState apvts;
+    PresetManager presets;                           // factory + user sounds and the current sound (message thread)
+    jpurrr::Live live;                               // readouts for the editor displays (audio thread writes)
+    int uiWidth = 0;                                 // editor width in pixels, saved with the state (0 = default)
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout();
     std::array<juce::RangedAudioParameter*, jpurrr::kNumParams> hostParams {};
     std::array<std::atomic<int>, jpurrr::kNumParams> uiVal;
-    jpurrr::Synth synth; jpurrr::FxChain fx;
+    jpurrr::Synth synth; jpurrr::SoundFx soundFx; jpurrr::FxChain fx;
     double sr = 44100;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JPurrr8000AudioProcessor)
 };

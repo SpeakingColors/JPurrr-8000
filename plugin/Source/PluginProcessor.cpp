@@ -33,6 +33,8 @@ JPurrr8000AudioProcessor::JPurrr8000AudioProcessor()
         uiVal[(size_t) i].store(kParams[i].def);
         hostParams[(size_t) i] = dynamic_cast<juce::RangedAudioParameter*>(apvts.getParameter(kParams[i].id));
     }
+    synth.setLive(&live); fx.setLive(&live);
+    presetName = presets.cur.name;
 }
 JPurrr8000AudioProcessor::~JPurrr8000AudioProcessor() = default;
 
@@ -41,8 +43,8 @@ bool JPurrr8000AudioProcessor::isBusesLayoutSupported(const BusesLayout& l) cons
 }
 
 void JPurrr8000AudioProcessor::prepareToPlay(double sampleRate, int block) {
-    sr = sampleRate; synth.prepare(sampleRate, block); fx.prepare(sampleRate, block);
-    setLatencySamples(synth.latencySamples() + fx.latencySamples());
+    sr = sampleRate; synth.prepare(sampleRate, block); soundFx.prepare(sampleRate, block); fx.prepare(sampleRate, block);
+    setLatencySamples(synth.latencySamples() + soundFx.latencySamples() + fx.latencySamples());
 }
 
 int JPurrr8000AudioProcessor::getInt(int idx) const {
@@ -67,17 +69,17 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
     const int n = buf.getNumSamples();
     int vals[kNumParams];
     for (int i = 0; i < kNumParams; ++i) vals[i] = getInt(i);
-    synth.setParams(vals); fx.setParams(vals);
+    synth.setParams(vals); soundFx.setParams(vals); fx.setParams(vals);
     if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) {
         const double bpm = pos->getBpm().orFallback(120.0);
-        synth.setTempo(bpm); fx.setTempo(bpm);
+        synth.setTempo(bpm); soundFx.setTempo(bpm); fx.setTempo(bpm);
         const bool playing = pos->getIsPlaying(); const double ppq = pos->getPpqPosition().orFallback(0.0);
         synth.setTransport(playing, ppq); fx.setTransport(playing, ppq);
     }
     float* l = buf.getWritePointer(0); float* r = buf.getNumChannels() > 1 ? buf.getWritePointer(1) : l;
     int done = 0;
     auto renderTo = [&](int end) {
-        if (end > done) { synth.process(l + done, r + done, end - done); fx.process(l + done, r + done, end - done); done = end; }
+        if (end > done) { synth.process(l + done, r + done, end - done); soundFx.process(l + done, r + done, end - done); fx.process(l + done, r + done, end - done); done = end; }
     };
     for (const auto meta : midi) {
         renderTo(meta.samplePosition);
@@ -93,15 +95,34 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
     midi.clear();
 }
 
+// State: the host parameters by id (so sessions keep loading when parameters are added), the sound name and where it
+// came from, the editor width. kStateVersion changes only when the meaning of stored values changes.
+static constexpr int kStateVersion = 1;
 void JPurrr8000AudioProcessor::getStateInformation(juce::MemoryBlock& dest) {
     auto state = apvts.copyState();
-    state.setProperty("presetName", presetName, nullptr);
+    state.setProperty("stateVersion", kStateVersion, nullptr);
+    state.setProperty("presetName", presets.cur.name, nullptr);
+    state.setProperty("presetBank", presets.cur.bank, nullptr);
+    state.setProperty("presetSlot", presets.cur.slot, nullptr);
+    state.setProperty("presetFactory", presets.cur.factory, nullptr);
+    state.setProperty("presetType", presets.cur.type, nullptr);
+    state.setProperty("presetDirty", presets.cur.dirty, nullptr);
+    state.setProperty("uiWidth", uiWidth, nullptr);
     if (auto xml = state.createXml()) copyXmlToBinary(*xml, dest);
 }
 void JPurrr8000AudioProcessor::setStateInformation(const void* data, int size) {
     if (auto xml = getXmlFromBinary(data, size)) {
         auto st = juce::ValueTree::fromXml(*xml);
-        if (st.isValid()) { presetName = st.getProperty("presetName", "Init").toString(); apvts.replaceState(st); }
+        if (!st.isValid()) return;
+        presets.cur.name = st.getProperty("presetName", "Init").toString();
+        presets.cur.bank = st.getProperty("presetBank", "A").toString();
+        presets.cur.slot = (int) st.getProperty("presetSlot", 1);
+        presets.cur.factory = (bool) st.getProperty("presetFactory", true);
+        presets.cur.type = st.getProperty("presetType", "Lead").toString();
+        presets.cur.dirty = (bool) st.getProperty("presetDirty", false);
+        uiWidth = (int) st.getProperty("uiWidth", 0);
+        presetName = presets.cur.name;
+        apvts.replaceState(st);
     }
 }
 
