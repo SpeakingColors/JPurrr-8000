@@ -302,7 +302,7 @@ const flt=sec('FILTER',560,330,
   <div class="col" style="gap:10px">${CV('cv_fe',170,110)}<div class="row" style="gap:6px;margin-top:6px">${SL('fea','A',0,127,2,'Filter envelope attack time.',{h:104})}${SL('fed','D',0,127,60,'Filter envelope decay time.',{h:104})}${SL('fes','S',0,127,50,'Filter envelope sustain level.',{h:104})}${SL('fer','R',0,127,40,'Filter envelope release time.',{h:104})}</div></div></div>`);
 const amp=sec('AMP',226,330,
  `<div class="row" style="gap:6px">${K('al','LFO1 DEPTH',-64,63,0,'How much LFO 1 moves the volume (tremolo) or, in Manual pan, the stereo position.')}${O('ap','PAN',['OFF','AUTO','MANUAL'],0,'Pan: OFF is centre, AUTO sweeps with LFO 1, MANUAL uses the LFO 1 depth knob as position.')}${K('av','LEVEL',0,127,100,'Amp level of the patch.')}</div>`+
- CV('cv_ae',204,40)+
+ CV('cv_ae',220,84)+
  `<div class="row" style="gap:10px">${SL('aea','A',0,127,2,'Amp envelope attack time.')}${SL('aed','D',0,127,90,'Amp envelope decay time.')}${SL('aes','S',0,127,110,'Amp envelope sustain level.')}${SL('aer','R',0,127,45,'Amp envelope release time.')}</div>`);
 
 const lfo2=sec('LFO 2',200,240,
