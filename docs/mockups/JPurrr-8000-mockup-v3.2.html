@@ -176,7 +176,7 @@ canvas.cv#cv_pad,canvas.cv#cv_rib{cursor:crosshair;touch-action:none}
 <script>
 (()=>{
 'use strict';
-const W=2990,H=1300;
+const W=3000,H=1300;
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -288,18 +288,18 @@ const com=sec('OSC COMMON',310,330,
  `<div class="row" style="gap:8px;align-items:flex-end">${O('od','LFO 1 + ENV DEST',['OSC 1+2','OSC 2','X-MOD'],0,'Where LFO 1 and the pitch envelope act: both oscillators, OSC 2 only, or the cross modulation depth.')}<div class="row" style="gap:2px">${SL('pa','A',0,127,0,'Pitch envelope attack time.')}${SL('pdd','D',0,127,50,'Pitch envelope decay time.')}</div><div class="col" style="gap:2px">${CV('cv_pe',92,44)}${K('pd','ENV DEPTH',-64,63,0,'How far the pitch envelope bends the pitch. Negative values start high and fall.')}</div></div>`);
 const osc1=sec('OSC 1',256,330,
  `<div class="row" style="gap:6px;align-items:flex-start"><div id="o1opts">${O('o1w','WAVEFORM',O1W,0,'OSC 1 waveform. SUPER SAW is the 7 saw stack. FEEDBACK OSC is mono only: it forces Mono or Legato and cannot be used with Unison.')}</div>
-  <div class="col" style="gap:3px">${CV('cv_o1',124,70)}<div class="note" id="o1info"></div><div class="row" style="gap:2px">${SL('o1c1','CTRL 1',0,127,70,'CONTROL 1 of OSC 1. For SUPER SAW it spreads the six outer saws away from the centre.')}${SL('o1c2','CTRL 2',0,127,105,'CONTROL 2 of OSC 1. For SUPER SAW it sets how loud the outer saws are against the centre saw.')}</div></div></div>`);
+  <div class="col" style="gap:3px">${CV('cv_o1',132,112)}<div class="note" id="o1info"></div><div class="row" style="gap:2px">${SL('o1c1','CTRL 1',0,127,70,'CONTROL 1 of OSC 1. For SUPER SAW it spreads the six outer saws away from the centre.')}${SL('o1c2','CTRL 2',0,127,105,'CONTROL 2 of OSC 1. For SUPER SAW it sets how loud the outer saws are against the centre saw.')}</div></div></div>`);
 const osc2=sec('OSC 2',254,330,
  `<div class="cols"><div class="col" style="gap:5px"><div class="row" style="gap:10px">${T('sync','SYNC',0,'Hard sync: OSC 2 restarts with OSC 1. Not available with NOISE on OSC 2.')}${T('o2ext','EXT',0,'External input as the OSC 2 source (External Input synthesis).')}</div>
   ${O('o2w','WAVEFORM',['SQR (PWM)','SAW','TRI','NOISE'],0,'OSC 2 waveform. NOISE is new on the JP-8080.')}
   <div class="row" style="gap:2px">${K('o2r','RANGE',-24,24,0,'OSC 2 pitch in semitones against OSC 1 (-24 to +24).',{fmt:v=>sg(v)+' st'})}${K('o2f','FINE / WIDE',-64,63,0,'OSC 2 fine tune, about -50 to +50 cent. With WIDE on it moves in whole octaves.',{fmt:v=>sg(Math.round(v*50/64))+' ct'})}</div>
   ${T('o2wide','WIDE',0,'Wide: range and fine move OSC 2 in whole octaves, from -4 to +4.')}</div>
-  <div class="col">${CV('cv_o2',100,58)}<div class="row" style="gap:2px">${SL('o2c1','PULSE WIDTH',0,127,64,'CONTROL 1 of OSC 2. For SQR it is the pulse width.')}${SL('o2c2','PWM DEPTH',0,127,0,'CONTROL 2 of OSC 2. For SQR it is how far LFO 1 moves the pulse width.')}</div></div></div>`);
+  <div class="col">${CV('cv_o2',104,92)}<div class="row" style="gap:2px">${SL('o2c1','PULSE WIDTH',0,127,64,'CONTROL 1 of OSC 2. For SQR it is the pulse width.')}${SL('o2c2','PWM DEPTH',0,127,0,'CONTROL 2 of OSC 2. For SQR it is how far LFO 1 moves the pulse width.')}</div></div></div>`);
 const flt=sec('FILTER',560,330,
  `<div class="cols" style="gap:18px;align-items:flex-start;justify-content:space-between"><div class="col" style="gap:8px">${O('ft','TYPE',['HPF','BPF','LPF'],2,'Filter type: high pass, band pass or low pass.')}${T('f24','24 dB',1,'Filter slope: lit is 24 dB per octave, dark is 12 dB per octave.')}
    <div class="row" style="gap:22px">${SL('fc','CUTOFF FREQ',0,127,92,'Filter cutoff frequency.',{h:118})}${SL('fr','RESONANCE',0,127,24,'Resonance. At the top the filter rings on its own and gives a sine tone.',{h:118})}</div></div>
-  <div class="col" style="gap:10px">${CV('cv_f',220,150)}<div class="row" style="gap:6px">${K('fk','KEY FOLLOW',-64,63,32,'How much the cutoff follows the key. +32 keeps the brightness the same over the keyboard.')}${K('fl','LFO1 DEPTH',-64,63,0,'How much LFO 1 moves the cutoff.')}${K('fe','ENV DEPTH',-64,63,28,'How much the filter envelope moves the cutoff. Negative values invert it.')}</div></div>
-  <div class="col" style="gap:10px">${CV('cv_fe',170,110)}<div class="row" style="gap:6px;margin-top:6px">${SL('fea','A',0,127,2,'Filter envelope attack time.',{h:104})}${SL('fed','D',0,127,60,'Filter envelope decay time.',{h:104})}${SL('fes','S',0,127,50,'Filter envelope sustain level.',{h:104})}${SL('fer','R',0,127,40,'Filter envelope release time.',{h:104})}</div></div></div>`);
+  <div class="col" style="gap:10px">${CV('cv_f',220,168)}<div class="row" style="gap:6px">${K('fk','KEY FOLLOW',-64,63,32,'How much the cutoff follows the key. +32 keeps the brightness the same over the keyboard.')}${K('fl','LFO1 DEPTH',-64,63,0,'How much LFO 1 moves the cutoff.')}${K('fe','ENV DEPTH',-64,63,28,'How much the filter envelope moves the cutoff. Negative values invert it.')}</div></div>
+  <div class="col" style="gap:10px">${CV('cv_fe',170,138)}<div class="row" style="gap:6px;margin-top:6px">${SL('fea','A',0,127,2,'Filter envelope attack time.',{h:104})}${SL('fed','D',0,127,60,'Filter envelope decay time.',{h:104})}${SL('fes','S',0,127,50,'Filter envelope sustain level.',{h:104})}${SL('fer','R',0,127,40,'Filter envelope release time.',{h:104})}</div></div></div>`);
 const amp=sec('AMP',226,330,
  `<div class="row" style="gap:6px">${K('al','LFO1 DEPTH',-64,63,0,'How much LFO 1 moves the volume (tremolo) or, in Manual pan, the stereo position.')}${O('ap','PAN',['OFF','AUTO','MANUAL'],0,'Pan: OFF is centre, AUTO sweeps with LFO 1, MANUAL uses the LFO 1 depth knob as position.')}${K('av','LEVEL',0,127,100,'Amp level of the patch.')}</div>`+
  CV('cv_ae',220,84)+
@@ -548,7 +548,7 @@ function o2Wave(wv,ph,t,pwm){
  if(wv===0){const d=.1+P.o2c1.v/127*.8+Math.sin(t*6)*P.o2c2.v/127*.3;return fr_(ph)<clamp(d,.05,.95)?1:-1;}
  if(wv===1)return sawW(ph);if(wv===2)return triW(ph);return nz[Math.floor(fr_(ph*1.7+t*3)*63)];}
 let scr=0,scrLast=0;
-function waveView(x,w,h,fn){const t=performance.now()/1000*.35;const mid=h/2,amp=h/2-6;x.strokeStyle=CC.grid;x.lineWidth=1;x.beginPath();x.moveTo(0,mid+.5);x.lineTo(w,mid+.5);x.stroke();
+function waveView(x,w,h,fn){const t=performance.now()/1000*.35;const mid=(h+14)/2,amp=(h-14)/2-5;x.strokeStyle=CC.grid;x.lineWidth=1;x.beginPath();x.moveTo(0,mid+.5);x.lineTo(w,mid+.5);x.stroke();
  x.strokeStyle=CC.line;x.lineWidth=1.6;x.beginPath();const N=Math.floor(w);for(let i=0;i<=N;i++){const ph=i/w*2.5+scr;const y=fn(ph,i,t);const py=mid-clamp(y,-1.2,1.2)*amp;if(i===0)x.moveTo(i,py);else x.lineTo(i,py);}x.stroke();
  x.fillStyle=CC.txt;x.font='13.5px "JetBrains Mono",monospace';x.textAlign='right';x.fillText('live',w-3,10);}
 function shapeView(x,w,h,fn,pulse,pwm){const mid=(h-16)/2+4,amp=(h-26)/2;x.strokeStyle=CC.line;x.fillStyle=CC.fill;x.lineWidth=1.6;
