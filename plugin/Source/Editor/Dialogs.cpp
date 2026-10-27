@@ -437,9 +437,11 @@ bool DialogLayer::hitTest(int x, int y) {
     return pageMode ? panel->getBounds().contains(x, y) : true;
 }
 void DialogLayer::mouseDown(const juce::MouseEvent& e) {
+    std::fprintf(stderr,"layer mouseDown %d,%d\n", e.x, e.y);
     if (panel != nullptr && !panel->getBounds().contains(e.getPosition())) close();
 }
 bool DialogLayer::keyPressed(const juce::KeyPress& k) {
+    std::fprintf(stderr,"layer key %d\n", k.getKeyCode());
     if (panel != nullptr && k == juce::KeyPress::escapeKey) { close(); return true; }
     return false;
 }

@@ -705,8 +705,9 @@ TEST(soundfx_type_change_crossfade) {
 TEST(soundfx_fuzz_params) {
     // 2000 random parameter sets with noise, sine and silence; random block sizes; params change between blocks
     Rng rng(2026);
-    double maxOut = 0;
-    int bad = 0;
+    double maxOut = 0, worstSr = 0;
+    int bad = 0, worstRun = -1, worstKind = 0, worstP[10] = {};
+    size_t worstAt = 0;
     for (int run = 0; run < 2000; ++run) {
         double srs[] = { 22050, 44100, 48000, 96000, 192000 };
         double sr = srs[rng.range(0, run % 7 == 0 ? 4 : 2)];
@@ -743,11 +744,13 @@ TEST(soundfx_fuzz_params) {
         }
         for (size_t i = 0; i < n; ++i) {
             if (!std::isfinite(l[i]) || !std::isfinite(r[i])) ++bad;
-            maxOut = std::max(maxOut, (double)std::max(std::fabs(l[i]), std::fabs(r[i])));
+            double o = std::max(std::fabs(l[i]), std::fabs(r[i]));
+            if (o > maxOut) { maxOut = o; worstRun = run; worstAt = i; for (int q = 0; q < 10; ++q) worstP[q] = p[q == 0 ? P_tb : q == 1 ? P_tt : q == 2 ? P_xl : q == 3 ? P_dt : q == 4 ? P_dfb : q == 5 ? P_dl : q == 6 ? P_xt : q == 7 ? P_dty : q == 8 ? P_dsy : P_csy]; worstSr = sr; worstKind = kind; }
         }
     }
     CHECK(bad == 0);
-    std::printf("  fuzz: max |out| %.2f\n", maxOut);
+    std::printf("  fuzz: max |out| %.2f (run %d, sample %zu, sr %.0f, input kind %d; tb %d tt %d xl %d dt %d dfb %d dl %d xt %d dty %d dsy %d csy %d)\n", maxOut, worstRun, worstAt, worstSr, worstKind,
+                worstP[0], worstP[1], worstP[2], worstP[3], worstP[4], worstP[5], worstP[6], worstP[7], worstP[8], worstP[9]);
     CHECK(maxOut < 20.0);
 }
 
