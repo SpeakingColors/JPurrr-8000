@@ -25,7 +25,8 @@ win() { cygpath -w "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"; }
 args=("/DAppVersion=$VER" "/DSourceVst3=$(win "$VST3")" "/DSourceExe=$(win "$EXE")"
       "/DRepoRoot=$(cygpath -w "$ROOT")" "/DOutputDir=$(cygpath -w "$(cd "$OUT" && pwd)")")
 [ -z "$MANUAL" ] || args+=("/DManualPdf=$(win "$MANUAL")")
-"$ISCC" "${args[@]}" "$(cygpath -w "$ROOT/installer/windows/JPurrr-8000.iss")"
+# Git Bash would turn /DName=value into a path; switch that off for this call
+MSYS2_ARG_CONV_EXCL="*" "$ISCC" "${args[@]}" "$(cygpath -w "$ROOT/installer/windows/JPurrr-8000.iss")"
 F="$OUT/JPurrr-8000-$VER-Windows-x64-Setup.exe"
 [ -f "$F" ] || { echo "Error: Inno Setup did not write $F" >&2; exit 1; }
 echo "$F"
