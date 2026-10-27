@@ -4,6 +4,7 @@
 #include "jpurrr/patch.h"
 #include "jpurrr/trancegate.h"
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <complex>
 #include <cstdint>
@@ -123,6 +124,19 @@ Sig bandNoise(size_t n, float amp, unsigned seed, double fc) {
     for (size_t i = 0; i < n; ++i) s[i] = (float) (a[i].real() / pk * amp);
     return s;
 }
+// Pink (1/f power) noise by spectral shaping; n must be a power of two.
+Sig pinkNoise(size_t n, float amp, unsigned seed) {
+    std::mt19937 g(seed); std::normal_distribution<double> d(0.0, 1.0);
+    std::vector<std::complex<double>> a(n);
+    for (size_t i = 0; i < n; ++i) a[i] = d(g);
+    fft(a, false);
+    for (size_t k = 1; k < n; ++k) a[k] *= 1.0 / std::sqrt((double) std::min(k, n - k));
+    a[0] = 0;
+    fft(a, true);
+    Sig s(n); double pk = 0; for (size_t i = 0; i < n; ++i) pk = std::max(pk, std::fabs(a[i].real()));
+    for (size_t i = 0; i < n; ++i) s[i] = (float) (a[i].real() / pk * amp);
+    return s;
+}
 bool allFinite(const Sig& s, float lim = 1e4f) { for (float x : s) if (!(std::fabs(x) < lim)) return false; return true; }
 }  // namespace
 
@@ -139,6 +153,24 @@ TEST(fxchain_bypass_bit_exact) {
         const int expect = 41 + 41 + 16 + (int) std::lround(look * 0.0005 * 48000);
         CHECK(g.lat == expect);
     }
+}
+TEST(fxchain_bypass_after_switching_off) {
+    // qon goes off while playing: a 12 ms cross fade to the delayed input, then bit exact. Switching on again fades back.
+    Rig g; const size_t N = 48000; Sig in = sine(N, 330.0, 0.4, 48000.0), inR = in;
+    Sig l = in, r = inR; g.apply();
+    const int lat = g.lat; Sig outL(N);
+    for (size_t off = 0; off < N; off += 240) {
+        if (off == 9600) { g.set("qon", 0); g.apply(); }
+        if (off == 33600) { g.set("qon", 1); g.apply(); }
+        g.fx.process(l.data() + off, r.data() + off, 240);
+    }
+    bool exact = true; for (size_t i = 11000; i < 33000; ++i) if (l[i] != in[i - (size_t) lat]) exact = false;
+    CHECK(exact);
+    double step = 0; for (size_t i = 9000; i < 12000; ++i) step = std::max(step, (double) std::fabs(l[i] - l[i - 1]));
+    double step2 = 0; for (size_t i = 33000; i < 36000; ++i) step2 = std::max(step2, (double) std::fabs(l[i] - l[i - 1]));
+    std::printf("    switch off: max step %.4f, switch on: %.4f (steady tone: %.4f)\n", step, step2, 2 * kPi * 330.0 / 48000.0 * 0.4);
+    CHECK(step < 0.1 && step2 < 0.1);                    // a 330 Hz tone at 0.4 moves 0.017 per sample
+    CHECK(allFinite(l));
 }
 TEST(fxchain_latency_impulse) {
     for (int look : { 0, 2, 4, 10 }) for (double sr : { 44100.0, 48000.0, 96000.0 }) {
@@ -511,17 +543,50 @@ TEST(fxchain_opto_reduction) {
     double r0 = g.live.optoGR.load();
     g.set("qopr", 100); g.run(in, in, oL, oR); double r100 = g.live.optoGR.load();
     CHECK(r0 > -1.5); CHECK(r100 < -8.0);
-    // release is program dependent: after a long loud passage the recovery is slower than after a short one
-    auto recover = [&](size_t loudLen) {
-        Rig h; h.allOff(); h.set("qoon", 1); h.set("qopr", 40); h.set("qomx", 127);
-        Sig s(N, 0.f); for (size_t i = 0; i < N; ++i) s[i] = (float) ((i < loudLen ? 0.7 : 0.01) * std::sin(2 * kPi * 500.0 * i / sr));
-        Sig a, b; h.run(s, s, a, b);
-        return a;
-    };
-    Sig shortA = recover(2000), longA = recover(60000);
-    double s1 = rmsDb(shortA, 4000, 8000), s2 = rmsDb(longA, 62000, 66000);       // level of the quiet tone soon after the loud part
-    CHECK(s1 > s2 - 0.01 || true);
-    (void) s1; (void) s2;
+}
+// Time for the gain reduction to fall to `frac` (half) of its value after a loud passage of `loudSec`, with the sound switched to near silence.
+static double halfRecoverySec(Rig& g, double freq, double loudSec, const std::atomic<float>& gr, double frac = 0.5) {
+    g.apply(); g.fx.reset();
+    const double sr = g.sr; const int chunk = 48;
+    const size_t nLoud = (size_t) (loudSec * sr), nAll = nLoud + (size_t) (6.0 * sr);
+    std::vector<float> l(chunk), r(chunk);
+    double g0 = 0.0, tHalf = -1.0; bool measured = false;
+    for (size_t i = 0; i < nAll; i += (size_t) chunk) {
+        for (int k = 0; k < chunk; ++k) { double amp = (i + (size_t) k) < nLoud ? 0.5 : 0.0005; l[(size_t) k] = r[(size_t) k] = (float) (amp * std::sin(2 * kPi * freq * (double) (i + (size_t) k) / sr)); }
+        g.fx.process(l.data(), r.data(), chunk);
+        const double v = gr.load();
+        if (i + (size_t) chunk <= nLoud) g0 = std::min(g0, v);
+        else {
+            if (!measured) { g0 = v; measured = true; }
+            if (v > frac * g0) { tHalf = (double) (i + (size_t) chunk - nLoud) / sr; break; }
+        }
+    }
+    return tHalf;
+}
+TEST(fxchain_auto_release_is_program_dependent) {
+    // AUTO release: the longer a compressor has been working, the slower it lets go (documented in fx_dynamics.h and .cpp).
+    {   Rig g; g.allOff(); g.set("qmon", 1); g.set("qmmx", 127);
+        for (int b = 1; b <= 4; ++b) { char id[8]; std::snprintf(id, sizeof id, "qm%do", b); g.set(id, b == 2); std::snprintf(id, sizeof id, "qm%dx", b); g.set(id, 0); }
+        g.set("qm2t", 64); g.set("qm2r", 100); g.set("qm2a", 30); g.set("qm2l", 0);
+        double sh = halfRecoverySec(g, 396.0, 0.06, g.live.mbCompGR[1]), lo = halfRecoverySec(g, 396.0, 2.0, g.live.mbCompGR[1]);
+        std::printf("    multiband AUTO release: half recovery %.0f ms after 60 ms, %.0f ms after 2 s\n", sh * 1000, lo * 1000);
+        CHECK(sh > 0 && lo > 1.8 * sh); CHECK(sh > 0.015 && lo < 1.5);
+        g.set("qm2l", 70);       // a fixed release (45 ms) does not depend on the history
+        double f1 = halfRecoverySec(g, 396.0, 0.06, g.live.mbCompGR[1]), f2 = halfRecoverySec(g, 396.0, 2.0, g.live.mbCompGR[1]);
+        std::printf("    multiband fixed release 45 ms: %.0f ms and %.0f ms\n", f1 * 1000, f2 * 1000);
+        CHECK(std::fabs(f1 - f2) < 0.3 * f2 + 0.005);
+    }
+    {   Rig g; g.allOff(); g.set("qcn", 1); g.set("qcr", 3); g.set("qct", 64); g.set("qca", 0); g.set("qcm", 0);
+        double sh = halfRecoverySec(g, 300.0, 0.06, g.live.gluGR), lo = halfRecoverySec(g, 300.0, 2.0, g.live.gluGR);
+        std::printf("    glue AUTO release: half recovery %.0f ms after 60 ms, %.0f ms after 2 s\n", sh * 1000, lo * 1000);
+        CHECK(sh > 0 && lo > 1.5 * sh);
+    }
+    {   Rig g; g.allOff(); g.set("qoon", 1); g.set("qopr", 60); g.set("qomx", 127);
+        // the slow cell holds half of the reduction, so look at the time to fall to a quarter
+        double sh = halfRecoverySec(g, 500.0, 0.06, g.live.optoGR, 0.25), lo = halfRecoverySec(g, 500.0, 2.0, g.live.optoGR, 0.25);
+        std::printf("    opto release: quarter recovery %.0f ms after 60 ms, %.0f ms after 2 s\n", sh * 1000, lo * 1000);
+        CHECK(sh > 0 && lo > 1.5 * sh);
+    }
 }
 TEST(fxchain_transient_shaper) {
     const double sr = 48000.0; const size_t N = 48000;
@@ -561,6 +626,11 @@ TEST(fxchain_resonance_tamer) {
     std::printf("    tamer: resonance %.1f dB, plain noise %.2f dB\n", cut, noiseChange);
     CHECK(cut < -3.5 && cut > -7.0);
     CHECK(std::fabs(noiseChange) < 0.5);
+    Sig pink = pinkNoise(131072, 0.2f, 9), pL, pR; g.run(pink, pink, oL, oR);
+    g.set("qrn", 0); g.run(pink, pink, pL, pR); g.set("qrn", 1);           // reference: the same chain with the tamer off (the 10 Hz guard filter takes some of the pink low end)
+    double pinkChange = rmsDb(oL, 60000, 120000) - rmsDb(pL, 60000, 120000);
+    std::printf("    tamer: pink noise %.2f dB\n", pinkChange);
+    CHECK(std::fabs(pinkChange) < 0.5);
     // the 7 to 9 kHz focus leaves a 4 kHz resonance alone
     g.set("qrf", 1); g.run(peaky, peaky, oL, oR);
     CHECK(std::fabs(toneDb(oL, 60000, 90000, 4000.0, sr) - toneDb(peaky, 60000, 90000, 4000.0, sr)) < 0.5);

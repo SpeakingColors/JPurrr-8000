@@ -103,7 +103,18 @@ inline float TruePeakProbe::push(float x, float quickLimit) {
     h_[w_] = x; h_[w_ + 2 * kHalf] = x;
     const float* seg = &h_[w_ + 1];                      // oldest first, newest last
     float wm = 0.f;
+#if defined(__SSE__) || defined(__x86_64__) || defined(_M_X64)
+    {
+        const __m128 am = _mm_castsi128_ps(_mm_set1_epi32(0x7FFFFFFF));
+        __m128 m = _mm_setzero_ps();
+        for (int i = 0; i < 2 * kHalf; i += 4) m = _mm_max_ps(m, _mm_and_ps(_mm_loadu_ps(seg + i), am));
+        m = _mm_max_ps(m, _mm_movehl_ps(m, m));
+        m = _mm_max_ss(m, _mm_shuffle_ps(m, m, 1));
+        wm = _mm_cvtss_f32(m);
+    }
+#else
     for (int i = 0; i < 2 * kHalf; ++i) wm = std::max(wm, std::fabs(seg[i]));
+#endif
     if (wm * l1_ <= quickLimit) return wm;
     float pk = std::fabs(seg[kHalf - 1]);
     for (int p = 1; p < kPhases; ++p) {

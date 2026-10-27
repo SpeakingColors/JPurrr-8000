@@ -39,6 +39,8 @@ struct FxChain::Impl {
     Chain ch;
     // bypass / alignment history of the gated input
     std::vector<float> hist[2]; unsigned hmask = 0, hw = 0;
+    unsigned histCount = 0;                        // real samples in the history (saturates), so a cold start does not replay silence
+    int warm = 0;                                  // extra samples replayed on wake: the widener delay lines are up to 20 ms long
     Fade qon; bool chainAsleep = true;
     int lat = 0;
     float peakL = 0.f, peakR = 0.f;
@@ -127,9 +129,9 @@ struct FxChain::Impl {
 
     void wakeChain() {
         ch.reset();
-        // replay the last `lat` input samples through the chain so that its internal delays hold real signal
+        // replay the last `lat + warm` input samples through the chain so that its internal delays hold real signal
         float tl[kSub], tr[kSub];
-        int remaining = lat;
+        int remaining = (int) std::min<unsigned>((unsigned) (lat + warm), histCount);
         unsigned pos = hw - (unsigned) remaining;
         while (remaining > 0) {
             const int m = std::min(remaining, (int) kSub);
@@ -154,9 +156,10 @@ void FxChain::prepare(double sr, int maxBlock) {
     s.sr = sr; s.maxBlock = maxBlock;
     s.gate.prepare(sr);
     s.ch.prepare(sr);
-    unsigned n = 1024; while ((int) n < s.latencyFor(TruePeakProbe::delay() + (int) std::ceil(kMaxLookaheadSec * sr) + 2) + 4 * kSub) n <<= 1;
+    s.warm = (int) std::ceil(0.021 * sr);
+    unsigned n = 1024; while ((int) n < s.latencyFor(TruePeakProbe::delay() + (int) std::ceil(kMaxLookaheadSec * sr) + 2) + s.warm + 4 * kSub) n <<= 1;
     for (auto& h : s.hist) h.assign(n, 0.f);
-    s.hmask = n - 1; s.hw = 0;
+    s.hmask = n - 1; s.hw = 0; s.histCount = 0;
     s.qon.setRate(sr);
     s.havePrm = false;
     int v[kNumParams]; for (int i = 0; i < kNumParams; ++i) v[i] = kParams[i].def;
@@ -169,7 +172,7 @@ void FxChain::prepare(double sr, int maxBlock) {
 void FxChain::reset() {
     Impl& s = *impl_;
     for (auto& h : s.hist) std::fill(h.begin(), h.end(), 0.f);
-    s.hw = 0; s.gate.reset(); s.ch.reset(); s.chainAsleep = true; s.qon.snap(s.qon.tgt > 0.f);
+    s.hw = 0; s.histCount = 0; s.gate.reset(); s.ch.reset(); s.chainAsleep = true; s.qon.snap(s.qon.tgt > 0.f);
 }
 void FxChain::setParams(const int* v) {
     Impl& s = *impl_;
@@ -210,7 +213,7 @@ void FxChain::process(float* left, float* right, int n) {
         // write the gated input to the history, read the delayed copy
         const unsigned w0 = s.hw;
         for (int i = 0; i < m; ++i) { s.hist[0][(w0 + (unsigned) i) & s.hmask] = l[i]; s.hist[1][(w0 + (unsigned) i) & s.hmask] = r[i]; }
-        s.hw += (unsigned) m;
+        s.hw += (unsigned) m; s.histCount = std::min(s.histCount + (unsigned) m, 1u << 30);
         float bl[kSub], br[kSub];
         for (int i = 0; i < m; ++i) { const unsigned rd = (w0 + (unsigned) i - (unsigned) s.lat) & s.hmask; bl[i] = s.hist[0][rd]; br[i] = s.hist[1][rd]; }
         const float a0 = s.qon.advance(m), a1 = s.qon.cur;
@@ -221,7 +224,7 @@ void FxChain::process(float* left, float* right, int n) {
         } else {
             if (s.chainAsleep) {
                 // the history now contains this chunk; replay only what came before it
-                s.hw -= (unsigned) m; s.wakeChain(); s.hw += (unsigned) m;
+                s.hw -= (unsigned) m; s.histCount -= (unsigned) m; s.wakeChain(); s.hw += (unsigned) m; s.histCount += (unsigned) m;
             }
             float cl[kSub], cr[kSub];
             std::memcpy(cl, l, sizeof(float) * (size_t) m); std::memcpy(cr, r, sizeof(float) * (size_t) m);

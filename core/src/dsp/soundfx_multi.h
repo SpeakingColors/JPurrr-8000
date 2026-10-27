@@ -49,11 +49,12 @@ private:
     Biquad xoLp_[2][2], xoHp_[2][2];   // phaser: Linkwitz Riley 4 split, the allpass chain only sees the low band
     float fbPrev_[2] = {};
 
-    // distortion
-    HalfbandUp upA_[2], upB_[2];
-    HalfbandDown dnA_[2], dnB_[2], dryA_[2], dryB_[2];   // dry* run the same filters without the shaper, to align the dry part
-    Biquad dLp_[2];
+    // distortion: 8x oversampling (three half band stages), first order antiderivative anti-aliasing (ADAA)
+    HalfbandUp up_[2][3];                               // stage 0: 1x->2x, 1: 2x->4x, 2: 4x->8x
+    HalfbandDown dn_[2][3], dry_[2][3];                 // dry_* run the same filters without the shaper, to align the dry part
+    Biquad dLp_[2][2];                                  // 4th order Butterworth low pass at 8x
     OnePoleHP dDc_[2];
+    double adaaX_[2] = {}, adaaF_[2] = {};
     float pIn_ = 0.f, pOut_ = 0.f, pOutS_ = 0.f, powK_ = 0.f, powKs_ = 0.f;
     float gPrev_ = 1.f;
 };

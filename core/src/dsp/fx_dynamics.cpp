@@ -68,6 +68,7 @@ void Tamer::run(float* l, float* r, int n) {
         b.redDb += (tgt - b.redDb) * (tgt > b.redDb ? b.kAtk : b.kRel);
         act[k] = b.redDb > 0.005;
         if (act[k]) bc[k] = Rbj(b.f0, sr_).peaking(2.5, -b.redDb);
+        else { b.bell[0].clear(); b.bell[1].clear(); }       // a bell that is not running holds no stale state when it starts again
     }
     for (int i = 0; i < n; ++i) {
         const double sc = 0.5 * ((double) l[i] + (double) r[i]);

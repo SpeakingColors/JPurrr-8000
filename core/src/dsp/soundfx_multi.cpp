@@ -29,7 +29,7 @@ static const ModDesign kDesign[13] = {
     { 1, 0.22f, { 0, 0 }, { 0, 0 }, 0, 0, 0.25f, 9.0f, 0.80f,              0, 0, 0, 1, 0.25f, 0, 1.f },   // FLANGER DEEP
     { 1, 0.90f, { 0, 0 }, { 0, 0 }, 0, 0, 0.5f, 3.5f, 0.55f,               0, 0, 0, 1, 0.25f, 0, 1.f },   // FLANGER FAST
     { 2, 0.15f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.65f,                     8, 250, 2500, 1, 0.25f, 0, 1.f },   // DEEP PHASING SLW
-    { 2, 0.06f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.82f,                     6, 120, 2400, 1, 0.15f, 0, 1.f },  // JET PHASING
+    { 2, 0.06f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.78f,                     6, 120, 2000, 1, 0.15f, 0, 1.f },  // JET PHASING
     { 2, 0.45f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.50f,                     6, 300, 2800, 1, 0.50f, 0.35f, 1.f }, // TWISTING
     { 2, 0.03f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, 0.72f,                     8, 860, 900, 1.45f, 0.50f, 0, 1.f }, // FREEZE PHASE 1
     { 2, 0.025f, { 0, 0 }, { 0, 0 }, 0, 0, 0, 0, -0.72f,                   10, 420, 440, 2.6f, 0.50f, 0, 1.f },  // FREEZE PHASE 2
@@ -38,16 +38,17 @@ static const ModDesign kDesign[13] = {
 
 // Overall output trim at full level, from the pink-ish multi sine level test in tests/test_soundfx.cpp
 // (the trim fades in with the level knob, so level 0 stays bit exact). Brings every type within about 0.5 dB.
-static const float kTrim[13] = { 1.07f, 1.08f, 1.084f, 1.04f, 1.f, 1.f, 0.97f, 0.80f, 0.766f, 0.85f, 0.78f, 1.39f, 1.f };
+static const float kTrim[13] = { 1.07f, 1.08f, 1.084f, 1.04f, 1.05f, 1.11f, 1.076f, 0.86f, 0.80f, 0.90f, 0.83f, 1.11f, 1.f };
 
-// ---- distortion waveshaper and its level match table
+// ---- distortion waveshaper
 
-static const float kBias = 0.1f;   // small asymmetry for some even harmonics; the DC it makes is removed after
-static inline float shaper(float u) { return std::tanh(u + kBias) - std::tanh(kBias); }
+static const double kBias = 0.1;   // small asymmetry for some even harmonics; the DC it makes is removed after
+static inline double logcosh(double x) { double a = std::fabs(x); return a + std::log1p(std::exp(-2.0 * a)) - 0.69314718055994531; }
 
 // ---- MultiFx
 
 static const double kPhaserSplitHz = 2800.0;
+static const double kDistLpHz = 8000.0;
 
 MultiFx::MultiFx() { des_ = &kDesign[0]; }
 
@@ -60,8 +61,8 @@ void MultiFx::prepare(double sr) {
     powK_ = (float)(1.0 - std::exp(-1.0 / (0.010 * sr)));
     powKs_ = (float)(1.0 - std::exp(-1.0 / (0.060 * sr)));
     for (int c = 0; c < 2; ++c) {
-        upA_[c].c = &kHbA; dnA_[c].c = &kHbA; upB_[c].c = &kHbB; dnB_[c].c = &kHbB; dryA_[c].c = &kHbA; dryB_[c].c = &kHbB;
-        dLp_[c].lowpass(4.0 * sr, 9000.0, 0.70710678); dDc_[c].set(25.0, sr);
+        for (int k = 0; k < 3; ++k) { const HalfbandCoefs* hc = k == 0 ? &kHbA : &kHbB; up_[c][k].c = hc; dn_[c][k].c = hc; dry_[c][k].c = hc; }
+        dLp_[c][0].lowpass(8.0 * sr, kDistLpHz, 0.5411961); dLp_[c][1].lowpass(8.0 * sr, kDistLpHz, 1.3065630); dDc_[c].set(25.0, sr);
         fbLp_[c].set(6000.0, sr); wetHp_[c].set(120.0, sr);
     }
     setType(type_);
@@ -91,7 +92,8 @@ void MultiFx::reset() {
         for (int k = 0; k < 2; ++k) { xoLp_[c][k].clear(); xoHp_[c][k].clear(); }
         for (int s = 0; s < kMaxStages; ++s) apS_[c][s] = 0.f;
         fbPrev_[c] = 0.f;
-        upA_[c].clear(); upB_[c].clear(); dnA_[c].clear(); dnB_[c].clear(); dryA_[c].clear(); dryB_[c].clear(); dLp_[c].clear(); dDc_[c].clear();
+        for (int k = 0; k < 3; ++k) { up_[c][k].clear(); dn_[c][k].clear(); dry_[c][k].clear(); }
+        dLp_[c][0].clear(); dLp_[c][1].clear(); dDc_[c].clear(); adaaX_[c] = adaaF_[c] = 0.0;
     }
     pIn_ = pOut_ = pOutS_ = 0.f;
     phase_ = 0.0; rateCur_ = rateOverride_ > 0.0 ? (float)rateOverride_ : des_->rate;
@@ -180,6 +182,7 @@ void MultiFx::runPhaser(const float* in[2], float* out[2], const float* lev, int
     for (int i = 0; i < n; ++i) {
         float ph = advanceLfo();
         float g = (1.f + lev[i] * (kTrim[type_] - 1.f)) / (1.f + lev[i]);      // allpass sums are in phase outside the notches: peak normalised
+        float wx = std::min(1.f, lev[i] * 20.f);
         for (int c = 0; c < 2; ++c) {
             float x = in[c][i];
             float p = ph + (c ? d.lr : 0.f);
@@ -205,36 +208,50 @@ void MultiFx::runPhaser(const float* in[2], float* out[2], const float* lev, int
             fbHp_[c].s = hs + hpk * (y - hs);
             v = xin;
             for (int k = 0; k < d.stages; ++k) { float yy = a * v + s[k]; s[k] = flush(v - a * yy); v = yy; }
-            // the dry part is blended towards the split's own allpass (lo + hi), so wet and dry stay in phase above the split
-            out[c][i] = (x + lev[i] * (lo + hi - x + v * wetScale + hi)) * g;
+            // The dry part moves to the split's own allpass (lo + hi) as soon as the level leaves zero, so wet and dry stay in phase above the split.
+            out[c][i] = (x + wx * (lo + hi - x) + lev[i] * (v * wetScale + hi)) * g;
         }
     }
     for (int c = 0; c < 2; ++c) for (int k = 0; k < 2; ++k) { xoLp_[c][k].flushState(); xoHp_[c][k].flushState(); }
 }
 
-// Distortion (JP-8080 style 13th type, our own version): 4x oversampled tanh with a small asymmetry,
-// drive tied to the level knob (6 dB at 0, 32 dB at full), post low pass at 9 kHz (run at 4x so its shape does not depend on the sample rate), DC blocked.
+// Distortion (JP-8080 style 13th type, our own version): 8x oversampled tanh with a small asymmetry and first order
+// ADAA, drive tied to the level knob (6 dB at 0, 26 dB at full), post low pass 4th order at 8 kHz (run at 8x so its shape does
+// not depend on the sample rate; it also takes the harmonics that would fold around Nyquist), DC blocked.
 // Level match: gain = sqrt(input power / wet power). Input power uses a 10 ms follower; wet power uses the larger of
-// a 10 ms and a 60 ms follower, so the wet side never reads low right after an onset. Linked over both channels. The level knob also crossfades dry to wet.
+// a 10 ms and a 60 ms follower, so the wet side never reads low right after an onset. Linked over both channels.
+// The level knob also mixes dry and wet with an equal power law; the dry part runs through the same half band filters
+// so both sides have the same delay.
 void MultiFx::runDistortion(const float* in[2], float* out[2], const float* lev, int n) {
-    float g1 = std::pow(10.f, (6.f + 26.f * lev[n - 1]) / 20.f);
+    float g1 = std::pow(10.f, (6.f + 20.f * lev[n - 1]) / 20.f);
     float g0 = gPrev_ > 0.f ? gPrev_ : g1;
     gPrev_ = g1;
+    const double tb = std::tanh(kBias);
     for (int i = 0; i < n; ++i) {
-        float g = g0 + (g1 - g0) * ((float)(i + 1) / (float)n);
+        double g = g0 + (g1 - g0) * ((float)(i + 1) / (float)n);
         float m = lev[i], y[2], dryAl[2], pi = 0.f, po = 0.f;
         for (int c = 0; c < 2; ++c) {
             float x = in[c][i];
-            float a0, a1, b00, b01, b10, b11;
-            upA_[c].process(x, a0, a1);
-            upB_[c].process(a0, b00, b01);
-            upB_[c].process(a1, b10, b11);
-            float s00 = dLp_[c].process(shaper(g * b00)), s01 = dLp_[c].process(shaper(g * b01));   // 9 kHz low pass at the 4x rate
-            float s10 = dLp_[c].process(shaper(g * b10)), s11 = dLp_[c].process(shaper(g * b11));
-            float h0 = dnB_[c].process(s00, s01);
-            float h1 = dnB_[c].process(s10, s11);
-            y[c] = dDc_[c].process(dnA_[c].process(h0, h1));
-            dryAl[c] = dryA_[c].process(dryB_[c].process(b00, b01), dryB_[c].process(b10, b11));
+            float s1[2], s2[4], s3[8], w[8], d4[4], d2[2];
+            up_[c][0].process(x, s1[0], s1[1]);
+            for (int a = 0; a < 2; ++a) up_[c][1].process(s1[a], s2[2 * a], s2[2 * a + 1]);
+            for (int a = 0; a < 4; ++a) up_[c][2].process(s2[a], s3[2 * a], s3[2 * a + 1]);
+            for (int a = 0; a < 8; ++a) {
+                double xs = g * (double)s3[a], x0 = adaaX_[c];
+                double f1 = logcosh(xs + kBias), dx = xs - x0, r;
+                if (std::fabs(dx) > 1e-5) r = (f1 - adaaF_[c]) / dx - tb;
+                else r = std::tanh(0.5 * (xs + x0) + kBias) - tb;
+                adaaX_[c] = xs; adaaF_[c] = f1;
+                w[a] = dLp_[c][1].process(dLp_[c][0].process((float)r));
+            }
+            for (int a = 0; a < 4; ++a) d4[a] = dn_[c][2].process(w[2 * a], w[2 * a + 1]);
+            for (int a = 0; a < 2; ++a) d2[a] = dn_[c][1].process(d4[2 * a], d4[2 * a + 1]);
+            y[c] = dDc_[c].process(dn_[c][0].process(d2[0], d2[1]));
+            // dry path with the same delay
+            float q4[4], q2[2];
+            for (int a = 0; a < 4; ++a) q4[a] = dry_[c][2].process(s3[2 * a], s3[2 * a + 1]);
+            for (int a = 0; a < 2; ++a) q2[a] = dry_[c][1].process(q4[2 * a], q4[2 * a + 1]);
+            dryAl[c] = dry_[c][0].process(q2[0], q2[1]);
             pi += x * x; po += y[c] * y[c];
         }
         pIn_ += (0.5f * pi - pIn_) * powK_;
@@ -243,13 +260,14 @@ void MultiFx::runDistortion(const float* in[2], float* out[2], const float* lev,
         pIn_ = flush(pIn_); pOut_ = flush(pOut_); pOutS_ = flush(pOutS_);
         float k = std::sqrt((pIn_ + 1e-14f) / (std::max(pOut_, pOutS_) + 1e-14f));
         k = std::min(k, 30.f);
+        const float wd = std::cos(m * 1.57079633f), ww = std::sin(m * 1.57079633f);
         for (int c = 0; c < 2; ++c) {
             float x = in[c][i];
-            float xc = x + m * (dryAl[c] - x);                   // dry part follows the wet path's delay as the level rises
-            out[c][i] = (1.f - m) * xc + flush(y[c] * k) * m;
+            float xc = x + m * (dryAl[c] - x);                   // dry part moves to the wet path's delay as the level rises
+            out[c][i] = m == 0.f ? x : wd * xc + ww * flush(y[c] * k);
         }
     }
-    for (int c = 0; c < 2; ++c) dLp_[c].flushState();
+    for (int c = 0; c < 2; ++c) { dLp_[c][0].flushState(); dLp_[c][1].flushState(); }
 }
 
 } // namespace sfx

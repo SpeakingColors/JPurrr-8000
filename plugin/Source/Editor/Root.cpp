@@ -341,6 +341,7 @@ void Root::mouseDown(const juce::MouseEvent& e) {
 void Root::mouseUp(const juce::MouseEvent&) {}
 void Root::mouseDrag(const juce::MouseEvent&) { hideTip(); }
 bool Root::keyPressed(const juce::KeyPress& k) {
+    std::fprintf(stderr,"Root key %d open=%d\n",k.getKeyCode(),(int)dialogs->isOpen());
     if (k == juce::KeyPress::escapeKey && menu->isVisible()) { menu->setVisible(false); return true; }
     if (dialogs->isOpen() && dialogs->keyPressed(k)) return true;
     return false;

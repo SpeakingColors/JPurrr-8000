@@ -365,5 +365,5 @@ void HBtnW::paint(juce::Graphics& g) {
     g.setFont(fontOf(txt->f));
     drawTextAt(g, txt->lines[0].t, txt->lines[0].x + txt->lines[0].w / 2.0f - (float) getX(), base, 'c');
 }
-void HBtnW::mouseDown(const juce::MouseEvent& e) { if (!e.mods.isPopupMenu()) x.hideTip(); }
-void HBtnW::mouseUp(const juce::MouseEvent& e) { if (getLocalBounds().contains(e.getPosition()) && !e.mods.isPopupMenu() && onClick) onClick(); }
+void HBtnW::mouseDown(const juce::MouseEvent& e) { std::fprintf(stderr,"HB down\n"); if (!e.mods.isPopupMenu()) x.hideTip(); }
+void HBtnW::mouseUp(const juce::MouseEvent& e) { std::fprintf(stderr,"HB up %d\n",(int)getLocalBounds().contains(e.getPosition())); if (getLocalBounds().contains(e.getPosition()) && !e.mods.isPopupMenu() && onClick) onClick(); }
