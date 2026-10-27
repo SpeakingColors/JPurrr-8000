@@ -502,6 +502,13 @@ TEST(synth_sample_rates) {
     }
 }
 
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_UNDEFINED__)
+#define JP_BENCH_SANITIZED 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer) || __has_feature(undefined_behavior_sanitizer)
+#define JP_BENCH_SANITIZED 1
+#endif
+#endif
 TEST(synth_benchmark) {
     // 10 voices of Super Saw with the 24 dB filter at 48 kHz. Debug and sanitizer builds are far slower than a release build,
     // so the limit is only enforced when the compiler optimises (tools/build_synth_tools.sh --bench measures the release number).
@@ -517,13 +524,13 @@ TEST(synth_benchmark) {
     }
     const double pct = best / 2.0 * 100.0;
     std::printf("      10 voices Super Saw + 24 dB filter: %.1f %% of one core (%s build)\n", pct,
-#ifdef __OPTIMIZE__
+#if defined(__OPTIMIZE__) && !defined(JP_BENCH_SANITIZED)
                 "optimised"
 #else
                 "unoptimised"
 #endif
     );
-#ifdef __OPTIMIZE__
+#if defined(__OPTIMIZE__) && !defined(JP_BENCH_SANITIZED)
     CHECK(pct < 10.0);
 #endif
     CHECK(pct > 0.0);
