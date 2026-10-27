@@ -16,6 +16,8 @@ JPurrrEditor::JPurrrEditor(JPurrr8000AudioProcessor& p) : juce::AudioProcessorEd
     setConstrainer(&constrainer);
     constrainer.setMinimumSize((int) (layout::kDesignW * kMinScale), 100);
     int w = proc.uiWidth > 0 ? proc.uiWidth : (int) std::lround(layout::kDesignW * kDefaultScale);
+    if (proc.uiWidth <= 0)                          // first open: never wider than the screen
+        if (auto* d = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay()) w = juce::jmin(w, d->userArea.getWidth() - 40);
     w = juce::jlimit((int) (layout::kDesignW * kMinScale), (int) (layout::kDesignW * kMaxScale), w);
     setPageHeightAspect();
     setScaleWidth(w);

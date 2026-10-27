@@ -171,10 +171,23 @@ void PageView::paint(juce::Graphics& g) {
     for (auto& v : page.vtexts) {
         // writing-mode vertical-rl rotated 180: reads bottom to top
         g.setColour(L[lbl2]); g.setFont(fontOf(v.f));
-        g.saveState();
+        // per-glyph placement (tracking added by hand), then the whole run turned a quarter circle
         const float cx = v.r.x + v.r.w / 2.0f, cy = v.r.y + v.r.h / 2.0f;
-        g.addTransform(juce::AffineTransform::rotation(-juce::MathConstants<float>::halfPi, cx, cy));
-        g.drawText(juce::String::fromUTF8(v.t), juce::Rectangle<float>(cx - v.r.h / 2.0f, cy - v.r.w / 2.0f, v.r.h, v.r.w), juce::Justification::centred, false);
+        const juce::Font vf = fontOf(v.f.fam, v.f.size, v.f.weight, 0.0f);
+        g.setFont(vf);
+        const juce::String txt = juce::String::fromUTF8(v.t);
+        const float step = v.f.ls * v.f.size;
+        float totalW = -step;
+        for (int i = 0; i < txt.length(); ++i) totalW += vf.getStringWidthFloat(txt.substring(i, i + 1)) + step;
+        const float capMid = vf.getAscent() * 0.36f;
+        g.saveState();
+        g.addTransform(juce::AffineTransform::rotation(-juce::MathConstants<float>::halfPi).translated(cx, cy));
+        float x = -totalW / 2.0f;
+        for (int i = 0; i < txt.length(); ++i) {
+            const juce::String ch = txt.substring(i, i + 1);
+            g.drawSingleLineText(ch, juce::roundToInt(x), juce::roundToInt(capMid), juce::Justification::left);
+            x += vf.getStringWidthFloat(ch) + step;
+        }
         g.restoreState();
     }
 }

@@ -39,9 +39,10 @@ def emit_page(name, items, h):
         if not rows: return 'Span<%s>{nullptr,0}' % typ
         w('const %s %s_%s[] = {' % (typ, name, var)); w(',\n'.join('  ' + r for r in rows)); w('};')
         return 'Span<%s>{%s_%s,%d}' % (typ, name, var, len(rows))
+    vrects = [i['rect'] for i in items if i['k'] == 'vtext']   # vertical labels are drawn as vtext; the dump also holds their glyph-per-line text
     texts = []; allines = []
     for i in items:
-        if i['k'] != 'text' or i.get('id') in drop_text_ids: continue
+        if i['k'] != 'text' or i.get('id') in drop_text_ids or i['rect'] in vrects: continue
         start = len(allines)
         for l in i['lines']: allines.append('{%s,%s,%s,%s}' % (cs(l['t']), f(l['x']), f(l['w']), f(l['base'])))
         tok = TOKS.index(i['tok']) if i.get('tok') in TOKS else -1
