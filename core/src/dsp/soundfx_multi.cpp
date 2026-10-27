@@ -94,7 +94,7 @@ void MultiFx::reset() {
         for (int s = 0; s < kMaxStages; ++s) apS_[c][s] = 0.f;
         fbPrev_[c] = 0.f;
         for (int k = 0; k < 3; ++k) { up_[c][k].clear(); dn_[c][k].clear(); dry_[c][k].clear(); }
-        dLp_[c][0].clear(); dLp_[c][1].clear(); dDc_[c].clear(); adaaX_[c] = adaaF_[c] = 0.0;
+        dLp_[c][0].clear(); dLp_[c][1].clear(); dDc_[c].clear(); adaaX_[c] = 0.0; adaaF_[c] = logcosh(kBias);
     }
     pIn_ = pOut_ = pOutS_ = 0.f; kS_ = 1.f;
     phase_ = 0.0; rateCur_ = rateOverride_ > 0.0 ? (float)rateOverride_ : des_->rate;
@@ -260,7 +260,7 @@ void MultiFx::runDistortion(const float* in[2], float* out[2], const float* lev,
         pOutS_ += (0.5f * po - pOutS_) * powKs_;
         pIn_ = flush(pIn_); pOut_ = flush(pOut_); pOutS_ = flush(pOutS_);
         float k = std::sqrt((pIn_ + 1e-14f) / (std::max(pOut_, pOutS_) + 1e-14f));
-        k = std::min(k, 30.f);
+        k = std::min(k, 8.f);
         kS_ += (k - kS_) * kSmooth_;      // the follower ripples at twice the signal frequency; this keeps that ripple from folding back
         k = kS_;
         const float wd = std::cos(m * 1.57079633f), ww = std::sin(m * 1.57079633f);

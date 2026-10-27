@@ -55,6 +55,7 @@ private:
     juce::Image texture;
     juce::String lastInfo, lastMsg, lastTitle;
     const layout::Tip* hoverTip = nullptr; juce::Point<float> hoverPos; juce::uint32 hoverSince = 0;
+    const layout::Tip* tipDone = nullptr;              // tip dismissed by a press: not shown again until the pointer reaches another element
     void timerCallback() override;
     void updateTip();
     const layout::Tip* tipAtPoint(juce::Point<float> p, juce::Rectangle<float>& region) const;

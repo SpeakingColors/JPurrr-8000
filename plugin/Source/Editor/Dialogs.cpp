@@ -437,16 +437,13 @@ bool DialogLayer::hitTest(int x, int y) {
     return pageMode ? panel->getBounds().contains(x, y) : true;
 }
 void DialogLayer::mouseDown(const juce::MouseEvent& e) {
-    std::fprintf(stderr,"layer mouseDown %d,%d\n", e.x, e.y);
     if (panel != nullptr && !panel->getBounds().contains(e.getPosition())) close();
 }
 bool DialogLayer::keyPressed(const juce::KeyPress& k) {
-    std::fprintf(stderr,"layer key %d\n", k.getKeyCode());
     if (panel != nullptr && k == juce::KeyPress::escapeKey) { close(); return true; }
     return false;
 }
 void DialogLayer::close() {
-    std::fprintf(stderr,"close() panel=%d\n",(int)(panel!=nullptr));
     if (panel == nullptr) return;
     removeChildComponent(panel.get());
     graveyard.push_back(std::move(panel));
@@ -467,6 +464,7 @@ DialogFrame& DialogLayer::begin(const String& title, float widthCss, bool page) 
 }
 void DialogLayer::finish(DialogFrame& f) {
     addAndMakeVisible(f); setVisible(true); toFront(false);
+    if (root.isShowing() && !root.hasKeyboardFocus(true)) root.grabKeyboardFocus();
     f.fit(getLocalBounds()); repaint();
 }
 

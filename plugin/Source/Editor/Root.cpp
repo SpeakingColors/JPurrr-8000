@@ -151,6 +151,7 @@ private:
 
 // ============================================================================================== Root
 Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
+    setWantsKeyboardFocus(true);                          // Escape closes dialogs wherever the pointer is, as in the mockup
     Settings& S = Settings::get();
     ctx.lookIdx = lookIndexOf(S.look);
     ctx.showVal = [this](juce::Component& c, int i) { showValueBubble(c, i); };
@@ -326,7 +327,7 @@ void Root::mouseMove(const juce::MouseEvent& e) {
     if (t != hoverTip) { hideTip(); hoverTip = t; hoverSince = juce::Time::getMillisecondCounter(); startTimer(50); }
     hoverPos = p;
 }
-void Root::mouseExit(const juce::MouseEvent&) { hideTip(); hoverTip = nullptr; }
+void Root::mouseExit(const juce::MouseEvent&) { hideTip(); hoverTip = nullptr; tipDone = nullptr; }
 void Root::mouseDown(const juce::MouseEvent& e) {
     hideTip();
     if (menu->isVisible() && !e.eventComponent->isParentOf(menu.get()) && e.eventComponent != menu.get()) {
@@ -341,7 +342,6 @@ void Root::mouseDown(const juce::MouseEvent& e) {
 void Root::mouseUp(const juce::MouseEvent&) {}
 void Root::mouseDrag(const juce::MouseEvent&) { hideTip(); }
 bool Root::keyPressed(const juce::KeyPress& k) {
-    std::fprintf(stderr,"Root key %d open=%d\n",k.getKeyCode(),(int)dialogs->isOpen());
     if (k == juce::KeyPress::escapeKey && menu->isVisible()) { menu->setVisible(false); return true; }
     if (dialogs->isOpen() && dialogs->keyPressed(k)) return true;
     return false;
@@ -357,12 +357,12 @@ void Root::showMenu(bool show) {
     menu->popup((float) b->getX() - kCheekL.w, (float) b->getBottom() + 4.0f);
 }
 
-void Root::hideTip() { tipBubble->setVisible(false); if (!ctx.lookIdx && false) {} }
+void Root::hideTip() { tipBubble->setVisible(false); tipDone = hoverTip; }
 void Root::hideValueBubble() { valBubble->setVisible(false); }
 
 void Root::timerCallback() {
     if (!Settings::get().bubbles || hoverTip == nullptr || dialogs->isOpen()) { stopTimer(); startTimerHz(20); return; }
-    if (tipBubble->isVisible()) return;
+    if (tipBubble->isVisible() || hoverTip == tipDone) return;
     if (juce::Time::getMillisecondCounter() - hoverSince < 1000) return;
     const Tip& t = *hoverTip;
     juce::String text = juce::String::fromUTF8(t.tip), bold, rest;
