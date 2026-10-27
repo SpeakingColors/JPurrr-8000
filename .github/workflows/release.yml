@@ -158,7 +158,11 @@ jobs:
         run: |
           manual=""
           [ -f docs/manual/JPurrr-8000-manual.pdf ] && manual=docs/manual/JPurrr-8000-manual.pdf
-          bash scripts/package_windows.sh "build/plugin/JPurrr8000_artefacts/$BUILD_TYPE" "$VERSION" dist "$manual"
+          bash scripts/package_windows.sh "build/plugin/JPurrr8000_artefacts/$BUILD_TYPE" "$VERSION" dist "$manual" 2>&1 | tee package.log; exit "${PIPESTATUS[0]}"
+      - name: Show the packaging log on failure
+        if: failure()
+        run: |
+          [ -f package.log ] && echo "::error title=package log::$(tail -n 30 package.log | tr -d '\r' | sed ':a;N;$!ba;s/\n/%0A/g')"
       - name: Test the installer (silent install, check files, uninstall)
         shell: pwsh
         env:
