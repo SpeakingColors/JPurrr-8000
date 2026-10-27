@@ -77,11 +77,13 @@ private:
     HbUp u1_, u2_; HbDown d1_, d2_;
 };
 
-// 8x windowed sinc interpolator used to find inter sample (true) peaks.
+// 8x windowed sinc interpolator used to find inter sample (true) peaks (32 taps, Kaiser beta 6).
+// Measured against ideal band limited interpolation: peak error within -0.1 dB for content up to 0.45 fs, about -1.4 dB for
+// full band white noise (a finite filter cannot see energy right at Nyquist).
 // push() takes one sample and returns the largest |y| of the sample kHalf back and the 7 interpolated points after it.
 class TruePeakProbe {
 public:
-    static constexpr int kHalf = 8;                      // taps on each side
+    static constexpr int kHalf = 16;                     // taps on each side
     static constexpr int kPhases = 8;
     void init();
     void clear() { std::fill(h_, h_ + 4 * kHalf, 0.f); w_ = 0; }

@@ -69,6 +69,13 @@ void Biquad::lowpass(double sr, double f0, double q) {
     a1 = (float)(-2 * c / a0); a2 = (float)((1 - al) / a0);
 }
 
+void Biquad::highpass(double sr, double f0, double q) {
+    double w = 2.0 * kPi * std::min(f0, 0.45 * sr) / sr, c = std::cos(w), al = std::sin(w) / (2.0 * q);
+    double a0 = 1 + al;
+    b0 = (float)((1 + c) / 2 / a0); b1 = (float)(-(1 + c) / a0); b2 = b0;
+    a1 = (float)(-2 * c / a0); a2 = (float)((1 - al) / a0);
+}
+
 // 6 + 4 coefficients, designed offline with a minimax fit (tools/ notes in the report).
 // Stage A: 1x <-> 2x, passband to 0.4 of the 1x Nyquist-doubled rate, stopband better than -100 dB.
 const HalfbandCoefs kHbA = { 3, 3, { 0.30325866f, 0.03925859f, 0.67513915f }, { 0.14774324f, 0.88321676f, 0.48314575f } };

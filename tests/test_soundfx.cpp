@@ -73,15 +73,19 @@ double rms(const std::vector<float>& x, size_t from = 0, size_t to = 0) {
 double db(double x) { return 20.0 * std::log10(std::max(x, 1e-12)); }
 
 // multi sine with a fixed spectrum, so the signal is the same at every sample rate
-std::vector<float> multiSine(double sr, size_t n, double peak = 0.5) {
+std::vector<float> multiSine(double sr, size_t n, double peak = 0.5, double fmax = 10000.0) {
     std::vector<float> x(n, 0.f);
     Rng rng(7);
     const int comps = 120;
     std::vector<double> f(comps), ph(comps);
-    for (int k = 0; k < comps; ++k) { f[k] = 60.0 * std::pow(10000.0 / 60.0, (k + rng.uni()) / comps); ph[k] = rng.uni() * 2 * kPi; }
+    for (int k = 0; k < comps; ++k) { f[k] = 60.0 * std::pow(fmax / 60.0, (k + rng.uni()) / comps); ph[k] = rng.uni() * 2 * kPi; }
     for (int k = 0; k < comps; ++k) {
-        double w = 2 * kPi * f[k] / sr;
-        for (size_t i = 0; i < n; ++i) x[i] += (float)std::sin(w * (double)i + ph[k]);
+        double w = 2 * kPi * f[k] / sr, cw = std::cos(w), sw = std::sin(w), sn = std::sin(ph[k]), cs = std::cos(ph[k]);
+        for (size_t i = 0; i < n; ++i) {                              // rotating phasor, far cheaper than sin()
+            x[i] += (float)sn;
+            double t = sn * cw + cs * sw; cs = cs * cw - sn * sw; sn = t;
+            if ((i & 4095) == 4095) { double m = std::sqrt(sn * sn + cs * cs); sn /= m; cs /= m; }
+        }
     }
     double m = 0; for (float v : x) m = std::max(m, (double)std::fabs(v));
     for (float& v : x) v = (float)(v / m * peak);
@@ -547,14 +551,32 @@ TEST(soundfx_chorus_sync_lfo1) {
 
 // ---------------------------------------------------------------- level consistency and sample rate
 
-static double typeGainDb(int type, int lev, double sr, int csy = 0) {
+// Band limited noise (60 Hz .. 8 kHz, same random numbers at every sample rate). Long enough that the power estimate is within ~0.05 dB.
+static std::vector<float> bandNoise(double sr, size_t n, double peak) {
+    std::vector<float> x(n);
+    Rng rng(31);
+    double lp1 = 0, lp2 = 0, hp = 0;
+    double a = 1.0 - std::exp(-2 * kPi * 8000.0 / sr), h = 1.0 - std::exp(-2 * kPi * 60.0 / sr);
+    for (size_t i = 0; i < n; ++i) {
+        double w = rng.bip();
+        lp1 += a * (w - lp1); lp2 += a * (lp1 - lp2);
+        hp += h * (lp2 - hp);
+        x[i] = (float)(lp2 - hp);
+    }
+    double m = 0; for (size_t i = 0; i < n; ++i) m += (double)x[i] * x[i];
+    m = std::sqrt(m / (double)n);
+    for (float& v : x) v = (float)(v / m * peak);
+    return x;
+}
+
+static double typeGainDb(int type, int lev, double sr) {
     Rig rig(sr);
-    rig.p[P_xt] = type; rig.p[P_xl] = lev; rig.p[P_csy] = csy;
-    size_t n = (size_t)(sr * 12.0);
-    std::vector<float> l = multiSine(sr, n, 0.4f), r = l;
-    double in = rms(l, n / 4, n);
+    rig.p[P_xt] = type; rig.p[P_xl] = lev;
+    size_t n = (size_t)(sr * 10.0);
+    std::vector<float> l = bandNoise(sr, n, 0.15), r = l;
+    double in = rms(l, n / 5, n);
     rig.run(l, r);
-    return db(rms(l, n / 4, n) / in);
+    return db(rms(l, n / 5, n) / in);
 }
 
 TEST(soundfx_modfx_level_consistent) {

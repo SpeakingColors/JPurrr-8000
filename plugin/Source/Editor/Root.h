@@ -19,6 +19,7 @@ public:
     int pageIndex() const { return page; }
     int designHeight() const { return layout::kPages[page].h; }
     std::function<void()> onPageChanged;               // the editor resizes itself
+    std::function<void()> onDefaultSize;               // double click on a wood cheek: back to 100%
     void applyLook(const juce::String& id);
     bool applyState(const juce::String& name);          // test hook (snapshot tool): sound chain master guide ... look_navy reset
 
@@ -31,6 +32,7 @@ public:
     void mouseDown(const juce::MouseEvent&) override;
     void mouseUp(const juce::MouseEvent&) override;
     void mouseDrag(const juce::MouseEvent&) override;
+    void mouseDoubleClick(const juce::MouseEvent&) override;
     bool keyPressed(const juce::KeyPress&) override;
     void showValueBubble(juce::Component& c, int idx);
     void hideValueBubble();

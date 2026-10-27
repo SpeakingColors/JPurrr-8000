@@ -5,7 +5,7 @@ namespace fxdsp {
 
 // ---------------------------------------------------------------- pocket high pass
 void PocketHpf::prepare(double sr) { sr_ = sr; lf_.setTime(0.025, sr / kSub); reset(); }
-void PocketHpf::reset() { s_[0].clear(); s_[1].clear(); first_ = true; lf_.snap(std::log(10.0)); }
+void PocketHpf::reset() { s_[0].clear(); s_[1].clear(); lf_.snap(first_ ? std::log(10.0) : lf_.tgt); }       // keeps the wanted frequency
 void PocketHpf::setParams(bool lowEndOn, int hpKnob) {
     const double f = (lowEndOn && hpKnob >= 3) ? hzv(hpKnob, 20, 500) : 10.0;
     lf_.tgt = std::log(f);

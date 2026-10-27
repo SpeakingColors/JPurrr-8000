@@ -74,6 +74,7 @@ struct Biquad {
     void lowShelf(double sr, double f0, double gainDb);   // RBJ, slope S = 1
     void highShelf(double sr, double f0, double gainDb);
     void lowpass(double sr, double f0, double q);
+    void highpass(double sr, double f0, double q);
     void clear() { z1 = z2 = 0; }
     float process(float x) {
         float y = b0 * x + z1;

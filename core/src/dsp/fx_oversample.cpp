@@ -39,8 +39,8 @@ const OsKernels& OsKernels::get() { static const OsKernels k; return k; }
 int OsKernels::roundTripDelay() { const OsKernels& k = get(); return k.s1.M + k.s2.M / 2; }
 
 void TruePeakProbe::init() {
-    // y(t + tau) = sum_{i=-7..8} x[t+i] * s(i - tau), s(u) = sinc(u) * Kaiser(u / 8)
-    const double beta = 7.0, i0b = besselI0(beta);
+    // y(t + tau) = sum_{i=1-kHalf..kHalf} x[t+i] * s(i - tau), s(u) = sinc(u) * Kaiser(u / kHalf)
+    const double beta = 6.0, i0b = besselI0(beta);
     l1_ = 1.f;
     for (int p = 0; p < kPhases; ++p) {
         const double tau = (double) p / kPhases;

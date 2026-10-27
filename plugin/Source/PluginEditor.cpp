@@ -11,6 +11,7 @@ constexpr float kMinScale = 0.5f, kMaxScale = 1.0f;
 JPurrrEditor::JPurrrEditor(JPurrr8000AudioProcessor& p) : juce::AudioProcessorEditor(p), proc(p), root(p) {
     addAndMakeVisible(root);
     root.onPageChanged = [this] { setPageHeightAspect(); };
+    root.onDefaultSize = [this] { setScaleWidth((int) std::lround(layout::kDesignW * kDefaultScale)); };
     setResizable(true, true);
     setConstrainer(&constrainer);
     constrainer.setMinimumSize((int) (layout::kDesignW * kMinScale), 100);
@@ -43,6 +44,9 @@ void JPurrrEditor::resized() {
     proc.uiWidth = getWidth();
     root.repaint();
 }
-void JPurrrEditor::timerCallback() { root.tick(juce::Time::getMillisecondCounterHiRes() * 0.001 - t0); }
+void JPurrrEditor::timerCallback() {
+    if (jp::Settings::get().power && !isShowing()) return;      // power saving: nothing to draw while hidden
+    root.tick(juce::Time::getMillisecondCounterHiRes() * 0.001 - t0);
+}
 
 juce::AudioProcessorEditor* createJPurrrEditor(JPurrr8000AudioProcessor& p) { return new JPurrrEditor(p); }

@@ -207,13 +207,15 @@ public:
     static constexpr float kH = 18.0f * Z;
     void paint(juce::Graphics& g) override {
         (void) root;
-        const float th = 16 * Z, tx0 = 2 * Z + th / 2, tx1 = getWidth() - 2 * Z - th / 2, cy = getHeight() / 2.0f;
-        const float t = hi > lo ? (float) (value - lo) / (float) (hi - lo) : 0.0f, x = tx0 + (tx1 - tx0) * t, tr = 2 * Z;
+        const float th = 15.5f * Z, tx0 = 2 * Z + th / 2, tx1 = getWidth() - 2 * Z - th / 2, cy = getHeight() / 2.0f;
+        const float t = hi > lo ? (float) (value - lo) / (float) (hi - lo) : 0.0f, x = tx0 + (tx1 - tx0) * t, tr = 5.5f;
         const Fl track(2 * Z, cy - tr, getWidth() - 4 * Z, 2 * tr);
         g.setColour(juce::Colour(0xffefefef)); g.fillRoundedRectangle(track, tr);
-        g.setColour(juce::Colour(0xffb5b5b5)); g.drawRoundedRectangle(track.reduced(0.5f), tr, 1.0f);
-        g.setColour(juce::Colour(0xff0075ff)); g.fillRoundedRectangle(Fl(track.getX(), track.getY(), x - track.getX(), track.getHeight()), tr);
-        g.fillEllipse(x - th / 2, cy - th / 2, th, th);
+        g.saveState(); g.reduceClipRegion(juce::Rectangle<int>(juce::roundToInt(x), 0, getWidth(), getHeight()));
+        g.setColour(juce::Colour(0xff9fa0a5)); g.drawRoundedRectangle(track.reduced(0.5f), tr, 1.0f); g.restoreState();
+        g.saveState(); g.reduceClipRegion(juce::Rectangle<int>(0, 0, juce::roundToInt(x), getHeight()));
+        g.setColour(juce::Colour(0xff0075ff)); g.fillRoundedRectangle(track, tr); g.restoreState();
+        g.setColour(juce::Colour(0xff0075ff)); g.fillEllipse(x - th / 2, cy - th / 2, th, th);
         if (hasKeyboardFocus(false)) drawRing(g, Fl(x - th / 2, cy - th / 2, th, th), th / 2);
     }
     void mouseDown(const juce::MouseEvent& e) override { if (e.mods.isPopupMenu()) return; dragging = true; if (onBegin) onBegin(); set(e.x); }
@@ -227,7 +229,7 @@ public:
 private:
     Root& root; bool dragging = false;
     void set(int px) {
-        const float th = 16 * Z, tx0 = 2 * Z + th / 2, tx1 = getWidth() - 2 * Z - th / 2;
+        const float th = 15.5f * Z, tx0 = 2 * Z + th / 2, tx1 = getWidth() - 2 * Z - th / 2;
         const float t = juce::jlimit(0.0f, 1.0f, ((float) px - tx0) / (tx1 - tx0));
         apply(lo + juce::roundToInt(t * (float) (hi - lo)));
     }
@@ -349,7 +351,7 @@ namespace jp {
 class DialogFrame : public juce::Component {
 public:
     DialogFrame(Root& r, const String& t, float wCss, bool page) : root(r), title(t.toUpperCase()), widthCss(wCss), pageMode(page) {
-        addAndMakeVisible(clip); clip.setInterceptsMouseClicks(false, true); clip.addAndMakeVisible(content);
+        addAndMakeVisible(clip); clip.setInterceptsMouseClicks(false, true); clip.addAndMakeVisible(content); content.setPaintingIsUnclipped(true);
         setWantsKeyboardFocus(false);
     }
     Root& root; String title; float widthCss; bool pageMode;
@@ -624,7 +626,7 @@ void DialogLayer::openExport() {
         });
     });
     f.button("Close", false, [this] { this->close(); });
-    copy->ring = true; finish(f); focusIf(copy);
+    ta->ring = true; finish(f); focusIf(&ta->ed); (void) copy;
 }
 
 void DialogLayer::openImport() {

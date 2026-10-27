@@ -47,8 +47,8 @@ void TruePeakLimiter::reset() { p_->clearState(); grDb_ = 0.f; }
 void TruePeakLimiter::setParams(bool on, double ceilingDb, double releaseSec, int lookaheadSamples) {
     Impl& s = *p_;
     s.wantOn = on;
-    // 0.05 dB of margin covers the interpolation error of the 8x probe and float rounding
-    s.ceilLin = std::pow(10.0, (std::min(ceilingDb, 0.0) - 0.05) / 20.0);
+    // 0.08 dB of margin covers the interpolation error of the 8x probe (about 0.07 dB at 0.45 fs) and float rounding
+    s.ceilLin = std::pow(10.0, (std::min(ceilingDb, 0.0) - 0.08) / 20.0);
     s.relCoef = std::exp(-1.0 / (std::max(releaseSec, 0.0005) * s.sr));
     s.wantLook = std::max(0, std::min(lookaheadSamples, s.maxLook));
     if (s.wantLook != s.look) { s.look = s.wantLook; s.clearState(); }       // a look-ahead change flushes the limiter

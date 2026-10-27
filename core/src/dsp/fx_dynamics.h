@@ -25,34 +25,43 @@ inline float upwardDb(float xdb, float thr, float ratio, float knee, float maxBo
     return std::min(g, maxBoost);
 }
 
-// Feed forward compressor core. Peak envelope with attack and release, then the gain computer on the envelope.
+// Feed forward compressor core, smooth decoupled log domain design: the gain computer runs on the instantaneous sidechain level,
+// the wanted reduction (dB, positive) goes through a peak hold with exponential RELEASE, then an ATTACK smoother. Both stages work in dB,
+// so a steady tone gets the reduction of the static curve whatever the attack time is, and the attack only delays how fast it arrives.
 // release == 0 selects AUTO: the release time follows how long the compressor has been working (see tick()).
 struct CompCore {
     float thr = 0.f, ratio = 1.f, knee = 6.f;
-    PeakEnv det;
+    double hold = 0.0, sm = 0.0, aA = 0.0, aR = 0.0;
     bool autoRel = false; double tauMin = 0.03, tauMax = 0.3, mAuto = 0.0, kAuto = 0.0, relScale = 1.0;
     float grDb = 0.f;                                 // last gain change in dB (<= 0)
     double sr = 48000;
     void prepare(double sr_) { sr = sr_; kAuto = 1.0 - std::exp(-(double) kSub / (1.0 * sr)); clear(); }
-    void clear() { det.clear(); mAuto = 0.0; grDb = 0.f; }
+    void clear() { hold = sm = 0.0; mAuto = 0.0; grDb = 0.f; }
     // attackSec > 0; releaseSec <= 0 means AUTO between tauMin and tauMax (times relScale)
     void set(float thrDb, float ratio_, float kneeDb, double attackSec, double releaseSec) {
         thr = thrDb; ratio = std::max(1.f, ratio_); knee = kneeDb;
         autoRel = releaseSec <= 0.0;
-        det.set(attackSec, autoRel ? tauMin * relScale : releaseSec, sr);
+        aA = attackSec <= 0 ? 0.0 : std::exp(-1.0 / (attackSec * sr));
+        if (!autoRel) aR = std::exp(-1.0 / (std::max(releaseSec, 0.0002) * sr));
+        else aR = std::exp(-1.0 / ((tauMin + (tauMax - tauMin) * mAuto) * relScale * sr));
     }
     void tick() {                                      // once per kSub samples
         if (autoRel) {
             mAuto += (std::min(1.0, -(double) grDb / 6.0) - mAuto) * kAuto;
-            det.aR = std::exp(-1.0 / ((tauMin + (tauMax - tauMin) * mAuto) * relScale * sr));
+            aR = std::exp(-1.0 / ((tauMin + (tauMax - tauMin) * mAuto) * relScale * sr));
         }
     }
     // lvl: linear magnitude of the sidechain. Returns the linear gain (<= 1).
     inline float run(float lvl) {
-        const float e = (float) det.run(lvl);
-        if (ratio <= 1.0001f || e < 1e-7f) { grDb = 0.f; return 1.f; }
-        grDb = downwardDb(linToDb(e), thr, ratio, knee);
-        return dbToLin(grDb);
+        double c = 0.0;
+        if (ratio > 1.0001f && lvl > 1e-7f) c = -(double) downwardDb(linToDb(lvl), thr, ratio, knee);
+        const double rel = aR * hold + (1.0 - aR) * c;
+        hold = c > rel ? c : rel;
+        if (hold < 1e-9) hold = 0.0;
+        sm = aA * sm + (1.0 - aA) * hold;
+        if (sm < 1e-6) sm = 0.0;
+        grDb = (float) -sm;
+        return sm > 0.0 ? dbToLin(grDb) : 1.f;
     }
 };
 

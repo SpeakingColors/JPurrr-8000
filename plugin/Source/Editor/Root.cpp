@@ -113,13 +113,16 @@ private:
 // ------------------------------------------------------------------------------ preset menu (#pmenu)
 class MenuPanel : public juce::Component {
 public:
-    explicit MenuPanel(Ctx& c) : x(c) { setVisible(false); }
+    explicit MenuPanel(Ctx& c) : x(c) { setVisible(false); setPaintingIsUnclipped(true); }
     static constexpr float Z = 1.25f;
     juce::StringArray items { "Save", "Rename", "Delete", "Export", "Import" };
     std::function<void(int)> onPick;
-    void popup(juce::Point<float> p) {
-        const float w = juce::jmax(150.0f * Z, 160.0f * Z), h = (6 * 2 + 32 * 5 + 3 * 4) * Z + 2;
-        setBounds(juce::Rectangle<float>(p.x, p.y, w + 2, h).toNearestInt()); setVisible(true); toFront(false);
+    // The mockup positions #pmenu in unzoomed header coordinates and then applies `zoom: 1.25` to the whole element, so the
+    // menu lands at 1.25 times the position of its anchor. Same here (relX, relY are relative to the centre panel).
+    void popup(float relX, float relY) {
+        const float w = (150 + 12 + 2) * Z, h = (6 * 2 + 32 * 5 + 3 * 4 + 2) * Z;
+        const float left = kCheekL.w + Z * juce::jmax(4.0f, juce::jmin(relX, (float) kDesignW - 34 - 170)), top = Z * relY;
+        setBounds(juce::Rectangle<float>(left, top, w, h).toNearestInt()); setVisible(true); toFront(false);
     }
     void paint(juce::Graphics& g) override {
         const Look& L = x.L(); auto r = getLocalBounds().toFloat();
@@ -332,17 +335,25 @@ void Root::mouseDown(const juce::MouseEvent& e) {
     }
     if (e.mods.isPopupMenu()) {
         auto p = e.getEventRelativeTo(this).position;
-        if (p.y < kHdr.h && !dialogs->isOpen()) showMenu(false), menu->popup({ std::min(p.x, (float) kDesignW - 34 - 190), p.y + 6 }), menu->setVisible(true);
+        if (p.y < kHdr.h && !dialogs->isOpen()) showMenu(false), menu->popup(p.x - kCheekL.w, p.y + 6);
     }
 }
 void Root::mouseUp(const juce::MouseEvent&) {}
 void Root::mouseDrag(const juce::MouseEvent&) { hideTip(); }
-bool Root::keyPressed(const juce::KeyPress& k) { if (k == juce::KeyPress::escapeKey && menu->isVisible()) { menu->setVisible(false); return true; } return false; }
+bool Root::keyPressed(const juce::KeyPress& k) {
+    if (k == juce::KeyPress::escapeKey && menu->isVisible()) { menu->setVisible(false); return true; }
+    if (dialogs->isOpen() && dialogs->keyPressed(k)) return true;
+    return false;
+}
+void Root::mouseDoubleClick(const juce::MouseEvent& e) {
+    const auto p = e.getEventRelativeTo(this).position;
+    if ((p.x < kCheekL.w || p.x >= kCheekR.x) && onDefaultSize) onDefaultSize();   // the mockup: double click a wood cheek for 100%
+}
 
 void Root::showMenu(bool show) {
     if (!show) { menu->setVisible(false); return; }
     auto* b = header[2];                                  // bMenu
-    menu->popup({ (float) b->getX(), (float) b->getBottom() + 4.0f });
+    menu->popup((float) b->getX() - kCheekL.w, (float) b->getBottom() + 4.0f);
 }
 
 void Root::hideTip() { tipBubble->setVisible(false); if (!ctx.lookIdx && false) {} }

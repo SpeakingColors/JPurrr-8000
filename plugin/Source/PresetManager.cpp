@@ -110,17 +110,20 @@ void PresetManager::pushHistory(const PresetEntry& e) {
 }
 
 juce::String PresetManager::toJson(const PresetEntry& e, bool withPlacement) {
-    auto* o = new juce::DynamicObject();
-    o->setProperty("app", "JPurrr-8000"); o->setProperty("format", 1);
-    o->setProperty("name", e.name); o->setProperty("type", e.type);
-    if (withPlacement) {
-        juce::Array<juce::var> g, t; for (auto& s : e.genres) g.add(s); for (auto& s : e.tags) t.add(s);
-        o->setProperty("genres", g); o->setProperty("tags", t); o->setProperty("bank", e.bank); o->setProperty("slot", e.slot);
-    }
-    auto* v = new juce::DynamicObject();
-    for (int i = 0; i < kNumParams; ++i) if (!isNoSave(i) && e.v[(size_t) i] != kParams[i].def) v->setProperty(kParams[i].id, e.v[(size_t) i]);
-    o->setProperty("v", juce::var(v));
-    return juce::JSON::toString(juce::var(o), false);
+    // Same text as the mockup's JSON.stringify(o, null, 1): one space per level, empty containers as {} and [].
+    auto q = [](const juce::String& t) { return juce::JSON::toString(juce::var(t), true); };
+    auto arr = [&](const juce::StringArray& a) {
+        if (a.isEmpty()) return juce::String("[]");
+        juce::String r = "[\n";
+        for (int i = 0; i < a.size(); ++i) r << "  " << q(a[i]) << (i + 1 < a.size() ? ",\n" : "\n");
+        return r + " ]";
+    };
+    juce::String o = "{\n \"app\": \"JPurrr-8000\",\n \"format\": 1,\n \"name\": " + q(e.name) + ",\n \"type\": " + q(e.type) + ",\n";
+    if (withPlacement) o << " \"genres\": " << arr(e.genres) << ",\n \"tags\": " << arr(e.tags) << ",\n \"bank\": " << q(e.bank) << ",\n \"slot\": " << e.slot << ",\n";
+    juce::StringArray vs;
+    for (int i = 0; i < kNumParams; ++i) if (!isNoSave(i) && e.v[(size_t) i] != kParams[i].def) vs.add("  " + q(kParams[i].id) + ": " + juce::String(e.v[(size_t) i]));
+    o << " \"v\": " << (vs.isEmpty() ? juce::String("{}") : "{\n" + vs.joinIntoString(",\n") + "\n }") << "\n}";
+    return o;
 }
 
 bool PresetManager::fromJson(const juce::String& text, PresetEntry& out, juce::String& err, int* skipped) {

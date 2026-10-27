@@ -46,11 +46,12 @@ private:
 
     static constexpr int kMaxStages = 12;
     float apS_[2][kMaxStages] = {};
+    Biquad xoLp_[2][2], xoHp_[2][2];   // phaser: Linkwitz Riley 4 split, the allpass chain only sees the low band
     float fbPrev_[2] = {};
 
     // distortion
     HalfbandUp upA_[2], upB_[2];
-    HalfbandDown dnA_[2], dnB_[2];
+    HalfbandDown dnA_[2], dnB_[2], dryA_[2], dryB_[2];   // dry* run the same filters without the shaper, to align the dry part
     Biquad dLp_[2];
     OnePoleHP dDc_[2];
     float pIn_ = 0.f, pOut_ = 0.f, pOutS_ = 0.f, powK_ = 0.f, powKs_ = 0.f;
