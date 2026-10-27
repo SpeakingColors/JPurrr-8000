@@ -8,14 +8,14 @@ A free and open source VST3 synth and standalone app for Linux, Windows and macO
 
 ## Status
 
-First test release. The synth engine, the FX chain, the MASTER section, factory sounds (51), the MIDI map and JP-8000/JP-8080 SysEx patch import and export are in. The window is built from the approved design mockup ([docs/mockups/JPurrr-8000-mockup-v3.2.html](docs/mockups/JPurrr-8000-mockup-v3.2.html)). Not done yet: voice modulator, external input, RPS recording, Motion, JP-8000 SysEx export. See [ROADMAP.md](ROADMAP.md) for the full list.
+First test release. The synth engine, the FX chain, the MASTER section, factory sounds (51), the MIDI map and JP-8000/JP-8080 SysEx patch import and export are in. The window is built from the approved design mockup ([docs/mockups/JPurrr-8000-mockup-v3.2.html](docs/mockups/JPurrr-8000-mockup-v3.2.html)). Not done yet: voice modulator, external input, RPS recording, Motion. See [ROADMAP.md](ROADMAP.md) for the full list.
 
 ## The idea
 
 - **Sound page:** the JP-8000 front panel experience: Super Saw and the other oscillators, filter, LFOs, amp, arpeggiator, effects, key modes, patch select display.
 - **FX page:** our own twist. A mix ready chain (trance gate, drive stack, low end, M/S EQ, transient, tamer, glue, widener, auto pan) and a MASTER page (opto leveller, OTT style squeeze, a four band multiband compressor and limiter, clipper and limiter), so every sound comes out sounding finished. Every block has its own preset menu.
 - Live displays that react to the sound going through.
-- Presets: load and save our own `.json` format, and import JP-8080 SysEx patches and banks (`.syx`); export JP-8080 SysEx. MIDI CC and NRPN control is documented in [docs/midi-and-sysex.md](docs/midi-and-sysex.md).
+- Presets: load and save our own `.json` format, and import JP-8080 SysEx patches and banks (`.syx`); export JP-8080 and JP-8000 SysEx. MIDI CC and NRPN control is documented in [docs/midi-and-sysex.md](docs/midi-and-sysex.md).
 
 Works 100% offline.
 

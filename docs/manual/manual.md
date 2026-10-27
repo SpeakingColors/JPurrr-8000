@@ -177,7 +177,7 @@ The whole chain runs in this order: gate (BEFORE FX position), DRIVE STACK, LOW 
 
 - **Own format (text):** Export shows the preset as plain JSON text that you can copy. Import checks it first: unknown keys are ignored, values that are the wrong type or out of range are skipped and counted, and a file that is not a JPurrr-8000 preset is refused. Banks use the same format.
 - **JP-8080 SysEx (.syx):** Import opens a `.syx` file (one patch, a bank or a full memory dump from a JP-8000 or JP-8080) or a `.mid` file that holds such a dump. Export has Save file, which writes `.syx` as a JP-8080 patch dump (two messages, with checksum) or `.json` by the file name you choose. Only what the Roland patch carries is sent: the FX page, trance gate, arpeggiator, key mode and voices are not part of a Roland patch. The import shows a short message with anything that was approximated or skipped.
-- **JP-8000 export** is not available. Import of JP-8000 dumps works. A few enum orders (OSC1 waveform, Multi-FX type, Delay type) follow the panel list order and still need one check on real hardware; see `docs/midi-and-sysex.md` in the repository.
+- **JP-8000 export:** put 8000 in the file name (for example `Lead-JP8000.syx`) and Save file writes a JP-8000 patch dump (one 239 byte message, the JP-8000 layout from its manual). Any other `.syx` name is a JP-8080 dump. The JP-8080 only values (unison, patch gain, envelope type, external trigger) are not part of a JP-8000 patch, and the JP-8080 DISTORTION effect is replaced by SUPER CHORUS SLW. Both exports are checked against the manuals, not yet on real hardware: three value orders (OSC1 waveform, Multi-FX type, Delay type) follow the manual's parameter list; see `docs/midi-and-sysex.md` in the repository.
 
 # MIDI
 
@@ -214,7 +214,7 @@ The Guide button shows a short list of the shortcuts. About & Support shows the 
 This is an early version. Written down plainly so nothing surprises you:
 
 - JPurrr-8000 follows the sound and the front panel of the JP-8000 and JP-8080. It is not a sample or ROM copy and it will not sound identical to the hardware.
-- JP-8000 SysEx export is not available (import works). SysEx and CC mapping follow the JP-8080 manual; the Roland NRPN numbers are not used.
+- SysEx export is checked against the JP-8000 and JP-8080 manuals but not yet on real hardware. The CC mapping follows the JP-8080 manual; the Roland NRPN numbers are not used.
 - The sound engine follows the hardware by ear and by the manual, not by measurement against a real unit. Chorus, phaser and flanger designs and the Super Saw high pass are our own interpretation.
 - DUAL and SPLIT work, but both parts play the current sound; a different patch per part is not available in this version.
 - There is no audio input yet, so the EXTERNAL INPUT section and the EXT oscillator source have no sound to work on. The controls are on the panel and are saved with the sound. The same is planned for the VOICE MODULATOR processing.

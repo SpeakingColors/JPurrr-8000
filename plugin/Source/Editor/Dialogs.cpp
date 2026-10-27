@@ -613,7 +613,7 @@ void DialogLayer::openDelete() {
 void DialogLayer::openExport() {
     auto& c = root.controller();
     auto& f = begin("Export preset", 640);
-    auto* p = f.add<Para>(root, std::vector<PR>{ n("This is the preset as text. Save file writes .json, or .syx for a JP-8080 (JP-8000 compatible) patch dump. Copy it to keep it.") });
+    auto* p = f.add<Para>(root, std::vector<PR>{ n("This is the preset as text. Save file writes .json, or .syx as a JP-8080 patch dump. Put 8000 in the file name (for example Lead-JP8000.syx) for a JP-8000 patch dump. Copy it to keep it.") });
     auto* ta = f.add<DField>(root, Controller::exportText(c.snapshot(c.pm.cur.name)), String(), true, true);
     f.layoutBody = [=](float w) { float y = 0; p->setTopLeftPosition(0, 0); y += p->layoutFor(w) + kGap; ta->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), juce::roundToInt(170 * Z)); y += 170 * Z; return y; };
     auto* copy = f.button("Copy", true, [=] { juce::SystemClipboard::copyTextToClipboard(ta->ed.getText()); root.controller().say("Copied"); });

@@ -265,8 +265,6 @@ TEST(io_sysex_export_limits) {
     CHECK(!patchToSysex(p, SysexModel::JP8080, 0x10, 0, 64).ok);
     auto r = patchToSysex(p, SysexModel::JP8080, 0x20, 0, 0);
     CHECK(!r.ok && r.error.find("device ID") != std::string::npos);
-    r = patchToSysex(p, SysexModel::JP8000, 0x10, 0, 0);
-    CHECK(!r.ok && r.error.find("JP-8000") != std::string::npos);        // not verified, so not offered
     std::vector<Patch> many(129);
     CHECK(!bankToSysex(many, SysexModel::JP8080, 0x10).ok);
     CHECK(!bankToSysex({}, SysexModel::JP8080, 0x10).ok);
@@ -690,4 +688,37 @@ TEST(io_midi_nrpn_and_rpn) {
     rp.controlChange(101, 0); rp.controlChange(100, 0); rp.controlChange(121, 0);
     CHECK(!rp.controlChange(6, 12).handled());
     CHECK(midiBendToParam(0) == -64 && midiBendToParam(8192) == 0 && midiBendToParam(16383) == 63);
+}
+
+// JP-8000 manual pp. 119 to 125: model ID 00 06, patch size 01 6F (239 bytes), same addresses as the JP-8080,
+// chorus (multi-FX) type 0..0Bh, no JP-8080 bytes 01 6F to 01 77.
+TEST(io_sysex_export_jp8000) {
+    Patch p;
+    p.name = "Eight Thousand";
+    p.v[paramIndexById("fc")] = 99; p.v[paramIndexById("xt")] = 5; p.v[paramIndexById("dty")] = 2;
+    p.v[paramIndexById("ud")] = 30; p.v[paramIndexById("pg")] = 2;                 // JP-8080 only values
+    auto r = patchToSysexIndex(p, SysexModel::JP8000, 0x10, 3);
+    CHECK(r.ok && r.messages.size() == 1);
+    const auto& m = r.messages[0];
+    CHECK(m.size() == 10 + 239 + 2);
+    CHECK(m[0] == 0xF0 && m[1] == 0x41 && m[2] == 0x10 && m[3] == 0x00 && m[4] == 0x06 && m[5] == 0x12 && m.back() == 0xF7);
+    CHECK((std::vector<uint8_t>(m.begin() + 6, m.begin() + 10) == std::vector<uint8_t>{ 2, 0, 6, 0 }));   // A14
+    CHECK(m[m.size() - 2] == rolandChecksum(m.data() + 6, m.size() - 8));
+    // reading it back gives the same sound; the JP-8080 only values stay at their defaults
+    auto in = sysexToPatches(r.bytes);
+    CHECK(in.ok && in.patches.size() == 1);
+    if (in.patches.size() == 1) {
+        const Patch& q = in.patches[0];
+        CHECK(q.name == "Eight Thousand");
+        CHECK(q.v[paramIndexById("fc")] == 99 && q.v[paramIndexById("xt")] == 5 && q.v[paramIndexById("dty")] == 2);
+        CHECK(q.v[paramIndexById("ud")] == Patch().v[paramIndexById("ud")]);
+    }
+    // DISTORTION exists only on the JP-8080
+    p.v[paramIndexById("xt")] = 12;
+    r = patchToSysexIndex(p, SysexModel::JP8000, 0x10, 0);
+    CHECK(r.ok && r.messages[0][10 + 61] == 0);
+    bool warned = false; for (const auto& w : r.warnings) if (w.find("DISTORTION") != std::string::npos) warned = true;
+    CHECK(warned);
+    auto b = bankToSysex(std::vector<Patch>(3, p), SysexModel::JP8000, 0x10);
+    CHECK(b.ok && b.messages.size() == 3);
 }

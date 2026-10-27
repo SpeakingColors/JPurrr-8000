@@ -283,7 +283,9 @@ bool Controller::importFile(const juce::File& f, juce::String& err) {
 bool Controller::exportPatch(const juce::File& f, juce::String& err) {
     auto e = snapshot(pm.cur.name);
     if (f.hasFileExtension("syx")) {
-        const auto res = jpurrr::savePatchAsSysex(patchFromEntry(e, nullptr), jpurrr::sysexDeviceFromParam(proc.getInt(P_did)), 0);
+        // JP-8080 patch dump by default; a file name with 8000 in it (for example "Lead-JP8000.syx") gives the JP-8000 layout
+        const auto model = f.getFileName().containsIgnoreCase("8000") ? jpurrr::SysexModel::JP8000 : jpurrr::SysexModel::JP8080;
+        const auto res = jpurrr::savePatchAsSysex(patchFromEntry(e, nullptr), jpurrr::sysexDeviceFromParam(proc.getInt(P_did)), 0, model);
         if (!res.ok) { err = juce::String(res.error); return false; }
         if (!f.replaceWithData(res.bytes.data(), res.bytes.size())) { err = "Could not write the file."; return false; }
         if (!res.warnings.empty()) say("Exported .syx. " + juce::String(res.warnings.front()));

@@ -106,9 +106,11 @@ void addWarn(std::vector<std::string>& w, const char* s) {
     for (const auto& x : w) if (x == s) return;
     w.emplace_back(s);
 }
-const char* kWarnO1 = "OSC1 NOISE and FEEDBACK OSC use the panel order for their SysEx values; the manual's table does not list them. Check on hardware.";
-const char* kWarnFx = "Multi-FX type numbering follows the panel list order; the manual's SysEx table abbreviates it. Check on hardware.";
-const char* kWarnDly = "Delay type numbering follows the panel list order; the manual's SysEx table abbreviates it. Check on hardware.";
+const char* kWarnO1 = "OSC1 NOISE and FEEDBACK OSC use the order of the manual's parameter list for their SysEx values; the SysEx table itself does not list them. Check on hardware.";
+const char* kWarnFx = "Multi-FX type numbering follows the order of the manual's parameter list; the SysEx table abbreviates it. Check on hardware.";
+const char* kWarnDly = "Delay type numbering follows the order of the manual's parameter list; the SysEx table abbreviates it. Check on hardware.";
+const char* kWarnDist = "DISTORTION is a JP-8080 multi-FX type; the JP-8000 has no such type, so SUPER CHORUS SLW is written instead.";
+constexpr int kJp8000PatchSize = 239;   // "01 6F": the JP-8000 patch is the first 239 bytes of the JP-8080 patch (JP-8000 manual p. 123 to 124)
 const char* kWarnWide = "OSC2 WIDE range is approximated: the manual does not give the step mapping of FINE/WIDE.";
 
 // Name: 16 characters, ASCII 20h..7Dh, padded with spaces.
@@ -126,7 +128,7 @@ void encodeName(const std::string& name, uint8_t* out, std::vector<std::string>&
     if (cut) addWarn(warn, "The name was shortened to 16 characters.");
 }
 
-void encodePatch(const Patch& p, uint8_t* out, std::vector<std::string>& warn) {
+void encodePatch(const Patch& p, uint8_t* out, std::vector<std::string>& warn, SysexModel model = SysexModel::JP8080) {
     std::memset(out, 0, kSysexPatchSize);
     // Morph "Control" and "Velocity" depth words: 2 bytes, neutral = 127 (00 7F). We do not model them.
     auto neutral = [&](int o) { out[o] = 0; out[o + 1] = 127; };
@@ -165,6 +167,10 @@ void encodePatch(const Patch& p, uint8_t* out, std::vector<std::string>& warn) {
     int o1 = p.v[paramIndexById("o1w")], xt = p.v[paramIndexById("xt")], dty = p.v[paramIndexById("dty")];
     if (o1 == 2 || o1 == 3) addWarn(warn, kWarnO1);
     if (xt > 0 && xt < 12) addWarn(warn, kWarnFx);
+    if (model == SysexModel::JP8000) {
+        if (out[61] > 11) { out[61] = 0; addWarn(warn, kWarnDist); }   // 00 3D: multi-FX type, 0..0Bh on the JP-8000
+        std::memset(out + kJp8000PatchSize, 0, size_t(kSysexPatchSize - kJp8000PatchSize));   // JP-8080 only bytes are not sent
+    }
     if (dty > 0 && dty < 4) addWarn(warn, kWarnDly);
 }
 
@@ -281,12 +287,13 @@ bool okDevice(int d, std::string& err) {
 }
 
 // One patch as the two DT1 messages the instrument itself sends (242 bytes, then the last 6).
-void emitPatch(SysexExportResult& r, int dev, uint32_t base, const uint8_t* data) {
+void emitPatch(SysexExportResult& r, int dev, uint32_t base, const uint8_t* data, SysexModel model = SysexModel::JP8080) {
     auto push = [&](uint32_t addr, const uint8_t* d, size_t n) {
         std::vector<uint8_t> m = makeDt1(dev, addr, d, n);
         r.bytes.insert(r.bytes.end(), m.begin(), m.end());
         r.messages.push_back(std::move(m));
     };
+    if (model == SysexModel::JP8000) { push(base, data, kJp8000PatchSize); return; }   // one message of 01 6F bytes, as the instrument answers RQ1
     push(base, data, 242);
     push(base + 242, data + 242, kSysexPatchSize - 242);   // +242 = +01 72 in 7 bit units
 }
@@ -294,10 +301,7 @@ uint32_t userBase(int index) { return sysexAddr(2, index >> 6, (index & 63) * 2,
 
 bool exportCommon(SysexModel model, int dev, SysexExportResult& r) {
     if (!okDevice(dev, r.error)) return false;
-    if (model == SysexModel::JP8000) {
-        r.error = "JP-8000 export is not available: the JP-8000 model ID could not be confirmed from a primary source. Export as JP-8080.";
-        return false;
-    }
+    (void) model;
     return true;
 }
 
@@ -381,8 +385,8 @@ SysexExportResult patchToSysexIndex(const Patch& p, SysexModel model, int dev, i
     if (!exportCommon(model, dev, r)) return r;
     if (index < 0 || index >= kUserPatchCount) { r.error = "patch slot must be A11 to B88"; return r; }
     uint8_t buf[kSysexPatchSize];
-    encodePatch(p, buf, r.warnings);
-    emitPatch(r, dev, userBase(index), buf);
+    encodePatch(p, buf, r.warnings, model);
+    emitPatch(r, dev, userBase(index), buf, model);
     r.ok = true;
     return r;
 }
@@ -396,8 +400,8 @@ SysexExportResult patchToSysexTemp(const Patch& p, SysexModel model, int dev, bo
     SysexExportResult r;
     if (!exportCommon(model, dev, r)) return r;
     uint8_t buf[kSysexPatchSize];
-    encodePatch(p, buf, r.warnings);
-    emitPatch(r, dev, sysexAddr(1, 0, lower ? 0x42 : 0x40, 0), buf);
+    encodePatch(p, buf, r.warnings, model);
+    emitPatch(r, dev, sysexAddr(1, 0, lower ? 0x42 : 0x40, 0), buf, model);
     r.ok = true;
     return r;
 }
@@ -410,9 +414,9 @@ SysexExportResult bankToSysex(const std::vector<Patch>& patches, SysexModel mode
     for (size_t i = 0; i < patches.size(); ++i) {
         uint8_t buf[kSysexPatchSize];
         std::vector<std::string> w;
-        encodePatch(patches[i], buf, w);
+        encodePatch(patches[i], buf, w, model);
         for (const auto& s : w) addWarn(r.warnings, s.c_str());
-        emitPatch(r, dev, userBase(first + int(i)), buf);
+        emitPatch(r, dev, userBase(first + int(i)), buf, model);
     }
     r.ok = true;
     return r;

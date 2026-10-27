@@ -99,8 +99,8 @@ LoadResult loadPresetFile(const uint8_t* data, size_t size, const std::string& f
 
 std::string savePatchAsJson(const Patch& p) { return patchToJson(p); }
 std::string saveBankAsJson(const std::vector<Patch>& patches, const std::string& bankName) { return bankToJson(patches, bankName); }
-SysexExportResult savePatchAsSysex(const Patch& p, int deviceId, int index) { return patchToSysexIndex(p, SysexModel::JP8080, deviceId, index); }
-SysexExportResult saveBankAsSysex(const std::vector<Patch>& patches, int deviceId) { return bankToSysex(patches, SysexModel::JP8080, deviceId, 0); }
+SysexExportResult savePatchAsSysex(const Patch& p, int deviceId, int index, SysexModel model) { return patchToSysexIndex(p, model, deviceId, index); }
+SysexExportResult saveBankAsSysex(const std::vector<Patch>& patches, int deviceId, SysexModel model) { return bankToSysex(patches, model, deviceId, 0); }
 
 std::string safeFileName(const std::string& name, const char* ext) {
     std::string s;

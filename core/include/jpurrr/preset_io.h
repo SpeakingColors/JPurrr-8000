@@ -32,8 +32,8 @@ LoadResult loadPresetFile(const uint8_t* data, size_t size, const std::string& f
 // Saving. Own format is lossless. SysEx keeps the Roland subset only (see docs/midi-and-sysex.md).
 std::string savePatchAsJson(const Patch& p);
 std::string saveBankAsJson(const std::vector<Patch>& patches, const std::string& bankName);
-SysexExportResult savePatchAsSysex(const Patch& p, int deviceId = 0x10, int index = 0);     // into user slot index (0 = A11)
-SysexExportResult saveBankAsSysex(const std::vector<Patch>& patches, int deviceId = 0x10);  // A11 onward, up to 128
+SysexExportResult savePatchAsSysex(const Patch& p, int deviceId = 0x10, int index = 0, SysexModel model = SysexModel::JP8080);     // into user slot index (0 = A11)
+SysexExportResult saveBankAsSysex(const std::vector<Patch>& patches, int deviceId = 0x10, SysexModel model = SysexModel::JP8080);  // A11 onward, up to 128
 
 // File name helpers: "My Lead" -> "My Lead.json", safe on every OS.
 std::string safeFileName(const std::string& presetName, const char* extension /* "json" or "syx" */);
