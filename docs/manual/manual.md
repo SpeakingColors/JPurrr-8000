@@ -4,6 +4,7 @@ Image slots: ![caption](img/<name>.png). The script uses docs/manual/img/<name>.
 and falls back to the design mockup (docs/screenshot.png) when it does not.
 Items marked (planned) are not in the plugin yet. Before a release, check each (planned) and each
 line in "Known limits" against the real build and remove or keep the mark.
+The screenshots in img/ are taken from the real editor with the jpurrr_snapshot tool.
 -->
 
 # What JPurrr-8000 is
@@ -110,7 +111,7 @@ LFO 1: WAVEFORM (TRI, SAW, SQR, S/H), RATE, FADE (time to reach full depth after
 
 ## Arpeggiator and RPS
 
-ON / OFF, HOLD (keep playing after you let go), MODE (UP, DOWN, UP & DOWN, RANDOM, RPS), RANGE (1 to 4 octaves) and TEMPO. In the plugin the tempo follows the host. The beat pattern list (on the parameter pages) has 90 entries from 1/4 to 1/32 and the PORTA, SEQUENCE, ECHO, MUTE, STRUMMING, REFRAIN, PERCUSSION, WALKING BASS, HARP and RANDOM groups. REC and ROM PLAY are for the RPS (see Known limits). The two MOTION buttons play back recorded knob movements (planned).
+ON / OFF, HOLD (keep playing after you let go), MODE (UP, DOWN, UP & DOWN, RANDOM, RPS), RANGE (1 to 4 octaves) and TEMPO. In the plugin the tempo follows the host. The beat pattern list (on the parameter pages) has 90 entries from 1/4 to 1/32 and the PORTA, SEQUENCE, ECHO, MUTE, STRUMMING, REFRAIN, PERCUSSION, WALKING BASS, HARP and RANDOM groups. REC and ROM PLAY are for the RPS (see Known limits). The two MOTION buttons are on the panel but do nothing yet (planned).
 
 ## Key mode and panel select
 
@@ -175,11 +176,17 @@ The whole chain runs in this order: gate (BEFORE FX position), DRIVE STACK, LOW 
 # Import and export
 
 - **Own format (text):** Export shows the preset as plain JSON text that you can copy. Import checks it first: unknown keys are ignored, values that are the wrong type or out of range are skipped and counted, and a file that is not a JPurrr-8000 preset is refused. Banks use the same format.
-- **JP-8000 and JP-8080 SysEx (planned):** import and export of patches and sound banks as SysEx messages (one message per patch, with checksum). It will be built from the documented parameter address map and checked against real files and hardware before release. Parts of the format that cannot be verified are left out instead of guessed.
+- **JP-8080 SysEx (.syx):** Import opens a `.syx` file (one patch, a bank or a full memory dump from a JP-8000 or JP-8080) or a `.mid` file that holds such a dump. Export has Save file, which writes `.syx` as a JP-8080 patch dump (two messages, with checksum) or `.json` by the file name you choose. Only what the Roland patch carries is sent: the FX page, trance gate, arpeggiator, key mode and voices are not part of a Roland patch. The import shows a short message with anything that was approximated or skipped.
+- **JP-8000 export** is not available. Import of JP-8000 dumps works. A few enum orders (OSC1 waveform, Multi-FX type, Delay type) follow the panel list order and still need one check on real hardware; see `docs/midi-and-sysex.md` in the repository.
 
 # MIDI
 
-JPurrr-8000 is a MIDI instrument: it receives notes with velocity, pitch bend, channel pressure and controllers. The mod lever moves LFO 2. A list of the MIDI controller and NRPN numbers for the knobs and sliders is planned and will be added to this manual with the first version that has it. Until then, automate parameters from your DAW: every saved parameter is a host parameter, named like `CUTOFF FREQ [fc]`.
+JPurrr-8000 is a MIDI instrument: it receives notes with velocity, pitch bend, channel pressure and controllers. The mod lever moves LFO 2.
+
+- **CC:** the knobs answer to the factory CC numbers of the JP-8080 (for example 74 cutoff, 71 resonance, 73 amp attack, 72 amp release, 16 LFO 1 rate, 12 delay time). Also 1 mod lever, 7 master volume, 64 sustain, 65 portamento, 120 to 127 sound off, reset and notes off. The full list is in `docs/midi-and-sysex.md`.
+- **RPN:** 0,0 pitch bend range; 0,2 transpose.
+- **NRPN:** our own numbers, not Roland (the JP-8080 has none): the number is the parameter's position in the parameter list.
+- **Host automation:** every saved parameter is also a host parameter, named like `CUTOFF FREQ [fc]`.
 
 # Settings
 
@@ -207,7 +214,9 @@ The Guide button shows a short list of the shortcuts. About & Support shows the 
 This is an early version. Written down plainly so nothing surprises you:
 
 - JPurrr-8000 follows the sound and the front panel of the JP-8000 and JP-8080. It is not a sample or ROM copy and it will not sound identical to the hardware.
-- SysEx import and export, and the MIDI controller and NRPN list, are planned (see above).
+- JP-8000 SysEx export is not available (import works). SysEx and CC mapping follow the JP-8080 manual; the Roland NRPN numbers are not used.
+- The sound engine follows the hardware by ear and by the manual, not by measurement against a real unit. Chorus, phaser and flanger designs and the Super Saw high pass are our own interpretation.
+- DUAL and SPLIT work, but both parts play the current sound; a different patch per part is not available in this version.
 - There is no audio input yet, so the EXTERNAL INPUT section and the EXT oscillator source have no sound to work on. The controls are on the panel and are saved with the sound. The same is planned for the VOICE MODULATOR processing.
 - RPS recording and ROM patterns, MOTION recording, INDIVIDUAL TRIGGER and EXTERNAL TRIGGER are planned.
 - An on-screen preview keyboard is part of the design mockup but not part of the plugin; play it with a MIDI keyboard.

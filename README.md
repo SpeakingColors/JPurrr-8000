@@ -4,20 +4,18 @@ Nice twist on a trance classic, a nod to the famous JP-8000.
 
 A free and open source VST3 synth and standalone app for Linux, Windows and macOS, in the spirit of the late 90s JP-8000 and JP-8080.
 
-![JPurrr-8000 design mockup](docs/screenshot.png)
+![The JPurrr-8000 Sound page](docs/screenshot.png)
 
 ## Status
 
-Design mockup stage. The plugin window is designed and can be tried in a browser; the audio engine and the real plugin are not built yet. See [ROADMAP.md](ROADMAP.md).
-
-Open [docs/mockups/JPurrr-8000-mockup-v3.2.html](docs/mockups/JPurrr-8000-mockup-v3.2.html) in a browser. The keyboard at the bottom is a rough preview rig, not the final sound.
+First test release. The synth engine, the FX chain, the MASTER section, factory sounds (51), the MIDI map and JP-8000/JP-8080 SysEx patch import and export are in. The window is built from the approved design mockup ([docs/mockups/JPurrr-8000-mockup-v3.2.html](docs/mockups/JPurrr-8000-mockup-v3.2.html)). Not done yet: voice modulator, external input, RPS recording, Motion, JP-8000 SysEx export. See [ROADMAP.md](ROADMAP.md) for the full list.
 
 ## The idea
 
 - **Sound page:** the JP-8000 front panel experience: Super Saw and the other oscillators, filter, LFOs, amp, arpeggiator, effects, key modes, patch select display.
 - **FX page:** our own twist. A mix ready chain (trance gate, drive stack, low end, M/S EQ, transient, tamer, glue, widener, auto pan) and a MASTER page (opto leveller, OTT style squeeze, a four band multiband compressor and limiter, clipper and limiter), so every sound comes out sounding finished. Every block has its own preset menu.
 - Live displays that react to the sound going through.
-- Planned: import and export of JP-8000 and JP-8080 patches and banks over SysEx.
+- Presets: load and save our own `.json` format, and import JP-8080 SysEx patches and banks (`.syx`); export JP-8080 SysEx. MIDI CC and NRPN control is documented in [docs/midi-and-sysex.md](docs/midi-and-sysex.md).
 
 Works 100% offline.
 
@@ -35,7 +33,7 @@ Download the files from the [latest release](https://github.com/SpeakingColors/J
 
 ## Manual
 
-The user manual is [docs/manual/JPurrr-8000-manual.pdf](https://github.com/SpeakingColors/JPurrr-8000/blob/main/docs/manual/JPurrr-8000-manual.pdf) (source: [docs/manual/manual.md](docs/manual/manual.md)). Rebuild it with `python3 scripts/build_manual.py` (needs the Python packages `markdown`, `playwright` and `pypdf`, and `playwright install chromium`). Put real screenshots into `docs/manual/img/` (`sound.png`, `fx-chain.png`, `fx-master.png`, `browser.png`) and the script uses them instead of the mockup pictures.
+The user manual is [docs/manual/JPurrr-8000-manual.pdf](https://github.com/SpeakingColors/JPurrr-8000/blob/main/docs/manual/JPurrr-8000-manual.pdf) (source: [docs/manual/manual.md](docs/manual/manual.md)). Rebuild it with `python3 scripts/build_manual.py` (needs the Python packages `markdown`, `playwright` and `pypdf`, and `playwright install chromium`). The screenshots in `docs/manual/img/` are taken from the real plugin editor with the `jpurrr_snapshot` tool.
 
 ## Build from source
 
