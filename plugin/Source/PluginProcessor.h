@@ -6,12 +6,13 @@
 #include "jpurrr/fxchain.h"
 #include "jpurrr/soundfx.h"
 #include "jpurrr/live.h"
+#include "jpurrr/midi_map.h"
 #include "PresetManager.h"
 
 // Parameter values are plain integers in the units of jpurrr::kParams (same as the mockup).
 // Params flagged kNoSave in kParams (levers, display buttons, preview) are UI state, not host parameters:
 // use getInt/setInt for every index, the processor routes it.
-class JPurrr8000AudioProcessor : public juce::AudioProcessor {
+class JPurrr8000AudioProcessor : public juce::AudioProcessor, private juce::AsyncUpdater {
 public:
     JPurrr8000AudioProcessor();
     ~JPurrr8000AudioProcessor() override;
@@ -52,6 +53,14 @@ public:
     int uiWidth = 0;                                 // editor width in pixels, saved with the state (0 = default)
 
 private:
+    void handleAsyncUpdate() override;               // message thread: MIDI controller changes and latency updates
+    // MIDI controller changes travel from the audio thread to the message thread through this FIFO.
+    static constexpr int kMidiFifo = 512;
+    juce::AbstractFifo midiFifo { kMidiFifo };
+    std::array<jpurrr::MidiUpdate, kMidiFifo> midiFifoData {};
+    std::array<jpurrr::MidiMapper, 16> mappers;
+    std::atomic<int> wantedLatency { 0 };
+    int reportedLatency = 0;
     static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout();
     std::array<juce::RangedAudioParameter*, jpurrr::kNumParams> hostParams {};
     std::array<std::atomic<int>, jpurrr::kNumParams> uiVal;

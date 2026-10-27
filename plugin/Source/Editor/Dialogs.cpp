@@ -613,7 +613,7 @@ void DialogLayer::openDelete() {
 void DialogLayer::openExport() {
     auto& c = root.controller();
     auto& f = begin("Export preset", 640);
-    auto* p = f.add<Para>(root, std::vector<PR>{ n("This is the preset as text. In the plugin it also exports as SysEx (one message per preset, checksum). Copy it to keep it.") });
+    auto* p = f.add<Para>(root, std::vector<PR>{ n("This is the preset as text. Save file writes .json, or .syx for a JP-8080 (JP-8000 compatible) patch dump. Copy it to keep it.") });
     auto* ta = f.add<DField>(root, Controller::exportText(c.snapshot(c.pm.cur.name)), String(), true, true);
     f.layoutBody = [=](float w) { float y = 0; p->setTopLeftPosition(0, 0); y += p->layoutFor(w) + kGap; ta->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), juce::roundToInt(170 * Z)); y += 170 * Z; return y; };
     auto* copy = f.button("Copy", true, [=] { juce::SystemClipboard::copyTextToClipboard(ta->ed.getText()); root.controller().say("Copied"); });
@@ -632,7 +632,7 @@ void DialogLayer::openExport() {
 
 void DialogLayer::openImport() {
     auto& f = begin("Import preset", 640);
-    auto* p = f.add<Para>(root, std::vector<PR>{ n("Paste preset text. It is checked first: unknown keys are ignored and wrong types are rejected.") });
+    auto* p = f.add<Para>(root, std::vector<PR>{ n("Paste preset text, or press Open file for a .json, .syx (JP-8000 or JP-8080 dump) or .mid file. It is checked first: unknown keys are ignored and wrong types are rejected.") });
     auto* ta = f.add<DField>(root, String(), "{\"app\":\"JPurrr-8000\",\"format\":1,\"name\":\"...\",\"v\":{}}", true, false);
     auto* err = f.add<Para>(root, std::vector<PR>{}, true);
     f.layoutBody = [=](float w) {
@@ -645,7 +645,7 @@ void DialogLayer::openImport() {
     });
     auto* fr = &f;
     f.button("Open file", false, [this, fr, err] {
-        fr->chooser = std::make_unique<juce::FileChooser>("Import preset", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory), "*.json;*.syx");
+        fr->chooser = std::make_unique<juce::FileChooser>("Import preset", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory), "*.json;*.jpurrr;*.syx;*.mid;*.midi");
         fr->chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles, [this, err](const juce::FileChooser& fc) {
             auto file = fc.getResult(); if (file == juce::File()) return;
             String e; if (!root.controller().importFile(file, e)) { err->setRuns({ n(e) }); if (panel) panel->fit(getLocalBounds()); }

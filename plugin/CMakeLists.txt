@@ -9,6 +9,7 @@ endif()
 
 juce_add_plugin(JPurrr8000
   COMPANY_NAME "Studio 87"
+  BUNDLE_ID com.studio87.jpurrr8000
   PRODUCT_NAME "JPurrr-8000"
   PLUGIN_MANUFACTURER_CODE St87
   PLUGIN_CODE JPu8
@@ -39,3 +40,14 @@ add_executable(jpurrr_snapshot EXCLUDE_FROM_ALL snapshot/snapshot.cpp)
 target_include_directories(jpurrr_snapshot PRIVATE Source $<TARGET_PROPERTY:JPurrr8000,INCLUDE_DIRECTORIES>)
 target_compile_definitions(jpurrr_snapshot PRIVATE $<TARGET_PROPERTY:JPurrr8000,COMPILE_DEFINITIONS>)
 target_link_libraries(jpurrr_snapshot PRIVATE JPurrr8000 jpurrr_core JPurrrFonts)
+
+# Offline audio check of the real processor: every factory sound, a held chord, level and finite output.
+add_executable(jpurrr_render EXCLUDE_FROM_ALL snapshot/render.cpp)
+target_include_directories(jpurrr_render PRIVATE Source $<TARGET_PROPERTY:JPurrr8000,INCLUDE_DIRECTORIES>)
+target_compile_definitions(jpurrr_render PRIVATE $<TARGET_PROPERTY:JPurrr8000,COMPILE_DEFINITIONS>)
+target_link_libraries(jpurrr_render PRIVATE JPurrr8000 jpurrr_core JPurrrFonts)
+
+# Loads the built .vst3 through JUCE's VST3 host code: instance, MIDI, audio, state round trip.
+add_executable(jpurrr_hostcheck EXCLUDE_FROM_ALL ../tools/hostcheck.cpp)
+target_compile_definitions(jpurrr_hostcheck PRIVATE JUCE_PLUGINHOST_VST3=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1)
+target_link_libraries(jpurrr_hostcheck PRIVATE juce::juce_audio_processors juce::juce_gui_basics juce::juce_recommended_config_flags)

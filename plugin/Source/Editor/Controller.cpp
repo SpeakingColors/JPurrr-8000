@@ -1,3 +1,4 @@
+#include "jpurrr/preset_io.h"
 #include "Controller.h"
 #include "Layout.h"
 #include <map>
@@ -241,15 +242,53 @@ bool Controller::importText(const juce::String& text, juce::String& err) {
     return true;
 }
 
-// Plumbing for the SysEx helper: replace the bodies with core/include/jpurrr/sysex.h and preset_io.h calls.
+// File import and export: own JSON, and JP-8000 / JP-8080 SysEx (.syx, .mid with a dump) through the core preset_io.
+static PresetEntry entryFromPatch(const jpurrr::Patch& p) {
+    PresetEntry e; e.name = juce::String(p.name).trim(); if (e.name.isEmpty()) e.name = "Imported";
+    e.type = p.type.empty() ? "Lead" : juce::String(p.type);
+    for (auto& g : p.genres) e.genres.add(juce::String(g));
+    for (int i = 0; i < kNumParams; ++i) e.v[(size_t) i] = p.v[i];
+    return e;
+}
+static jpurrr::Patch patchFromEntry(const PresetEntry& e, const int* live) {
+    jpurrr::Patch p; p.name = e.name.toStdString(); p.type = e.type.toStdString();
+    for (auto& g : e.genres) p.genres.push_back(g.toStdString());
+    for (int i = 0; i < kNumParams; ++i) p.v[i] = e.v[(size_t) i];
+    (void) live; p.clampAll();
+    return p;
+}
+
 bool Controller::importFile(const juce::File& f, juce::String& err) {
     if (!f.existsAsFile()) { err = "File not found."; return false; }
-    if (f.hasFileExtension("syx")) { err = "SysEx import comes with a later update."; return false; }   // TODO(sysex): jpurrr::sysex parse
-    return importText(f.loadFileAsString(), err);
+    juce::MemoryBlock mb; if (!f.loadFileAsData(mb)) { err = "Could not read the file."; return false; }
+    const auto r = jpurrr::loadPresetFile((const uint8_t*) mb.getData(), mb.getSize(), f.getFileName().toStdString());
+    if (!r.ok || r.patches.empty()) { err = juce::String(r.message.empty() ? "Nothing to import in this file." : r.message); return false; }
+    int stored = 0, last = -1;
+    const char* banks[] = { "F", "G", "E" };
+    for (auto& p : r.patches) {
+        PresetEntry e = entryFromPatch(p);
+        int li = -1;
+        for (auto* b : banks) { e.bank = b; e.slot = 0; li = pm.saveUser(e, {}); if (li >= 0) break; }
+        if (li < 0) break;
+        ++stored; last = li;
+    }
+    if (stored == 0) { err = "Your user banks are full."; return false; }
+    load(last);
+    if (closeDialog) closeDialog();
+    juce::String msg = stored == 1 ? "Imported" : "Imported " + juce::String(stored) + " of " + juce::String((int) r.patches.size()) + " sounds (banks F, G, E)";
+    if (!r.warnings.empty()) msg += ". " + juce::String(r.warnings.front());
+    say(msg);
+    return true;
 }
 bool Controller::exportPatch(const juce::File& f, juce::String& err) {
-    if (f.hasFileExtension("syx")) { err = "SysEx export comes with a later update."; return false; }    // TODO(sysex): jpurrr::sysex build
     auto e = snapshot(pm.cur.name);
+    if (f.hasFileExtension("syx")) {
+        const auto res = jpurrr::savePatchAsSysex(patchFromEntry(e, nullptr), jpurrr::sysexDeviceFromParam(proc.getInt(P_did)), 0);
+        if (!res.ok) { err = juce::String(res.error); return false; }
+        if (!f.replaceWithData(res.bytes.data(), res.bytes.size())) { err = "Could not write the file."; return false; }
+        if (!res.warnings.empty()) say("Exported .syx. " + juce::String(res.warnings.front()));
+        return true;
+    }
     if (!f.replaceWithText(exportText(e))) { err = "Could not write the file."; return false; }
     return true;
 }

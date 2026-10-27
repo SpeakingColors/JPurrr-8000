@@ -43,8 +43,13 @@ bool JPurrr8000AudioProcessor::isBusesLayoutSupported(const BusesLayout& l) cons
 }
 
 void JPurrr8000AudioProcessor::prepareToPlay(double sampleRate, int block) {
-    sr = sampleRate; synth.prepare(sampleRate, block); soundFx.prepare(sampleRate, block); fx.prepare(sampleRate, block);
-    setLatencySamples(synth.latencySamples() + soundFx.latencySamples() + fx.latencySamples());
+    sr = sampleRate; jpurrr::midiMapInit();
+    synth.prepare(sampleRate, block); soundFx.prepare(sampleRate, block); fx.prepare(sampleRate, block);
+    int vals[kNumParams]; getAll(vals); fx.setParams(vals);
+    reportedLatency = synth.latencySamples() + soundFx.latencySamples() + fx.latencySamples();
+    wantedLatency.store(reportedLatency);
+    setLatencySamples(reportedLatency);
+    for (auto& m : mappers) m.reset();
 }
 
 int JPurrr8000AudioProcessor::getInt(int idx) const {
@@ -79,20 +84,53 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
     float* l = buf.getWritePointer(0); float* r = buf.getNumChannels() > 1 ? buf.getWritePointer(1) : l;
     int done = 0;
     auto renderTo = [&](int end) {
-        if (end > done) { synth.process(l + done, r + done, end - done); soundFx.process(l + done, r + done, end - done); fx.process(l + done, r + done, end - done); done = end; }
+        if (end > done) {
+            const int len = end - done;
+            synth.process(l + done, r + done, len);
+            fx.processPreGate(l + done, r + done, len);      // gate position BEFORE FX: before the Sound page effects
+            soundFx.process(l + done, r + done, len);
+            fx.process(l + done, r + done, len);
+            done = end;
+        }
+    };
+    bool wake = false;
+    auto pushUpdate = [&](int param, int value) {
+        int s1, n1, s2, n2; midiFifo.prepareToWrite(1, s1, n1, s2, n2);
+        if (n1 > 0) { midiFifoData[(size_t) s1] = { param, value }; midiFifo.finishedWrite(1); wake = true; }
     };
     for (const auto meta : midi) {
         renderTo(meta.samplePosition);
         const auto m = meta.getMessage(); const int ch = m.getChannel() - 1;
-        if (m.isNoteOn()) synth.noteOn(ch, m.getNoteNumber(), m.getVelocity());
+        if (m.isNoteOn()) { if (synth.heldVoices() == 0) fx.restartGate(); synth.noteOn(ch, m.getNoteNumber(), m.getVelocity()); }
         else if (m.isNoteOff()) synth.noteOff(ch, m.getNoteNumber());
         else if (m.isPitchWheel()) synth.pitchBend(ch, m.getPitchWheelValue() - 8192);
-        else if (m.isController()) synth.controller(ch, m.getControllerNumber(), m.getControllerValue());
         else if (m.isChannelPressure()) synth.channelPressure(ch, m.getChannelPressureValue());
+        else if (m.isController()) {
+            // The map turns CCs, NRPN and RPN into parameter changes (CC 1 moves the mod lever, which the synth already reads).
+            const auto res = mappers[(size_t) juce::jlimit(0, 15, ch)].controlChange(m.getControllerNumber(), m.getControllerValue(), vals);
+            for (int i = 0; i < res.count; ++i) { pushUpdate(res.updates[i].param, res.updates[i].value); vals[res.updates[i].param] = res.updates[i].value; }
+            if (res.sustain >= 0) synth.controller(ch, 64, res.sustain ? 127 : 0);
+            if (res.allSoundOff) synth.controller(ch, 120, 0);
+            if (res.resetControllers) synth.controller(ch, 121, 0);
+            if (res.allNotesOff) synth.controller(ch, 123, 0);
+        }
         else if (m.isAllNotesOff() || m.isAllSoundOff()) synth.allNotesOff();
     }
     renderTo(n);
     midi.clear();
+    const int want = synth.latencySamples() + soundFx.latencySamples() + fx.latencySamples();
+    if (want != wantedLatency.load()) { wantedLatency.store(want); wake = true; }
+    if (wake) triggerAsyncUpdate();
+}
+
+void JPurrr8000AudioProcessor::handleAsyncUpdate() {
+    int s1, n1, s2, n2; const int ready = midiFifo.getNumReady();
+    midiFifo.prepareToRead(ready, s1, n1, s2, n2);
+    for (int i = 0; i < n1; ++i) setInt(midiFifoData[(size_t) (s1 + i)].param, midiFifoData[(size_t) (s1 + i)].value);
+    for (int i = 0; i < n2; ++i) setInt(midiFifoData[(size_t) (s2 + i)].param, midiFifoData[(size_t) (s2 + i)].value);
+    midiFifo.finishedRead(n1 + n2);
+    const int want = wantedLatency.load();
+    if (want != reportedLatency) { reportedLatency = want; setLatencySamples(want); }
 }
 
 // State: the host parameters by id (so sessions keep loading when parameters are added), the sound name and where it
