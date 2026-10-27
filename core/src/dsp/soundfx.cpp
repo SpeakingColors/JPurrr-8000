@@ -350,6 +350,7 @@ void SoundFx::process(float* left, float* right, int n) {
             }
             for (int i = 0; i < c; ++i) { l[i] = sanitize(m.bufL[0][i]); r[i] = sanitize(m.bufR[0][i]); }
         }
+        for (int i = 0; i < c; ++i) { l[i] = flush(l[i]); r[i] = flush(r[i]); }     // no denormals leave the effect
     }
 }
 

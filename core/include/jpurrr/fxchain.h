@@ -6,6 +6,7 @@
 //
 // Latency is constant: oversampling delays of the drive stack and the clipper (always present, so switching blocks never moves
 // the sound in time) plus the limiter's look-ahead, which is the only part that follows a parameter (LOOK AHEAD).
+// latencySamples() = 41 (drive stack) + 41 (clipper) + 16 (true peak probe) + round(qla * 0.5 ms * sample rate), at any sample rate.
 // MIX READY (qon) off: the input, after the gate, comes out delayed by exactly latencySamples(), bit for bit.
 #pragma once
 #include "jpurrr/params_gen.h"

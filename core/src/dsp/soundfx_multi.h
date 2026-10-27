@@ -55,7 +55,7 @@ private:
     Biquad dLp_[2][2];                                  // 4th order Butterworth low pass at 8x
     OnePoleHP dDc_[2];
     double adaaX_[2] = {}, adaaF_[2] = {};
-    float pIn_ = 0.f, pOut_ = 0.f, pOutS_ = 0.f, powK_ = 0.f, powKs_ = 0.f;
+    float pIn_ = 0.f, pOut_ = 0.f, pOutS_ = 0.f, powK_ = 0.f, powKs_ = 0.f, kS_ = 1.f, kSmooth_ = 0.f;
     float gPrev_ = 1.f;
 };
 

@@ -444,6 +444,7 @@ bool DialogLayer::keyPressed(const juce::KeyPress& k) {
     return false;
 }
 void DialogLayer::close() {
+    std::fprintf(stderr,"close() panel=%d\n",(int)(panel!=nullptr));
     if (panel == nullptr) return;
     removeChildComponent(panel.get());
     graveyard.push_back(std::move(panel));

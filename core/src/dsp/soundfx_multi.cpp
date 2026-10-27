@@ -60,6 +60,7 @@ void MultiFx::prepare(double sr) {
     rateK_ = (float)(1.0 - std::exp(-1.0 / (0.1 * sr)));
     powK_ = (float)(1.0 - std::exp(-1.0 / (0.010 * sr)));
     powKs_ = (float)(1.0 - std::exp(-1.0 / (0.060 * sr)));
+    kSmooth_ = (float)(1.0 - std::exp(-1.0 / (0.0015 * sr)));
     for (int c = 0; c < 2; ++c) {
         for (int k = 0; k < 3; ++k) { const HalfbandCoefs* hc = k == 0 ? &kHbA : &kHbB; up_[c][k].c = hc; dn_[c][k].c = hc; dry_[c][k].c = hc; }
         dLp_[c][0].lowpass(8.0 * sr, kDistLpHz, 0.5411961); dLp_[c][1].lowpass(8.0 * sr, kDistLpHz, 1.3065630); dDc_[c].set(25.0, sr);
@@ -95,7 +96,7 @@ void MultiFx::reset() {
         for (int k = 0; k < 3; ++k) { up_[c][k].clear(); dn_[c][k].clear(); dry_[c][k].clear(); }
         dLp_[c][0].clear(); dLp_[c][1].clear(); dDc_[c].clear(); adaaX_[c] = adaaF_[c] = 0.0;
     }
-    pIn_ = pOut_ = pOutS_ = 0.f;
+    pIn_ = pOut_ = pOutS_ = 0.f; kS_ = 1.f;
     phase_ = 0.0; rateCur_ = rateOverride_ > 0.0 ? (float)rateOverride_ : des_->rate;
     gPrev_ = 0.f;
 }
@@ -260,6 +261,8 @@ void MultiFx::runDistortion(const float* in[2], float* out[2], const float* lev,
         pIn_ = flush(pIn_); pOut_ = flush(pOut_); pOutS_ = flush(pOutS_);
         float k = std::sqrt((pIn_ + 1e-14f) / (std::max(pOut_, pOutS_) + 1e-14f));
         k = std::min(k, 30.f);
+        kS_ += (k - kS_) * kSmooth_;      // the follower ripples at twice the signal frequency; this keeps that ripple from folding back
+        k = kS_;
         const float wd = std::cos(m * 1.57079633f), ww = std::sin(m * 1.57079633f);
         for (int c = 0; c < 2; ++c) {
             float x = in[c][i];

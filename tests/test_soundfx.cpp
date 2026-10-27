@@ -624,7 +624,7 @@ TEST(soundfx_distortion_aliasing) {
     // (or noise). Requirement: better than -70 dB below the fundamental.
     const size_t N = 1 << 16;
     const double sr = 44100.0;
-    struct C { size_t k0; double amp; int lev; } cs[] = { { 4469, 0.5, 127 }, { 4469, 0.1, 127 }, { 7561, 0.5, 127 }, { 2999, 0.5, 100 }, { 12011, 0.5, 127 }, { 1009, 0.8, 127 }, { 6007, 0.5, 60 } };
+    struct C { size_t k0; double amp; int lev; } cs[] = { { 4469, 0.5, 127 }, { 4469, 0.1, 127 }, { 7561, 0.5, 127 }, { 2999, 0.5, 100 }, { 12011, 0.5, 127 }, { 1009, 0.8, 127 }, { 6007, 0.5, 60 }, { 449, 0.7, 127 }, { 2003, 0.7, 127 }, { 3001, 0.9, 127 }, { 8999, 0.7, 127 }, { 11003, 0.7, 127 }, { 13999, 0.7, 127 }, { 15013, 0.6, 127 } };
     for (auto& c : cs) {
         Rig rig(sr);
         rig.p[P_xt] = 12; rig.p[P_xl] = c.lev;
@@ -642,7 +642,8 @@ TEST(soundfx_distortion_aliasing) {
         double worst = 0;
         std::vector<char> harm(N / 2 + 1, 0);
         for (size_t h = 1; h * c.k0 <= N / 2; ++h) harm[h * c.k0] = 1;
-        for (size_t k = 3; k <= N / 2; ++k) {
+        const size_t kMax = (size_t)(20000.0 / sr * (double)N);      // alias products above 20 kHz are inaudible
+        for (size_t k = 3; k <= std::min(kMax, N / 2); ++k) {
             bool near = false;
             for (int d = -1; d <= 1; ++d) { long kk = (long)k + d; if (kk >= 0 && kk <= (long)N / 2 && harm[(size_t)kk]) near = true; }
             if (near) continue;
