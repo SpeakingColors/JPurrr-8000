@@ -50,7 +50,8 @@ PageView::PageView(Ctx& ctx, int pi, DisplayEnv& e) : page(kPages[pi]), index(pi
     for (int ti = 0; ti < page.texts.n; ++ti) { const juce::String id = page.texts[ti].id; if (id == "l1" || id == "l2") skipText[(size_t) ti] = 1; }
 
     auto place = [&](juce::Component* c, const Rect& r) {
-        c->setBounds(juce::Rectangle<float>(r.x, r.y, r.w, r.h).toNearestInt());
+        const int x0 = juce::roundToInt(r.x), y0 = juce::roundToInt(r.y);     // browsers snap both edges of a box to device pixels
+        c->setBounds(x0, y0, juce::roundToInt(r.x + r.w) - x0, juce::roundToInt(r.y + r.h) - y0);
         comps.add(c); addAndMakeVisible(c);
     };
     for (auto& k : page.knobs) { auto* w = new KnobW(x, paramIndexById(k.id)); ctrls.add(w); place(w, k.r); }
