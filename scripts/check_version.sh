@@ -1,7 +1,7 @@
 #!/bin/sh
 # Print the project version from CMakeLists.txt. With a tag argument, fail if they differ.
-#   scripts/check_version.sh            prints 0.1.0
-#   scripts/check_version.sh v0.1.0     ok; v0.1.0-rc1 also ok (suffix is ignored); v0.2.0 fails
+#   scripts/check_version.sh            prints 0.2.0
+#   scripts/check_version.sh v0.2.0     ok; v0.2.0-rc1 also ok (suffix is ignored); v0.3.0 fails
 set -eu
 ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 VER=$(sed -n 's/^[[:space:]]*project([^)]*VERSION[[:space:]]\{1,\}\([0-9][0-9.]*\).*/\1/p' "$ROOT/CMakeLists.txt" | head -n 1)

@@ -1,6 +1,6 @@
 ; Inno Setup script for JPurrr-8000 (Windows, 64 bit, per machine, not signed).
 ; Build on a machine with Inno Setup 6.3 or newer:
-;   iscc /DAppVersion=0.1.0 /DSourceVst3=C:\path\JPurrr-8000.vst3 /DSourceExe=C:\path\JPurrr-8000.exe ^
+;   iscc /DAppVersion=0.2.0 /DSourceVst3=C:\path\JPurrr-8000.vst3 /DSourceExe=C:\path\JPurrr-8000.exe ^
 ;        /DRepoRoot=C:\path\repo /DOutputDir=C:\path\out installer\windows\JPurrr-8000.iss
 ; Optional: /DManualPdf=C:\path\JPurrr-8000-manual.pdf
 ;
@@ -25,7 +25,7 @@
 #ifndef SourceExe
   #error SourceExe is not set (path of the built standalone JPurrr-8000.exe)
 #endif
-; Windows file version needs four numbers; "0.1.0-rc1" becomes "0.1.0.0".
+; Windows file version needs four numbers; "0.2.0-rc1" becomes "0.2.0.0".
 #define NumVersion Copy(AppVersion, 1, Pos("-", AppVersion + "-") - 1) + ".0"
 
 [Setup]
