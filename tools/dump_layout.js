@@ -1,4 +1,4 @@
-// Dumps the geometry of the approved mockup (docs/mockups/JPurrr-8000-mockup-v3.2.html) to data/layout.json.
+// Dumps the geometry of the approved mockup (docs/mockups/JPurrr-8000-mockup-v3.3.html) to data/layout.json.
 // The plugin window is generated from this file (tools/gen_layout.py), so a re-dump updates the plugin.
 // Usage: node tools/dump_layout.js [out.json]      (needs Playwright, no network)
 const fs = require('fs'), path = require('path');
@@ -32,7 +32,7 @@ function walk() {
   for (let n; (n = tw.nextNode());) if (n.nodeValue.trim()) texts.push(n);
   for (const n of texts) {
     const el = n.parentElement;
-    if (!vis(el) || el.closest('select,canvas,script,style,#scrim,#tip,#val,#pmenu,#kbd,svg,.dlg')) continue;
+    if (!vis(el) || el.closest('select,canvas,script,style,#scrim,#tip,#val,#pmenu,#mpmenu,svg,.dlg')) continue;
     const cs = getComputedStyle(el);
     const up = cs.textTransform === 'uppercase';
     const s = n.nodeValue;
@@ -49,9 +49,9 @@ function walk() {
     }
     if (!lines.length) continue;
     const f = fontOf(el); const [asc] = ascent(f);
-    const own = el.closest('[id]');
+    const sv = el.closest('[data-mpsave]'), inK = !!el.closest('#kbd');
     // colour token across looks is resolved later (needs look switch): keep the element for now
-    const it = { k: 'text', id: el.id || (el.closest('[id^=lb_]') || {}).id || '', f, al: 'c', cls: el.className && el.className.baseVal === undefined ? el.className : '',
+    const it = { k: 'text', id: el.id || (el.closest('[id^=lb_]') || {}).id || (sv ? 'mpsave_' + sv.dataset.mpsave : ''), kbd: inK, f, al: 'c', cls: el.className && el.className.baseVal === undefined ? el.className : '',
       lines: lines.map(l => ({ t: (up ? l.t.toUpperCase() : l.t).trim(), x: +(l.left - W0.left).toFixed(2), y: +(l.top - W0.top).toFixed(2), w: +(l.right - l.left).toFixed(2), base: +(l.top - W0.top + Math.round(asc)).toFixed(2) })),
       rect: R(el.getBoundingClientRect()), _el: el };
     // alignment: centre when the element box is centred text
@@ -75,6 +75,17 @@ function walk() {
   q('#msg', el => items.push({ k: 'msg', rect: R(el.parentElement.getBoundingClientRect()), f: fontOf(el) }));
   q('.sec', el => { const ttl = el.querySelector('.ttl'), sp = el.querySelector('.ttl span');
     items.push({ k: 'sec', rect: R(el.getBoundingClientRect()), title: sp.textContent, ttl: R(ttl.getBoundingClientRect()), span: R(sp.getBoundingClientRect()), f: fontOf(ttl) }); });
+  // v3.3: SAVE and "..." buttons next to each FX block preset select
+  q('[data-mpsave],[data-mpmore]', el => { const more = el.hasAttribute('data-mpmore'), mp = el.dataset.mpsave || el.dataset.mpmore;
+    items.push({ k: 'bbtn', mp, more, id: (more ? 'mpmore_' : 'mpsave_') + mp, t: more ? '...' : el.textContent.trim().toUpperCase(), rect: R(el.getBoundingClientRect()), f: fontOf(el), tip: el.dataset.tip || '' }); });
+  // v3.3: the keyboard strip with the BEND and MOD wheels and the keys (texts are dumped by the text walker with kbd:true)
+  q('#kbd', el => {
+    const wheels = ['wBend', 'wMod'].map(id => { const w = document.getElementById(id), col = w.closest('.wcol'), b = w.querySelector('b'), h = w.querySelector('i');
+      return { id, pitch: id === 'wBend', rect: R(w.getBoundingClientRect()), handle: R(h.getBoundingClientRect()), line: b ? R(b.getBoundingClientRect()) : null, name: R(col.querySelector('.wnm').getBoundingClientRect()),
+        scale: R(col.querySelector('.wsc').getBoundingClientRect()), wn: parseFloat(getComputedStyle(w).getPropertyValue('--wn')), tip: w.dataset.tip, aria: w.getAttribute('aria-label') }; });
+    const keys = [...document.querySelectorAll('#keys .wk, #keys .bk')].map(k => ({ n: +k.dataset.n, black: k.classList.contains('bk'), rect: R(k.getBoundingClientRect()) }));
+    const labels = [...document.querySelectorAll('#keys .kl')].map(k => ({ n: +k.parentElement.dataset.n, t: k.textContent }));
+    items.push({ k: 'kbd', rect: R(el.getBoundingClientRect()), keysRect: R(document.querySelector('#keys').getBoundingClientRect()), whls: R(document.querySelector('#whls').getBoundingClientRect()), wheels, keys, labels }); });
   q('.mbp', el => items.push({ k: 'mbp', rect: R(el.getBoundingClientRect()) }));
   q('.knob', el => items.push({ k: 'knob', id: el.dataset.id, rect: R(el.getBoundingClientRect()), tip: tipOf(el) }));
   q('.sld', el => items.push({ k: 'slider', id: el.dataset.id, hh: +el.dataset.h, tk: parseFloat(el.style.getPropertyValue('--tk')), rect: R(el.getBoundingClientRect()), tip: tipOf(el) }));
@@ -89,7 +100,7 @@ function walk() {
   q('.mbl', el => { const r = el.getBoundingClientRect(); items.push({ k: 'vtext', t: el.textContent, rect: R(r), f: fontOf(el), tok: 'lbl2' }); });
   q('.note#o1info,#osv,#kshv', el => { });
   // hover tip regions (data-tip) and knob "for" ids
-  q('[data-tip]', el => { if (el.closest('#hdr')) return; items.push({ k: 'tip', rect: R(el.getBoundingClientRect()), tip: el.dataset.tip, for: el.dataset.for || '' }); });
+  q('[data-tip]', el => { if (el.closest('#hdr') || el.closest('#kbd')) return; items.push({ k: 'tip', rect: R(el.getBoundingClientRect()), tip: el.dataset.tip, for: el.dataset.for || '' }); });
   probe.remove();
   return items.map(i => { const o = Object.assign({}, i); delete o._el; return o; });
 }
@@ -115,7 +126,7 @@ function walk() {
       const win = document.querySelector('#win');
       const vis = el => el.getClientRects().length > 0 && !el.closest('[hidden]');
       const tw = document.createTreeWalker(win, NodeFilter.SHOW_TEXT); const els = [];
-      for (let n; (n = tw.nextNode());) { if (!n.nodeValue.trim()) continue; const el = n.parentElement; if (!vis(el) || el.closest('select,canvas,script,style,#scrim,#tip,#val,#pmenu,#kbd,svg,.dlg')) continue; els.push(el); }
+      for (let n; (n = tw.nextNode());) { if (!n.nodeValue.trim()) continue; const el = n.parentElement; if (!vis(el) || el.closest('select,canvas,script,style,#scrim,#tip,#val,#pmenu,#mpmenu,svg,.dlg')) continue; els.push(el); }
       const probe = document.createElement('i'); win.appendChild(probe);
       const per = [];
       for (const l of looks) { if (l === 'jp') win.removeAttribute('data-look'); else win.dataset.look = l;
@@ -141,6 +152,10 @@ function walk() {
     if (c.tokens.length !== texts.length) console.error(`token/text count differs on ${name}: ${c.tokens.length} vs ${texts.length}`);
     texts.forEach((t, i) => { const tk = c.tokens[i]; if (tk) { t.tok = tk.matches.length ? (tk.matches.includes('lbl') ? 'lbl' : tk.matches[0]) : null; t.col = tk.col; } });
     pages[name] = c.items;
+    // window height with the strip shown (default) and with PREVIEW off, and where the strip starts
+    const hs = await p.evaluate(() => { const J = window.__JP, w = document.querySelector('#win'); const k = document.querySelector('#kbd'); const shown = w.offsetHeight, sy = k.getBoundingClientRect().top - w.getBoundingClientRect().top;
+      J.setP('prev', 0, true); const bare = w.offsetHeight; J.setP('prev', 1, true); return { shown, bare, stripY: +sy.toFixed(2) }; });
+    (out.pageHk = out.pageHk || {})[name] = hs.shown; (out.pageH = out.pageH || {})[name] = hs.bare; (out.stripY = out.stripY || {})[name] = hs.stripY;
   }
 
   // global state: dump the sound page
@@ -153,12 +168,12 @@ function walk() {
   await cap('master');
   await p.evaluate(() => { window.__JP.fxSub(1); window.__JP.showPage('sound'); });
 
-  // page sizes: bottom of content + body bottom padding 4 + footer
-  out.pageH = {};
+  // page sizes: measured in cap(). pageH = content only (PREVIEW off), pageHk = with the keyboard strip. Check the strip sits 8 px under the panels.
   for (const [name, items] of Object.entries(pages)) {
     let bot = 0; for (const i of items) if (i.k === 'sec' || i.k === 'mbp') bot = Math.max(bot, i.rect.y + i.rect.h);
     const ftr = items.find(i => i.k === 'ftr');
-    out.pageH[name] = Math.round(bot + 4 + ftr.rect.h);
+    if (Math.round(bot + 4 + ftr.rect.h) !== out.pageH[name]) console.error('page height differs from panel bottom + 4 + footer on', name, bot, out.pageH[name]);
+    if (Math.abs(out.stripY[name] - (Math.ceil(bot - 0.005) + 8)) > 0.01) console.error('strip is not 8 px under the panels on', name, bot, out.stripY[name]);
   }
   // split chrome (common to all pages) from the page items
   const key = i => JSON.stringify([i.k, i.id || '', i.t || '', i.rect && i.rect.x, i.rect && i.rect.y]);
@@ -167,11 +182,24 @@ function walk() {
   const chromeKeys = new Set(out.chrome.map(key));
   const chromeRect = i => i.rect && (i.k === 'cheek' || i.k === 'hdr' || i.k === 'ftr');
   // footer text lines live at the bottom; treat as chrome
-  const isFtrText = i => i.k === 'text' && i.rect.y > 1270;
+  const ftrY = pages.sound.find(i => i.k === 'ftr').rect.y; const isFtrText = i => i.k === 'text' && i.rect.y >= ftrY && !i.kbd;
   out.chrome = out.chrome.concat(pages.sound.filter(isFtrText));
+  // the keyboard strip: same on every page except its y. Taken from the sound page, y made relative to the strip top.
+  const isStrip = i => i.k === 'kbd' || i.kbd;
+  const stripOf = (name, items) => items.filter(isStrip);
+  const sy = out.stripY.sound;
+  for (const n of ['chain', 'master']) { const a = pages.sound.find(i => i.k === 'kbd'), b = pages[n].find(i => i.k === 'kbd');
+    if (a.rect.x !== b.rect.x || a.rect.w !== b.rect.w || a.rect.h !== b.rect.h || a.keys.length !== b.keys.length || stripOf('sound', pages.sound).length !== stripOf(n, pages[n]).length) console.error('strip differs between sound and', n); }
+  const dyRect = r => r && Object.assign({}, r, { y: +(r.y - sy).toFixed(2) });
+  const kb = pages.sound.find(i => i.k === 'kbd');
+  out.strip = { rect: dyRect(kb.rect), keysRect: dyRect(kb.keysRect), whls: dyRect(kb.whls),
+    wheels: kb.wheels.map(w => Object.assign({}, w, { rect: dyRect(w.rect), handle: dyRect(w.handle), line: dyRect(w.line), name: dyRect(w.name), scale: dyRect(w.scale) })),
+    keys: kb.keys.map(k => Object.assign({}, k, { rect: dyRect(k.rect) })), labels: kb.labels,
+    texts: pages.sound.filter(i => i.kbd).map(t => Object.assign({}, t, { rect: dyRect(t.rect), lines: t.lines.map(l => Object.assign({}, l, { y: +(l.y - sy).toFixed(2), base: +(l.base - sy).toFixed(2) })) })) };
   for (const [name, items] of Object.entries(pages)) {
-    out.pages[name] = items.filter(i => !chromeKeys.has(key(i)) && !isFtrText(i) && !(i.k === 'hdr' || i.k === 'ftr' || i.k === 'cheek'));
+    out.pages[name] = items.filter(i => !chromeKeys.has(key(i)) && !isFtrText(i) && !isStrip(i) && !(i.k === 'hdr' || i.k === 'ftr' || i.k === 'cheek'));
   }
+  out.design.chromeH = out.pageHk.sound;
   // cheek heights depend on the window height: stored as x,w only (full height at runtime)
   // tip regions in the header are skipped (hbtn carries its own tip)
 
@@ -187,7 +215,7 @@ function walk() {
       scope: J.ORDER.filter(id => !J.P[id].hid && ['k', 's', 'o', 'd', 'w'].includes(J.P[id].t)) };
   });
   // parameter metadata needed by the pages (labels, tips of controls without .ctl)
-  out.design.h = out.pageH;
+  out.design.h = out.pageH; out.design.hk = out.pageHk;
 
   // ---- dialogs (reference trees, measured with the window at scale 1) ----
   const dlgTree = () => {
@@ -219,6 +247,6 @@ function walk() {
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, JSON.stringify(out));
   const n = Object.fromEntries(Object.entries(out.pages).map(([k, v]) => [k, v.length]));
-  console.log('layout written', outFile, 'items', JSON.stringify(n), 'chrome', out.chrome.length, 'pageH', JSON.stringify(out.pageH), 'size', fs.statSync(outFile).size);
+  console.log('layout written', outFile, 'items', JSON.stringify(n), 'chrome', out.chrome.length, 'pageH', JSON.stringify(out.pageH), 'pageHk', JSON.stringify(out.pageHk), 'stripY', JSON.stringify(out.stripY), 'size', fs.statSync(outFile).size);
   await m.close();
 })().catch(e => { console.error(e); process.exit(1); });

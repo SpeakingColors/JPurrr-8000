@@ -17,7 +17,9 @@ public:
     void tick(double nowSeconds);                      // 30 Hz from the editor
     void showPage(int p);
     int pageIndex() const { return page; }
-    int designHeight() const { return layout::kPages[page].h; }
+    int designHeight() const;                          // page height, with the keyboard strip while PREVIEW is on
+    bool stripShown() const;
+    void syncHeight();                                 // follow a PREVIEW change: resize the content and tell the editor
     std::function<void()> onPageChanged;               // the editor resizes itself
     std::function<void()> onDefaultSize;               // double click on a wood cheek: back to 100%
     void applyLook(const juce::String& id);
@@ -60,7 +62,7 @@ private:
     void updateTip();
     const layout::Tip* tipAtPoint(juce::Point<float> p, juce::Rectangle<float>& region) const;
     juce::String tipText(const layout::Tip&) const;
-    float ftrDy() const { return (float) designHeight() - 1300.0f; }
+    float ftrDy() const { return (float) designHeight() - (float) layout::kChromeH; }
 };
 
 } // namespace jp

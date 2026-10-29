@@ -33,27 +33,31 @@ hb_ids = set(i['id'] for p in [d['chrome']] + list(d['pages'].values()) for i in
 drop_text_ids = {'msg'}
 
 lines_all = []; opts_all = []
-def emit_page(name, items, h):
-    lines = []
+def make_arr(name):
     def arr(typ, var, rows):
         if not rows: return 'Span<%s>{nullptr,0}' % typ
         w('const %s %s_%s[] = {' % (typ, name, var)); w(',\n'.join('  ' + r for r in rows)); w('};')
         return 'Span<%s>{%s_%s,%d}' % (typ, name, var, len(rows))
-    vrects = [i['rect'] for i in items if i['k'] == 'vtext']   # vertical labels are drawn as vtext; the dump also holds their glyph-per-line text
+    return arr
+def emit_texts(name, arr, items, skip_rects=()):
     texts = []; allines = []
     for i in items:
-        if i['k'] != 'text' or i.get('id') in drop_text_ids or i['rect'] in vrects: continue
+        if i['k'] != 'text' or i.get('id') in drop_text_ids or i['rect'] in skip_rects: continue
         start = len(allines)
         for l in i['lines']: allines.append('{%s,%s,%s,%s}' % (cs(l['t']), f(l['x']), f(l['w']), f(l['base'])))
         tok = TOKS.index(i['tok']) if i.get('tok') in TOKS else -1
         texts.append((i, start, len(i['lines']), tok))
-    lspan = arr('Line', 'lines', allines)
+    arr('Line', 'lines', allines)
     # texts reference lines through absolute pointers built after the Line array exists
     trows = []
     for i, st, n, tok in texts:
         trows.append('{%s,%s,\'%s\',%d,%s,%s,{%s_lines+%d,%d}}' % (cs(i.get('id') or ''), F(i['f']), i['al'], tok, col(i['col']) if 'col' in i else '0xffffffff', R(i['rect']), name, st, n))
+    return arr('Text', 'texts', trows), texts
+def emit_page(name, items, h, hk=None, stripy=None):
+    arr = make_arr(name)
+    vrects = [i['rect'] for i in items if i['k'] == 'vtext']   # vertical labels are drawn as vtext; the dump also holds their glyph-per-line text
     P = {}
-    P['texts'] = arr('Text', 'texts', trows)
+    P['texts'], _ = emit_texts(name, arr, items, vrects)
     P['secs'] = arr('Sec', 'secs', ['{%s,%s,%s,%s}' % (R(i['rect']), cs(i['title']), R(i['ttl']), R(i['span'])) for i in items if i['k'] == 'sec'])
     P['knobs'] = arr('Knob', 'knobs', ['{%s,%s}' % (cs(i['id']), R(i['rect'])) for i in items if i['k'] == 'knob'])
     P['sliders'] = arr('Slider', 'sliders', ['{%s,%s,%d,%s}' % (cs(i['id']), R(i['rect']), i['hh'], f(i['tk'])) for i in items if i['k'] == 'slider'])
@@ -73,16 +77,43 @@ def emit_page(name, items, h):
     P['mbps'] = arr('Rect', 'mbps', [R(i['rect']) for i in items if i['k'] == 'mbp'])
     P['vtexts'] = arr('VText', 'vtexts', ['{%s,%s,%s}' % (cs(i['t']), R(i['rect']), F(i['f'])) for i in items if i['k'] == 'vtext'])
     P['cats'] = arr('Cat', 'cats', ['{%s}' % R(i['rect']) for i in items if i['k'] == 'cat'])
+    P['bbtns'] = arr('BlockBtn', 'bbtns', ['{%s,%s,{%s,%s,%s,false,%s},%s,%s}' % (cs(i['mp']), 'true' if i['more'] else 'false', cs(i['id']), R(i['rect']), cs(i['t']), 'true' if i['more'] else 'false', F(i['f']), cs(i['tip'])) for i in items if i['k'] == 'bbtn'])
     lcd = [i for i in items if i['k'] == 'lcd']
     lc = '{%s,%s,%s,%s}' % (R(lcd[0]['rect']), R(lcd[0]['l1']), R(lcd[0]['l2']), F(lcd[0]['f'])) if lcd else '{}'
-    w('const Page %s_page = {%d,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s};' % (name, h, P['secs'], P['texts'], P['knobs'], P['sliders'], P['switches'], P['opts'], P['selects'], P['canvases'], P['tips'], P['hbtns'], P['mbps'], P['vtexts'], P['cats'], 'true' if lcd else 'false', lc))
+    w('const Page %s_page = {%d,%d,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s};' % (name, hk if hk is not None else h, h, f(stripy or 0), P['secs'], P['texts'], P['knobs'], P['sliders'], P['switches'], P['opts'], P['selects'], P['canvases'], P['tips'], P['hbtns'], P['mbps'], P['vtexts'], P['cats'], P['bbtns'], 'true' if lcd else 'false', lc))
 
 for nm in ['sound', 'chain', 'master']:
-    emit_page(nm, d['pages'][nm], d['pageH'][nm])
+    emit_page(nm, d['pages'][nm], d['pageH'][nm], d['pageHk'][nm], d['stripY'][nm])
 emit_page('chrome', d['chrome'], 0)
+
+# keyboard strip (y relative to the strip top; add Page::stripY)
+S = d['strip']
+sarr = make_arr('strip')
+is_kl = lambda t: t['col'] == 'rgb(107, 114, 128)' and t['lines'][0]['t'][0] == 'C'
+stexts, _ = emit_texts('strip', sarr, [t for t in S['texts'] if not is_kl(t)])
+wrows = []
+for wh in S['wheels']:
+    wrows.append('{%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s}' % (cs(wh['id']), 'true' if wh['pitch'] else 'false', R(wh['rect']), R(wh['handle']), R(wh['line']) if wh['line'] else '{0.f,0.f,0.f,0.f}', R(wh['name']), R(wh['scale']), f(wh['wn']), f(wh['rect']['h'] - 2 - 16), cs(wh['aria']), cs(wh['tip'])))
+swheels = sarr('Wheel', 'wheels', wrows)
+skeys = sarr('Key', 'keys', ['{%d,%s,%s}' % (k['n'], 'true' if k['black'] else 'false', R(k['rect'])) for k in sorted(S['keys'], key=lambda k: (k['black'], k['n']))])
+# C labels: text line of the .kl span, matched to its white key by note
+klines = {}
+for t in S['texts']:
+    if t['id'] == '' and t['f']['size'] == 16.7 and t['col'] == 'rgb(107, 114, 128)':
+        l = t['lines'][0]; klines[t['lines'][0]['t']] = (t, l)
+lrows = []
+for lb in S['labels']:
+    t, l = klines[lb['t']]
+    lrows.append('{%d,%s,%s,%s,%s}' % (lb['n'], cs(lb['t']), f(l['x']), f(l['w']), f(l['base'])))
+slabels = sarr('KeyLabel', 'labels', lrows)
+kfont = [t for t in S['texts'] if t['col'] == 'rgb(107, 114, 128)'][0]
+w('}')
+w('const KeyStrip kStrip = {%s,%s,%s,%d,%d,%s,%s,%s,%s,%s,%s};' % (R(S['rect']), R(S['keysRect']), R(S['whls']), min(k['n'] for k in S['keys']), max(k['n'] for k in S['keys']), F(kfont['f']), col(kfont['col']), swheels, skeys, slabels, stexts))
+w('namespace {')
 w('}')
 w('const Page kPages[kNumPages] = {sound_page, chain_page, master_page};')
 w('const Page kChrome = chrome_page;')
+w('const int kChromeH = %d;' % d['design']['chromeH'])
 ch = d['chrome']
 def first(k): return [i for i in ch if i['k'] == k]
 cheeks = first('cheek')

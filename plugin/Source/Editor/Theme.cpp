@@ -110,3 +110,69 @@ void jp::drawWood(juce::Graphics& g, juce::Rectangle<float> r, bool left) {
     g.setGradientFill(sh); g.fillRect(juce::Rectangle<float>(left ? r.getRight() - 8 : r.getX(), r.getY(), 8, r.getHeight()));
     g.setColour(juce::Colours::black); g.drawRect(r, 1.0f);
 }
+
+// ------------------------------------------------------------------------------ keyboard strip (static placeholder)
+void jp::drawKeyStripStatic(juce::Graphics& g, const Look& L, float y0) {
+    const KeyStrip& S = kStrip;
+    auto snap = [&](const Rect& r) {                         // browsers snap box edges to device pixels
+        const float x0 = std::round(r.x), y1 = std::round(y0 + r.y), x1 = std::round(r.x + r.w), y2 = std::round(y0 + r.y + r.h);
+        return juce::Rectangle<float>(x0, y1, x1 - x0, y2 - y1);
+    };
+    // strip box
+    auto sb = snap(S.r);
+    g.setColour(L[pnl3]); g.fillRoundedRectangle(sb, 6.0f);
+    g.setColour(L[hi]); g.fillRect(juce::Rectangle<float>(sb.getX() + 6, sb.getY() + 1, sb.getWidth() - 12, 1.0f));
+    g.setColour(L[sbd]); g.drawRoundedRectangle(sb.reduced(0.5f), 6.0f, 1.0f);
+    // key area
+    auto kb = snap(S.keysRect);
+    g.setColour(juce::Colour(0xff0b0e13)); g.fillRoundedRectangle(kb, 3.0f);
+    g.saveState();
+    juce::Path clip; clip.addRoundedRectangle(kb.reduced(1.0f), 2.0f); g.reduceClipRegion(clip, {});
+    for (auto& k : S.keys) {
+        auto r = snap(k.r);
+        if (!k.black) {
+            juce::ColourGradient gr(juce::Colour(0xffeef0f3), 0, r.getY(), juce::Colour(0xffd9dce1), 0, r.getBottom(), false);
+            gr.addColour(0.6, juce::Colour(0xfffbfbfc));
+            g.setGradientFill(gr); g.fillRect(r);
+            g.setColour(juce::Colour(0xff888888));                // 1 px borders left, right, bottom (no top)
+            g.fillRect(r.getX(), r.getY(), 1.0f, r.getHeight()); g.fillRect(r.getRight() - 1, r.getY(), 1.0f, r.getHeight()); g.fillRect(r.getX(), r.getBottom() - 1, r.getWidth(), 1.0f);
+        } else {
+            juce::Path p; p.addRoundedRectangle(r.getX(), r.getY(), r.getWidth(), r.getHeight(), 3.0f, 3.0f, false, false, true, true);
+            juce::ColourGradient gr(juce::Colour(0xff22252a), 0, r.getY(), juce::Colour(0xff050607), 0, r.getBottom(), false);
+            g.setGradientFill(gr); g.fillPath(p);
+            juce::Path q; q.addRoundedRectangle(r.getX() + 0.5f, r.getY() - 0.5f, r.getWidth() - 1.0f, r.getHeight(), 2.5f, 2.5f, false, false, true, true);
+            g.setColour(juce::Colours::black); g.strokePath(q, juce::PathStrokeType(1.0f));
+        }
+    }
+    g.setColour(juce::Colour((juce::uint32) S.labelCol)); g.setFont(fontOf(S.labelFont));
+    for (auto& l : S.labels) drawTextAt(g, l.t, l.x + l.w / 2.0f, y0 + l.base, 'c');
+    g.restoreState();
+    // wheels: stripes (period 7 px: 2 px edge, 5 px sbd) at 75 percent, dark top and bottom, handle
+    for (auto& w : S.wheels) {
+        auto r = snap(w.r);
+        g.setColour(L[hi]); g.fillRoundedRectangle(r.translated(0, 1), 8.0f);
+        g.setColour(L[pnl2]); g.fillRoundedRectangle(r, 8.0f);
+        g.saveState();
+        juce::Path pc; pc.addRoundedRectangle(r.reduced(1.0f), 7.0f); g.reduceClipRegion(pc, {});
+        const float top = r.getY() + 1.0f, bot = r.getBottom() - 1.0f;
+        const float shift = -std::fmod(w.wn * 210.0f, 7.0f);   // background-position-y = wn * -210 px
+        for (float yy = top + shift - 7.0f; yy < bot; yy += 7.0f) {
+            g.setColour(L[edge].withAlpha(0.75f)); g.fillRect(juce::Rectangle<float>(r.getX(), yy, r.getWidth(), 2.0f).getIntersection(juce::Rectangle<float>(r.getX(), top, r.getWidth(), bot - top)));
+            g.setColour(L[sbd].withAlpha(0.75f)); g.fillRect(juce::Rectangle<float>(r.getX(), yy + 2, r.getWidth(), 5.0f).getIntersection(juce::Rectangle<float>(r.getX(), top, r.getWidth(), bot - top)));
+        }
+        juce::ColourGradient dk(juce::Colours::black.withAlpha(0.72f), 0, top, juce::Colours::black.withAlpha(0.72f), 0, bot, false);
+        dk.addColour(0.32, juce::Colours::transparentBlack); dk.addColour(0.68, juce::Colours::transparentBlack);
+        g.setGradientFill(dk); g.fillRect(juce::Rectangle<float>(r.getX(), top, r.getWidth(), bot - top));
+        g.restoreState();
+        if (w.line.w > 0) { g.setColour(L[lbl2].withAlpha(0.7f)); g.fillRect(w.line.x, y0 + w.line.y, w.line.w, 1.0f); }
+        const juce::Rectangle<float> hr(w.handle.x, y0 + w.handle.y, w.handle.w, w.handle.h);
+        g.setColour(L[edge]); g.fillRoundedRectangle(hr.expanded(1.0f), 3.0f);
+        g.setColour(L[acc]); g.fillRoundedRectangle(hr, 2.0f);
+        g.setColour(L[edge]); g.drawRoundedRectangle(r.reduced(0.5f), 8.0f, 1.0f);
+    }
+    // captions
+    for (auto& t : S.texts) {
+        g.setColour(t.tok >= 0 ? L.c[t.tok] : juce::Colour((juce::uint32) t.col)); g.setFont(fontOf(t.f));
+        for (auto& l : t.lines) drawTextAt(g, l.t, t.al == 'c' ? l.x + l.w / 2.0f : l.x, y0 + l.base, t.al == 'c' ? 'c' : 'l', t.f.italic);
+    }
+}

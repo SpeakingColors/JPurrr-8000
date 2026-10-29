@@ -354,6 +354,11 @@ void HBtnW::paint(juce::Graphics& g) {
     g.setColour(bg); g.fillRoundedRectangle(r, 4.0f);
     g.setColour(L[hi]); g.fillRect(juce::Rectangle<float>(1, 1, r.getWidth() - 2, 1));
     g.setColour(on ? L[acc] : L[btnbd]); g.drawRoundedRectangle(r.reduced(0.5f), 4.0f, 1.0f);
+    if (juce::String(b.t) == "...") {                      // the three dots of the block preset menu button (svg 18 px, circles r 1.7 at +-5.5)
+        g.setColour(L[lbl]); const float cx = r.getCentreX(), cy = r.getCentreY();
+        for (int k = -1; k <= 1; ++k) g.fillEllipse(cx + (float) k * 5.5f - 1.7f, cy - 1.7f, 3.4f, 3.4f);
+        return;
+    }
     if (txt == nullptr) return;
     g.setColour(on ? juce::Colour(0xff10141a) : L[lbl]);
     const float base = txt->lines[0].base - (float) getY() + dy;

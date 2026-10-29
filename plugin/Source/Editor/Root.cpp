@@ -169,7 +169,7 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
     env.ribbonTarget = [this] { return ctl.ribbonTarget(); };
     ctl.touched = [](int i) { noteTouch(i); };
 
-    setSize(kDesignW, kPages[0].h);
+    setSize(kDesignW, designHeight());
     setInterceptsMouseClicks(true, true);
     for (int i = 0; i < kNumPages; ++i) { pages.add(new PageView(ctx, i, env)); addChildComponent(pages.getLast()); }
 
@@ -197,7 +197,7 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
         else if (i == 3) dialogs->openExport(); else dialogs->openImport();
     };
     dialogs = std::make_unique<DialogLayer>(*this); addChildComponent(*dialogs);
-    dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, kPages[0].h));
+    dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, designHeight()));
     tipBubble = std::make_unique<Bubble>(true); valBubble = std::make_unique<Bubble>(false);
     addChildComponent(*tipBubble); addChildComponent(*valBubble);
     tipBubble->L = valBubble->L = &look();
@@ -232,15 +232,26 @@ void Root::showPage(int p) {
     page = juce::jlimit(0, kNumPages - 1, p); if (page != kSound) lastFx = page;
     ctx.page = page;
     for (int i = 0; i < pages.size(); ++i) pages[i]->setVisible(i == page);
-    setSize(kDesignW, kPages[page].h);
-    dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, kPages[page].h));
+    setSize(kDesignW, designHeight());
+    dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, designHeight()));
     pages[page]->refresh();
     // footer moves with the page height; header buttons stay
     hideTip(); repaint();
     if (onPageChanged) onPageChanged();
 }
 
+bool Root::stripShown() const { return ctl.get(P_prev) != 0; }
+int Root::designHeight() const { return stripShown() ? kPages[page].h : kPages[page].hBare; }
+void Root::syncHeight() {
+    if (getHeight() == designHeight()) return;
+    setSize(kDesignW, designHeight());
+    dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, designHeight()));
+    hideTip(); repaint();
+    if (onPageChanged) onPageChanged();
+}
+
 void Root::tick(double now) {
+    syncHeight();
     env.nowSeconds = now;
     pages[page]->refresh();
     for (auto* h : header) h->refresh();
@@ -279,11 +290,12 @@ void Root::paint(juce::Graphics& g) {
     g.setColour(L[hdr]); g.fillRect(juce::Rectangle<float>(kFtr.x, kFtr.y + dy, kFtr.w, kFtr.h));
     g.setColour(L[edge]); g.fillRect(juce::Rectangle<float>(kFtr.x, kFtr.y + dy, kFtr.w, 2));
     for (auto& c : kChrome.cats) drawCat(g, juce::Rectangle<float>(c.r.x, c.r.y, c.r.w, c.r.h), L[logo]);
+    if (stripShown()) drawKeyStripStatic(g, L, kPages[page].stripY);
     // header texts
     for (auto& t : kChrome.texts) {
         const juce::String id = t.id;
         if (id.isNotEmpty() && id != "sizeRO") continue;        // buttons and the name draw their own
-        const bool foot = t.r.y > 1250.0f;
+        const bool foot = t.r.y >= kFtr.y;
         const float dyy = foot ? dy : 0.0f;
         g.setColour(t.tok >= 0 ? L.c[t.tok] : juce::Colour((juce::uint32) t.col)); g.setFont(fontOf(t.f));
         if (id == "sizeRO") {
@@ -394,7 +406,10 @@ void Root::showValueBubble(juce::Component& c, int idx) {
 }
 
 bool Root::applyState(const juce::String& s) {
-    if (s == "reset") { dialogs->close(); menu->setVisible(false); applyLook("jp"); ctl.editOn = false; showPage(kSound); return true; }
+    if (s == "reset") { dialogs->close(); menu->setVisible(false); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
+    if (s.endsWith("_nokbd")) {                          // test hook: PREVIEW off, keyboard strip hidden (sound_nokbd chain_nokbd master_nokbd)
+        ctl.quiet(P_prev, 0); const auto n = s.upToFirstOccurrenceOf("_nokbd", false, false);
+        showPage(n == "chain" ? kChain : n == "master" ? kMaster : kSound); return true; }
     if (s == "sound") { showPage(kSound); return true; }
     if (s == "chain") { showPage(kChain); return true; }
     if (s == "master") { showPage(kMaster); return true; }

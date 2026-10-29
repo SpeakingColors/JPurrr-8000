@@ -29,13 +29,41 @@ struct HBtn { const char* id; Rect r; const char* t; bool tab, sq; };
 struct VText { const char* t; Rect r; Font f; };
 struct Lcd { Rect r, l1, l2; Font f; };
 struct Cat { Rect r; };
+// v3.3: SAVE and "..." (rename or delete) buttons right of each FX block preset select. b.id is "mpsave_<mp>" or "mpmore_<mp>"
+// (the SAVE caption is also a Text with that id in Page::texts, as with HBtn). b.t is "SAVE" or "..." (b.sq true for "...").
+struct BlockBtn { const char* mp; bool more; HBtn b; Font f; const char* tip; };
 struct Page {
-    int h;                          // design height of the window for this page
+    int h;                          // design height of the window with the keyboard strip shown (PREVIEW on, the default)
+    int hBare;                      // design height with PREVIEW off (strip hidden): the panels end 4 px above the footer
+    float stripY;                   // top of the keyboard strip in the window when it is shown (8 px under the lowest panel)
     Span<Sec> secs; Span<Text> texts; Span<Knob> knobs; Span<Slider> sliders; Span<Switch> switches;
     Span<Opts> opts; Span<Select> selects; Span<Canvas> canvases; Span<Tip> tips; Span<HBtn> hbtns;
-    Span<Rect> mbps; Span<VText> vtexts; Span<Cat> cats;
+    Span<Rect> mbps; Span<VText> vtexts; Span<Cat> cats; Span<BlockBtn> bbtns;
     bool hasLcd; Lcd lcd;
 };
+
+// v3.3 keyboard strip (#kbd): BEND and MOD wheels and the keys C2..C7 (MIDI 36..96, 61 keys). x is a window x. All y values are
+// relative to the top of the strip: add Page::stripY. The strip is as wide as the centre panel and 166 tall (rect.h).
+// Wheel: r is the wheel body (rounded 8, 1 px border). The handle (4 px bar, inset 2 px left and right) is at rest in `handle`;
+// at wheel position wn (0..1, 1 = top) its top is r.y + 1 + 6 + (1 - wn) * travel. `line` is the 1 px centre mark of the BEND wheel
+// (zero size on MOD). name = the BEND / MOD caption box, scale = box of the + / - or MAX / 0 captions (all captions are in KeyStrip::texts).
+// wn at rest is 0.5 for BEND and 0 for MOD.
+struct Wheel { const char* id; bool pitch; Rect r; Rect handle; Rect line; Rect name; Rect scale; float wn; float travel; const char* label; const char* tip; };
+struct Key { int note; bool black; Rect r; };                               // white keys first, then black keys (draw in this order)
+struct KeyLabel { int note; const char* t; float x, w, base; };            // "C2".."C7": centred on x + w / 2 at baseline base, font KeyStrip::labelFont, colour labelCol
+struct KeyStrip {
+    Rect r;                         // the strip box (x, 0, w, 166): 6 px radius, pnl3 fill, 1 px sbd border
+    Rect keysRect;                  // #keys: dark box (0b0e13) with 1 px edge border, 3 px radius; the keys are clipped to it
+    Rect whls;                      // box around both wheels with their captions
+    int firstNote, lastNote;        // 36 and 96
+    Font labelFont; uint32_t labelCol;
+    Span<Wheel> wheels;             // [0] = BEND (id wBend), [1] = MOD (id wMod)
+    Span<Key> keys;
+    Span<KeyLabel> labels;
+    Span<Text> texts;               // wheel captions BEND, MOD, +, -, MAX, 0 (Text::tok colours, y relative to the strip)
+};
+extern const KeyStrip kStrip;
+extern const int kChromeH;          // window height in which the chrome (footer, cheeks) was dumped: footer shift = page height - kChromeH
 enum PageId { kSound = 0, kChain = 1, kMaster = 2, kNumPages = 3 };
 extern const Page kPages[kNumPages];
 extern const Page kChrome;          // header, footer, cheeks (hbtn, texts, cat)

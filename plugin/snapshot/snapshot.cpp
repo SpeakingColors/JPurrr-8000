@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
     juce::File out(argc > 1 ? argv[1] : "snap-plugin"); out.createDirectory();
     juce::StringArray states;
     for (int i = 2; i < argc; ++i) states.add(argv[i]);
-    if (states.isEmpty()) states = { "sound", "chain", "master", "guide", "settings", "about", "save", "browser", "export", "import", "page1", "page2", "page4", "page6", "page7", "page8", "menu", "look_navy", "look_soda", "look_purr" };
+    if (states.isEmpty()) states = { "sound", "chain", "master", "sound_nokbd", "chain_nokbd", "master_nokbd", "guide", "settings", "about", "save", "browser", "export", "import", "page1", "page2", "page4", "page6", "page7", "page8", "menu", "look_navy", "look_soda", "look_purr" };
 
     JPurrr8000AudioProcessor proc;
     proc.prepareToPlay(44100.0, 512);
