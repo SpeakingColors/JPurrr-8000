@@ -18,6 +18,7 @@ struct PresetEntry {
 // The currently loaded sound (mockup `cur`). Lives in the processor so it survives closing the editor.
 struct CurrentPreset {
     juce::String name { "Init" }, bank { "A" }, type { "Lead" };
+    juce::StringArray genres;                                // shown on the part cards (mockup v3.5)
     int slot = 1;
     bool factory = true, dirty = false;
 };

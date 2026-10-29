@@ -74,6 +74,7 @@ void Controller::deps(int i) {
     if (i == P_uni && get(P_uni) && get(P_o1w) == 3) { proc.setInt(P_uni, 0); say("Unison cannot be used with FEEDBACK OSC"); }
     if ((i == P_mono || i == P_leg) && get(i)) proc.setInt(i == P_mono ? P_leg : P_mono, 0);   // exclusive
     if (i == P_m2s) { /* m2d is a proxy of m2dp/m2df/m2da: nothing to copy */ }
+    if (i == P_km || i == P_ps) { if (proc.syncEditPart()) afterLoad(); }        // mockup partsSwitch: the panel shows the patch of the edited part
     if (i == P_mono || i == P_leg || i == P_uni || i == P_vc) { lcd2Override.clear(); lcd2Until = 0; }
 }
 
@@ -96,13 +97,18 @@ void Controller::user(int i, int v) {
     }
     quiet(i, v);
     if (d.type == PType::Switch && (d.flags & kMomentary)) return;
+    if (isSaved(i)) mirror(i, v);
     touchLcd(i);
     if (isSaved(i) || i == P_m2d) markDirty();
     if (touched) touched(i);
 }
 
+void Controller::mirror(int i, int v) {                 // PANEL SELECT BOTH: an edit reaches the other part too (mockup mirrorPart)
+    proc.mirrorPartValue(i == P_m2d ? P_m2dp + juce::jlimit(0, 2, proc.getInt(P_m2s)) : i, v);
+}
 void Controller::fromDisplay(int i, int v) {
     quiet(i, v);
+    if (isSaved(i)) mirror(i, juce::jlimit(kParams[i].min, kParams[i].max, v));
     if (i == P_rib) ribbonApply();
     if (isSaved(i)) markDirty();
 }
@@ -128,7 +134,7 @@ juce::String Controller::lcd1() const {
 }
 juce::String Controller::title() const { return pm.cur.name + (pm.cur.dirty ? " *" : ""); }
 juce::String Controller::info() const {
-    return pm.cur.bank + (pm.cur.slot ? juce::String(pm.cur.slot).paddedLeft('0', 3) : juce::String()) + (pm.cur.factory ? juce::String::fromUTF8(" \xc2\xb7 factory") : juce::String::fromUTF8(" \xc2\xb7 mine"));
+    return (get(P_km) != 0 ? juce::String(proc.editPart() == jpurrr::kLower ? "LOWER" : "UPPER") + juce::String::fromUTF8(" \xc2\xb7 ") : juce::String()) + pm.cur.bank + (pm.cur.slot ? juce::String(pm.cur.slot).paddedLeft('0', 3) : juce::String()) + (pm.cur.factory ? juce::String::fromUTF8(" \xc2\xb7 factory") : juce::String::fromUTF8(" \xc2\xb7 mine"));
 }
 void Controller::say(const juce::String& t) { msgText = t; msgUntil = juce::Time::getMillisecondCounter() + 3200; }
 juce::String Controller::message() const {
@@ -173,14 +179,39 @@ void Controller::afterLoad() {
     lcd2Override.clear(); lcd2Until = 0;
 }
 
-void Controller::load(int li) {
+void Controller::load(int li) { loadInto(li, -1); }
+// Mockup v3.5 loadPreset(p, part). part < 0: the whole panel load: the sound goes into the edited part (both with PANEL SELECT BOTH).
+// A preset that stores KEY MODE, PANEL SELECT, Split Point or Part Detune (a value other than the default) brings them back; every
+// load into one part leaves them alone. The voices, arpeggiator, MIX READY chain and setup follow the UPPER sound.
+void Controller::loadInto(int li, int part) {
     if (li < 0 || li >= pm.size()) return;
     const PresetEntry& e = pm.at(li);
-    proc.setAll(e.v.data());
+    if (part < 0) {
+        bool changed = false;
+        for (int i : { P_km, P_ps, P_sp, P_pdet })
+            if (e.v[(size_t) i] != kParams[i].def && e.v[(size_t) i] != proc.getInt(i)) { proc.setInt(i, e.v[(size_t) i]); changed = true; }
+        if (changed) { if (!proc.syncEditPart()) { /* the part on the panel stays */ } }
+    }
+    int ts[2], n = 0;
+    if (part >= 0) ts[n++] = part;
+    else if (get(P_km) != 0 && get(P_ps) == 2) { ts[n++] = jpurrr::kUpper; ts[n++] = jpurrr::kLower; }
+    else ts[n++] = jpurrr::effectiveEditPart(get(P_km), get(P_ps), proc.editPart());
+    proc.storePanelPart();
+    CurrentPreset meta; meta.name = e.name; meta.bank = e.bank; meta.slot = e.slot; meta.factory = e.factory; meta.type = e.type; meta.genres = e.genres;
+    bool upper = false;
+    for (int k = 0; k < n; ++k) { proc.putPart(ts[k], e.v.data(), meta); upper |= ts[k] == jpurrr::kUpper; }
+    if (upper) for (int i = 0; i < kNumParams; ++i) if (isSaved(i) && jpurrr::partClassOf(i) == jpurrr::PartClass::Glob) proc.setInt(i, e.v[(size_t) i]);
+    proc.loadPartToPanel();
     afterLoad();
-    pm.cur.name = e.name; pm.cur.bank = e.bank; pm.cur.slot = e.slot; pm.cur.factory = e.factory; pm.cur.type = e.type; pm.cur.dirty = false;
     pm.pushHistory(e);
-    proc.presetName = e.name;
+}
+void Controller::stepPart(int part, int d) {
+    const int n = pm.size(); if (n == 0) return;
+    const CurrentPreset& m = proc.partMeta(part);
+    int k = -1;
+    for (int i = 0; i < n; ++i) { auto& p = pm.at(i); if (p.bank == m.bank && p.slot == m.slot && p.name == m.name) { k = i; break; } }
+    if (k < 0) k = 0;
+    loadInto((k + d + n) % n, part);
 }
 void Controller::step(int d) {
     const int n = pm.size(); if (n == 0) return;

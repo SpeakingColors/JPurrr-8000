@@ -51,7 +51,9 @@ public:
     void ribbonBegin(); void ribbonEnd(); void ribbonApply();
 
     // ---- presets
-    void load(int listIndex);
+    void load(int listIndex);                           // into the edited part (both with PANEL SELECT BOTH)
+    void loadInto(int listIndex, int part);             // part -1: as load(); 0 UPPER, 1 LOWER: that part only, KEY MODE etc. untouched
+    void stepPart(int part, int d);                     // the arrows of a part card
     void step(int d);
     void navTo(int g, int b, int n);
     struct Nav { int g, b, n; };
@@ -72,6 +74,7 @@ public:
 
     // ---- hooks set by the editor
     std::function<void()> openSave, openBrowser, startRename, closeDialog, openDelete;
+    std::function<void(int)> openPartBrowser;           // v3.5: the preset browser for one part (0 UPPER, 1 LOWER)
     std::function<void()> openGuide, openSettings, openAbout, toggleMenu;
     std::function<void(int)> openPage;
     std::function<void(int)> touched;                   // user changed a parameter: displays show their parameter view
@@ -87,6 +90,7 @@ private:
     int ribT = -1, ribBase = 0;
     std::set<int> velSet;
     void deps(int i);
+    void mirror(int i, int v);
     void touchLcd(int i);
     juce::String showL2() const;
 };

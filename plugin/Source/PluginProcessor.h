@@ -8,12 +8,13 @@
 #include "jpurrr/live.h"
 #include "jpurrr/midi_map.h"
 #include "jpurrr/keyboard.h"
+#include "jpurrr/parts.h"
 #include "PresetManager.h"
 
 // Parameter values are plain integers in the units of jpurrr::kParams (same as the mockup).
 // Params flagged kNoSave in kParams (levers, display buttons, preview) are UI state, not host parameters:
 // use getInt/setInt for every index, the processor routes it.
-class JPurrr8000AudioProcessor : public juce::AudioProcessor, private juce::AsyncUpdater {
+class JPurrr8000AudioProcessor : public juce::AudioProcessor, private juce::AsyncUpdater, private juce::AudioProcessorParameter::Listener {
 public:
     JPurrr8000AudioProcessor();
     ~JPurrr8000AudioProcessor() override;
@@ -47,6 +48,17 @@ public:
     void getAll(int* values) const;
     juce::AudioProcessorParameter* hostParam(int idx) const { return hostParams[(size_t) idx]; }
 
+    // --- the two parts (mockup v3.5). The panel and the host parameters hold the PERF and GLOB values and the PART values of the
+    // edited part (editPart()); the other part keeps its PART values and its preset info in a store. The engine plays both. ---
+    int editPart() const { return editPartA.load(); }
+    const CurrentPreset& partMeta(int part) const;                 // the sound of a part (the edited part: presets.cur)
+    int  partValue(int part, int idx) const;                       // a PART value of either part (the edited part: the panel)
+    bool syncEditPart();                                           // KEY MODE or PANEL SELECT changed: move the other part's sound onto the panel. True when it switched
+    void storePanelPart();                                         // copy the edited part's panel values into its store (before a load)
+    void putPart(int part, const int* values, const CurrentPreset& meta);   // a sound into a part's store (not onto the panel)
+    void loadPartToPanel();                                        // the panel shows the store of the edited part
+    void mirrorPartValue(int idx, int value);                      // PANEL SELECT BOTH: the same edit in the other part
+    void markPartDirty(int part);
     juce::String presetName { "Init" };
     // --- the editor's keyboard strip (message thread only; lock-free queue, the audio thread plays them at the start of the next block) ---
     void stripNoteOn(int note);
@@ -59,6 +71,14 @@ public:
 
 private:
     void handleAsyncUpdate() override;               // message thread: MIDI controller changes and latency updates
+    void parameterValueChanged(int, float) override { triggerAsyncUpdate(); }     // KEY MODE or PANEL SELECT from the host
+    void parameterGestureChanged(int, bool) override {}
+    std::array<std::atomic<int>, jpurrr::kNumParams> partVals[2];                  // PART values of each part (the edited part's entry is only current after storePanelPart)
+    CurrentPreset partMetas[2];                                                    // preset info of each part (the edited part's is presets.cur)
+    std::atomic<int> editPartA { 0 };
+    std::atomic<bool> partBusy { false };                                          // the panel is being switched to the other part: the audio thread keeps the last sound
+    int lastPv[2][jpurrr::kNumParams] = {};                                        // audio thread
+    void initParts();
     // MIDI controller changes travel from the audio thread to the message thread through this FIFO.
     static constexpr int kMidiFifo = 512;
     juce::AbstractFifo midiFifo { kMidiFifo };

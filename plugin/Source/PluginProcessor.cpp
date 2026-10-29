@@ -35,8 +35,64 @@ JPurrr8000AudioProcessor::JPurrr8000AudioProcessor()
     }
     synth.setLive(&live); fx.setLive(&live);
     presetName = presets.cur.name;
+    initParts();
+    hostParams[(size_t) P_km]->addListener(this); hostParams[(size_t) P_ps]->addListener(this);
 }
-JPurrr8000AudioProcessor::~JPurrr8000AudioProcessor() = default;
+JPurrr8000AudioProcessor::~JPurrr8000AudioProcessor() {
+    hostParams[(size_t) P_km]->removeListener(this); hostParams[(size_t) P_ps]->removeListener(this);
+}
+
+// ------------------------------------------------------------------ the two parts
+static CurrentPreset metaOfFactory(const PresetEntry& e) {
+    CurrentPreset m; m.name = e.name; m.bank = e.bank; m.slot = e.slot; m.factory = e.factory; m.type = e.type; m.genres = e.genres; m.dirty = false; return m;
+}
+void JPurrr8000AudioProcessor::initParts() {
+    // UPPER = the sound on the panel, LOWER = the sound the mockup starts with (factory slot 9). Only used once KEY MODE is DUAL or SPLIT.
+    for (int i = 0; i < kNumParams; ++i) { partVals[0][(size_t) i].store(kParams[i].def); partVals[1][(size_t) i].store(kParams[i].def); }
+    presets.cur.genres = presets.size() > 0 ? presets.at(0).genres : juce::StringArray();
+    partMetas[0] = presets.cur; partMetas[1] = presets.cur;
+    if (presets.size() > 8) {
+        const PresetEntry& e = presets.at(8);
+        for (int i = 0; i < kNumParams; ++i) partVals[1][(size_t) i].store(e.v[(size_t) i]);
+        partMetas[1] = metaOfFactory(e);
+    }
+    editPartA.store(kUpper);
+}
+const CurrentPreset& JPurrr8000AudioProcessor::partMeta(int part) const { return part == editPart() ? presets.cur : partMetas[juce::jlimit(0, 1, part)]; }
+int JPurrr8000AudioProcessor::partValue(int part, int idx) const { return part == editPart() ? getInt(idx) : partVals[juce::jlimit(0, 1, part)][(size_t) idx].load(); }
+void JPurrr8000AudioProcessor::storePanelPart() {
+    const int e = editPart();
+    for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) partVals[e][(size_t) i].store(getInt(i));
+    partMetas[e] = presets.cur;
+}
+void JPurrr8000AudioProcessor::putPart(int part, const int* v, const CurrentPreset& meta) {
+    part = juce::jlimit(0, 1, part);
+    for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) partVals[part][(size_t) i].store(v[i]);
+    partMetas[part] = meta; partMetas[part].dirty = false;
+    if (part == editPart()) presets.cur = partMetas[part];
+}
+void JPurrr8000AudioProcessor::loadPartToPanel() {
+    const int e = editPart();
+    partBusy.store(true);
+    for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) setInt(i, partVals[e][(size_t) i].load());
+    presets.cur = partMetas[e]; presetName = presets.cur.name;
+    partBusy.store(false);
+}
+bool JPurrr8000AudioProcessor::syncEditPart() {
+    const int t = jpurrr::effectiveEditPart(getInt(P_km), getInt(P_ps), editPart());
+    if (t == editPart()) return false;
+    storePanelPart();
+    editPartA.store(t);
+    loadPartToPanel();
+    return true;
+}
+void JPurrr8000AudioProcessor::mirrorPartValue(int idx, int value) {
+    if (!isPartParam(idx) || getInt(P_km) == 0 || getInt(P_ps) != 2) return;
+    const int o = 1 - editPart();
+    partVals[o][(size_t) idx].store(value);
+    partMetas[o].dirty = true;
+}
+void JPurrr8000AudioProcessor::markPartDirty(int part) { if (part == editPart()) presets.cur.dirty = true; else partMetas[juce::jlimit(0, 1, part)].dirty = true; }
 
 bool JPurrr8000AudioProcessor::isBusesLayoutSupported(const BusesLayout& l) const {
     return l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
@@ -82,7 +138,15 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
     const int n = buf.getNumSamples();
     int vals[kNumParams];
     for (int i = 0; i < kNumParams; ++i) vals[i] = getInt(i);
-    synth.setParams(vals); soundFx.setParams(vals); fx.setParams(vals);
+    // The two parts: the panel's values for the edited part, the stored values for the other. The voice engine and the effects section
+    // follow UPPER (one shared effect). While the panel is being switched to the other part the last sound is kept for this block.
+    if (!partBusy.load()) {
+        int st[2][kNumParams];
+        for (int p = 0; p < 2; ++p) for (int i = 0; i < kNumParams; ++i) st[p][i] = partVals[p][(size_t) i].load(std::memory_order_relaxed);
+        jpurrr::composePartVectors(vals, editPartA.load(), st, lastPv);
+    }
+    synth.setParams(lastPv[0]); synth.setPartParams(0, lastPv[0]); synth.setPartParams(1, lastPv[1]);
+    soundFx.setParams(lastPv[0]); fx.setParams(vals);
     if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) {
         const double bpm = pos->getBpm().orFallback(120.0);
         synth.setTempo(bpm); soundFx.setTempo(bpm); fx.setTempo(bpm);
@@ -151,11 +215,24 @@ void JPurrr8000AudioProcessor::handleAsyncUpdate() {
     midiFifo.finishedRead(n1 + n2);
     const int want = wantedLatency.load();
     if (want != reportedLatency) { reportedLatency = want; setLatencySamples(want); }
+    syncEditPart();                                  // KEY MODE or PANEL SELECT moved by the host or a MIDI controller
 }
 
 // State: the host parameters by id (so sessions keep loading when parameters are added), the sound name and where it
 // came from, the editor width. kStateVersion changes only when the meaning of stored values changes.
-static constexpr int kStateVersion = 1;
+static constexpr int kStateVersion = 2;       // 2: both part sounds are stored (children PART0 and PART1). Version 1 sessions load as before: both parts get the one sound.
+
+static juce::ValueTree partNode(int part, const CurrentPreset& m, const std::function<int(int)>& value) {
+    juce::ValueTree n("PART" + juce::String(part));
+    n.setProperty("name", m.name, nullptr); n.setProperty("bank", m.bank, nullptr); n.setProperty("slot", m.slot, nullptr);
+    n.setProperty("factory", m.factory, nullptr); n.setProperty("type", m.type, nullptr); n.setProperty("dirty", m.dirty, nullptr);
+    n.setProperty("genres", m.genres.joinIntoString("|"), nullptr);
+    juce::StringArray vs;                                          // PART values by id, so sessions keep loading when parameters are added
+    for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) vs.add(juce::String(kParams[i].id) + "=" + juce::String(value(i)));
+    n.setProperty("v", vs.joinIntoString(","), nullptr);
+    return n;
+}
+
 void JPurrr8000AudioProcessor::getStateInformation(juce::MemoryBlock& dest) {
     auto state = apvts.copyState();
     state.setProperty("stateVersion", kStateVersion, nullptr);
@@ -165,7 +242,10 @@ void JPurrr8000AudioProcessor::getStateInformation(juce::MemoryBlock& dest) {
     state.setProperty("presetFactory", presets.cur.factory, nullptr);
     state.setProperty("presetType", presets.cur.type, nullptr);
     state.setProperty("presetDirty", presets.cur.dirty, nullptr);
+    state.setProperty("presetGenres", presets.cur.genres.joinIntoString("|"), nullptr);
     state.setProperty("uiWidth", uiWidth, nullptr);
+    state.setProperty("editPart", editPart(), nullptr);
+    for (int p = 0; p < 2; ++p) state.appendChild(partNode(p, partMeta(p), [this, p](int i) { return partValue(p, i); }), nullptr);
     if (auto xml = state.createXml()) copyXmlToBinary(*xml, dest);
 }
 void JPurrr8000AudioProcessor::setStateInformation(const void* data, int size) {
@@ -178,9 +258,40 @@ void JPurrr8000AudioProcessor::setStateInformation(const void* data, int size) {
         presets.cur.factory = (bool) st.getProperty("presetFactory", true);
         presets.cur.type = st.getProperty("presetType", "Lead").toString();
         presets.cur.dirty = (bool) st.getProperty("presetDirty", false);
+        presets.cur.genres.clear(); presets.cur.genres.addTokens(st.getProperty("presetGenres", "").toString(), "|", ""); presets.cur.genres.removeEmptyStrings();
         uiWidth = (int) st.getProperty("uiWidth", 0);
         presetName = presets.cur.name;
+        // the part nodes are not host parameters: take them out before the parameter tree is replaced
+        juce::ValueTree pn[2] = { st.getChildWithName("PART0"), st.getChildWithName("PART1") };
+        const bool hasParts = pn[0].isValid() && pn[1].isValid();
+        for (auto& n : pn) if (n.isValid()) st.removeChild(n, nullptr);
+        partBusy.store(true);
         apvts.replaceState(st);
+        if (hasParts) {
+            editPartA.store(juce::jlimit(0, 1, (int) st.getProperty("editPart", 0)));
+            for (int p = 0; p < 2; ++p) {
+                for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) partVals[p][(size_t) i].store(kParams[i].def);
+                juce::StringArray vs; vs.addTokens(pn[p].getProperty("v", "").toString(), ",", "");
+                for (auto& kv : vs) {
+                    const int eq = kv.indexOfChar('='); if (eq < 1) continue;
+                    const int idx = paramIndexById(kv.substring(0, eq).toRawUTF8());
+                    if (idx >= 0 && isPartParam(idx)) partVals[p][(size_t) idx].store(juce::jlimit(kParams[idx].min, kParams[idx].max, kv.substring(eq + 1).getIntValue()));
+                }
+                CurrentPreset m;
+                m.name = pn[p].getProperty("name", "Init").toString(); m.bank = pn[p].getProperty("bank", "A").toString(); m.slot = (int) pn[p].getProperty("slot", 1);
+                m.factory = (bool) pn[p].getProperty("factory", true); m.type = pn[p].getProperty("type", "Lead").toString(); m.dirty = (bool) pn[p].getProperty("dirty", false);
+                m.genres.addTokens(pn[p].getProperty("genres", "").toString(), "|", ""); m.genres.removeEmptyStrings();
+                partMetas[p] = m;
+            }
+            presets.cur = partMetas[editPart()];                // the edited part's info is the current sound; its values are already on the panel
+            presetName = presets.cur.name;
+        } else {
+            // a session saved before the parts existed: one sound, both parts play it
+            const int e = jpurrr::effectiveEditPart(getInt(P_km), getInt(P_ps), kUpper);
+            editPartA.store(e);
+            for (int p = 0; p < 2; ++p) { for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) partVals[p][(size_t) i].store(getInt(i)); partMetas[p] = presets.cur; }
+        }
+        partBusy.store(false);
     }
 }
 
