@@ -108,11 +108,27 @@ canvas.cv{display:block;background:var(--dsp);border:1px solid var(--edge);borde
 .lcd{background:var(--lcdbg);border:2px solid var(--edge);border-radius:3px;padding:6px 10px;font:500 23.6px 'JetBrains Mono',monospace;color:var(--lcdfg);line-height:1.35;box-shadow:inset 0 0 10px rgba(0,0,0,.8);min-width:250px}
 .lcd div{white-space:pre;overflow:hidden}
 .lcd .dm{color:var(--lcdoff)}
-#kbd{position:relative;height:110px;min-height:110px;flex:1 1 110px;border:1px dashed var(--lbl2);border-radius:3px;background:#0b0e13;overflow:hidden}
-#kbd .tag{position:absolute;left:8px;bottom:2px;z-index:3;font:600 13.8px 'Barlow Condensed',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--lbl2);pointer-events:none;background:rgba(11,14,19,.8);padding:0 4px}
+#kbd{position:relative;display:flex;align-items:stretch;gap:12px;flex:none;height:166px;margin-top:auto;padding:7px 8px;box-sizing:border-box;border:1px solid var(--sbd);border-radius:6px;background:var(--pnl3);box-shadow:inset 0 1px 0 var(--hi)}
+#keys{position:relative;flex:1;min-width:0;height:150px;box-sizing:border-box;border:1px solid var(--edge);border-radius:3px;background:#0b0e13;overflow:hidden}
+#whls{display:flex;gap:16px;flex:none}
+.wcol{display:flex;flex-direction:column;gap:4px}
+.wnm{height:18px;line-height:18px;font:600 16.7px 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--lbl2);text-align:center}
+.wbody{display:flex;gap:6px;flex:1;min-height:0}
+.wsc{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;font:600 16.7px 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:var(--lbl2);line-height:18px}
+.wsc .wg{font-size:24px;font-weight:700;line-height:18px;color:var(--lbl)}
+.wcol.pitch .wsc{width:16px}.wcol.modw .wsc{width:34px}
+.whl{--wn:.5;position:relative;width:42px;box-sizing:border-box;border:1px solid var(--edge);border-radius:8px;overflow:hidden;cursor:ns-resize;touch-action:none;background:var(--pnl2);box-shadow:0 1px 0 var(--hi),inset 0 0 0 1px rgba(0,0,0,.35)}
+.whl::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(180deg,var(--edge) 0 2px,var(--sbd) 2px 7px);background-position:0 calc(var(--wn) * -210px);opacity:.75}
+.whl::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.72),rgba(0,0,0,0) 32%,rgba(0,0,0,0) 68%,rgba(0,0,0,.72))}
+.whl i{position:absolute;left:2px;right:2px;height:4px;border-radius:2px;background:var(--acc);box-shadow:0 0 0 1px var(--edge);z-index:1;top:calc(6px + (1 - var(--wn)) * (100% - 16px));transition:top .12s ease-out}
+.whl.drag i{transition:none}
+.whl.pw b{position:absolute;left:0;right:0;top:50%;height:0;border-top:1px solid var(--lbl2);opacity:.7;z-index:1;margin-top:-1px}
+.whl:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.whl.drag{border-color:var(--acc)}
+.kl{position:absolute;left:0;right:0;bottom:4px;text-align:center;font:600 16.7px 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:#6b7280;pointer-events:none}
 .wk{position:absolute;top:0;height:100%;background:linear-gradient(180deg,#eef0f3,#fbfbfc 60%,#d9dce1);border:1px solid #888;border-top:0;box-sizing:border-box;cursor:pointer;touch-action:none}
 .wk.on{background:linear-gradient(180deg,#9fd2ff,#d4ebff)}
-.bk{position:absolute;top:0;height:56%;background:linear-gradient(180deg,#22252a,#050607);border-radius:0 0 3px 3px;box-sizing:border-box;border:1px solid #000;cursor:pointer;z-index:2;touch-action:none}
+.bk{position:absolute;top:0;height:60%;background:linear-gradient(180deg,#22252a,#050607);border-radius:0 0 3px 3px;box-sizing:border-box;border:1px solid #000;cursor:pointer;z-index:2;touch-action:none}
 .bk.on{background:linear-gradient(180deg,#4a82b8,#1a3550)}
 #ftr{height:24px;flex:none;background:var(--hdr);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:500 16.7px 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:var(--lbl2);border-top:2px solid var(--edge);position:relative;z-index:2}
 #tip{position:absolute;z-index:100;max-width:300px;background:#0a0d12;color:#f1f3f7;border:1px solid var(--acc);border-radius:4px;padding:6px 9px;font:500 18.4px 'Barlow',sans-serif;line-height:1.3;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.5)}
@@ -161,17 +177,20 @@ canvas.cv#cv_pad,canvas.cv#cv_rib{cursor:crosshair;touch-action:none}
 .dlg.page .two label{gap:2px}
 .dlg.page input[type=range]{padding:0;height:18px}
 @media (prefers-reduced-motion: reduce){ *{scroll-behavior:auto} .sw.blink .led{animation:none;background:var(--led)} }
-.mprow{display:flex;align-items:center;gap:8px;margin-bottom:2px}.mpsel{min-width:150px;max-width:210px;height:24px;font-size:18.4px}
+.mprow{display:flex;align-items:center;gap:8px;margin-bottom:2px;min-width:0}.mpsel{flex:0 1 auto;min-width:100px;max-width:210px;height:24px;font-size:18.4px}
+.mpsel optgroup{font:600 16.7px 'Barlow Condensed',sans-serif;font-style:normal;color:var(--acc)}.mpsel option{font:600 18.4px 'Barlow Condensed',sans-serif;color:var(--selfg)}
+.hb.mpb{flex:none;height:24px;padding:0 8px;font-size:16.7px;letter-spacing:.08em;display:inline-flex;align-items:center;justify-content:center}.hb.mpb svg{width:18px;height:18px;display:block}.hb.mpb.mpmore{padding:0;width:28px}
+#mpmenu{position:absolute;z-index:80;background:var(--hdr);border:1px solid var(--acc);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.6);padding:6px;display:flex;flex-direction:column;gap:3px;min-width:170px}#mpmenu[hidden]{display:none!important}#mpmenu .hb{width:100%;text-align:left;height:32px;font-size:19.5px}
 .mbp{flex:1;min-width:0;border:1px solid var(--sbd);border-radius:6px;background:var(--pnl2);padding:6px 10px 8px;display:flex;flex-direction:column;gap:6px;box-sizing:border-box}
 .mbn b{font:700 25.3px 'Barlow Condensed',sans-serif;letter-spacing:.12em;color:var(--ttl)}.mbn span{font:500 16.7px 'JetBrains Mono',monospace;color:var(--lbl2);margin-left:10px}
 .mbrow{display:flex;align-items:flex-end;gap:10px}.mbl{align-self:center;writing-mode:vertical-rl;transform:rotate(180deg);font:700 16.7px 'Barlow Condensed',sans-serif;letter-spacing:.22em;color:var(--lbl2);width:16px;text-align:center}
 .dlg{zoom:1.3}#pmenu{zoom:1.25}#tip{zoom:1.2}
 </style>
 
-<div class="pagebar"><b>JPurrr-8000</b><span>Design mockup v3.2: the JP-8000 front panel plus the MIX READY and MASTER pages. This is the plugin window at its real size. In a narrow pane, scroll sideways or press Fit width. Drag any edge or corner to resize, double click a wood cheek for 100%.</span></div>
+<div class="pagebar"><b>JPurrr-8000</b><span>Design mockup v3.3: the JP-8000 front panel plus the MIX READY and MASTER pages. This is the plugin window at its real size. In a narrow pane, scroll sideways or press Fit width. Drag any edge or corner to resize, double click a wood cheek for 100%.</span></div>
 <div id="stageWrap"><div id="holder"><div id="win"></div></div></div>
 <div class="zoomrow"><button id="zOut" aria-label="Zoom out">−</button><button id="zIn" aria-label="Zoom in">+</button><button id="zFit">Fit width</button><button id="z100">100%</button><output id="zOutp" aria-label="Zoom"></output>
-<span>The keys at the bottom are a preview rig, not part of the plugin. Sound is a rough preview (no chorus, unison, voice count or LFOs).</span></div>
+<span>The keyboard at the bottom plays the sound. BEND springs back, MOD stays where you leave it. Sound is a rough preview (no chorus, unison, voice count or LFO 1; LFO 2 gives vibrato or filter wobble).</span></div>
 
 <script>
 (()=>{
@@ -200,7 +219,7 @@ function D(id,label,opts,def,tip){reg(id,{t:'d',label,min:0,max:opts.length-1,de
  return `<div class="ctl" ${tipA(tip)} data-for="${id}"><div class="lb dim w">${label}</div><select data-id="${id}" aria-label="${esc(label)}">${opts.map((o,i)=>`<option value="${i}">${o}</option>`).join('')}</select></div>`;}
 const CV=(id,w,h)=>`<canvas class="cv" id="${id}" data-w="${w}" data-h="${h}" width="${w*2}" height="${h*2}" style="width:${w}px;height:${h}px"></canvas>`;
 const SECP={'TRANCE GATE':'gate','DRIVE STACK':'drive','LOW END':'low','M/S EQ':'ms','TRANSIENT':'trans','TAMER':'tamer','GLUE':'glue','WIDENER':'wide','AUTO PAN':'pan','OPTO LEVELLER':'opto','OTT SQUEEZE':'ott','OUTPUT STAGE':'out'};
-const mprow=(k)=>`<div class="mprow" data-tip="Presets for this block. Pick one to set all its knobs in one go. It shows Custom when you have changed something."><div class="lb dim w" style="min-height:0">PRESET</div><select class="mpsel" data-mp="${k}" aria-label="Preset"></select></div>`;
+const mprow=(k)=>`<div class="mprow" data-tip="Presets for this block. Pick one to set all its knobs in one go. It shows Custom when you have changed something. SAVE keeps the current knobs as your own preset, the ... button renames or deletes it. Factory presets cannot be changed."><div class="lb dim w" style="min-height:0">PRESET</div><select class="mpsel" data-mp="${k}" aria-label="Preset"></select><button class="hb mpb mpsave" data-mpsave="${k}" data-tip="Save the knobs of this block as your own preset. Asks before overwriting.">Save</button><button class="hb mpb mpmore" data-mpmore="${k}" aria-label="Rename or delete preset" aria-haspopup="menu" data-tip="Rename or delete your own preset of this block. Factory presets cannot be changed."><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="3.5" cy="9" r="1.7" fill="currentColor"/><circle cx="9" cy="9" r="1.7" fill="currentColor"/><circle cx="14.5" cy="9" r="1.7" fill="currentColor"/></svg></button></div>`;
 const sec=(title,w,h,inner,fl)=>`<section class="sec${fl?' fl':''}" style="min-width:${w}px;height:${h?h+7:h}px"><h3 class="ttl"><span>${title}</span></h3><div class="in">${SECP[title]?mprow(SECP[title]):''}${inner}</div></section>`;
 const sg=v=>v>0?'+'+v:''+v;
 const NOTES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -323,7 +342,7 @@ const fxs=sec('EFFECTS',0,240,
  `<div class="row" style="gap:20px;align-items:flex-end;margin-top:14px">${D('xt','MULTI-FX TYPE',FX,1,'Multi effects type. Twelve chorus, flanger and phaser types plus DISTORTION (new on the JP-8080). Distortion takes the place of the chorus.')}${D('dty','DELAY TYPE',DLY,0,'Delay type: panning left to right, right to left, short panning, mono short or mono long.')}</div>`);
 
 const vol=sec('VOLUME',0,240,
- K('vol','LEVEL',0,127,100,'Master volume of the plugin.')+T('prev','PREVIEW',1,'Preview: shows the on-screen keyboard to play sounds without a MIDI keyboard.'));
+ K('vol','LEVEL',0,127,100,'Master volume of the plugin.')+T('prev','PREVIEW',1,'Preview: shows or hides the keyboard strip with the BEND and MOD wheels, to play sounds without a MIDI keyboard. On by default.'));
 const fixW=(h,w)=>h.replace(/style="min-width:\d+px;/,'style="flex:0 0 '+w+'px;width:'+w+'px;min-width:'+w+'px;');
 P.prev.nosave=1;
 const arp=sec('ARPEGGIATOR / RPS',0,240,
@@ -413,7 +432,7 @@ const fxpage=`<div class="fxtabs"><button class="hb tab on" id="tfx1" data-tip="
  `<div id="fx1" class="fxp"><div class="rowS" style="height:330px">${gate}${mst}${rsp}</div><div class="rowS" style="height:484px">${dr}${lo}${ms}${tr}${tm2}${gl}${wd}${ap}</div></div>`+
  `<div id="fx2" class="fxp" hidden><div class="rowS" style="height:369px">${opto}${ott}${ou}${flow2}</div><div class="rowS" style="height:589px">${dm}</div></div>`;
 const logo=`<div class="logo">${CAT}<div><small>STUDIO 87</small><div class="big">JPurrr-8000</div><div class="sub">SYNTHESIZER</div></div></div>`;
-return `<div id="pgSound" class="pg"><div class="rowS"><div class="lblk" style="width:max-content">${logo}<div class="rowS">${ctr}${lfo2}${kbs}</div></div><div class="mblk"><div class="rowS">${fixW(lfo1,165)}${com}${osc1}${osc2}${flt}${amp}</div><div class="rowS">${fixW(vol,165)}${arp}${kpn}${disp}${fxs}</div></div></div><div class="rowS r4">${rbn}${mot}${ctrl}${vmod}${ext}${pfm}${outp}</div></div>`+`<div id="pgFx" class="pg" hidden>${fxpage}</div><div id="kbd"><span class="tag">Preview keyboard · not part of the plugin</span></div>`;
+return `<div id="pgSound" class="pg"><div class="rowS"><div class="lblk" style="width:max-content">${logo}<div class="rowS">${ctr}${lfo2}${kbs}</div></div><div class="mblk"><div class="rowS">${fixW(lfo1,165)}${com}${osc1}${osc2}${flt}${amp}</div><div class="rowS">${fixW(vol,165)}${arp}${kpn}${disp}${fxs}</div></div></div><div class="rowS r4">${rbn}${mot}${ctrl}${vmod}${ext}${pfm}${outp}</div></div>`+`<div id="pgFx" class="pg" hidden>${fxpage}</div><div id="kbd"><div id="whls"><div class="wcol pitch"><div class="wnm">BEND</div><div class="wbody"><div class="whl pw" id="wBend" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Pitch bend wheel" aria-valuemin="-64" aria-valuemax="63" aria-valuenow="0" data-tip="Pitch bend wheel: drag it up or down, or scroll over it. It springs back to the middle when let go. The range follows BEND UP and BEND DOWN."><b></b><i></i></div><div class="wsc"><span class="wg">+</span><span class="wg">-</span></div></div></div><div class="wcol modw"><div class="wnm">MOD</div><div class="wbody"><div class="whl" id="wMod" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Mod wheel" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0" data-tip="Mod wheel: drag it up or down, or scroll over it. It stays where you leave it. It moves LFO 2 depth, the same as the mod lever. Double click to reset."><i></i></div><div class="wsc"><span>MAX</span><span>0</span></div></div></div></div><div id="keys"></div></div>`;
 }
 
 const CAT=`<svg viewBox="0 0 40 40" aria-hidden="true"><path fill="currentColor" d="M5 5l10 8c3-1 7-1 10 0l10-8 1 19c0 8-7 13-16 13S4 32 4 24z"/><circle cx="14.5" cy="23" r="2.6" fill="#0b1018"/><circle cx="25.5" cy="23" r="2.6" fill="#0b1018"/><path d="M18.3 27h3.4L20 29.2z" fill="#0b1018"/><path d="M3 26l9-1M3 30l9-2M37 26l-9-1M37 30l-9-2" stroke="#0b1018" stroke-width="1" fill="none" stroke-linecap="round"/></svg>`;
@@ -424,7 +443,7 @@ function buildWin(){
    <div id="pmenu" hidden><button class="hb" id="bSave" data-tip="Save the sound. Asks before overwriting.">Save</button><button class="hb" id="bRen" data-tip="Rename the preset.">Rename</button><button class="hb" id="bDel" data-tip="Delete one of your own presets. Factory sounds stay.">Delete</button><button class="hb" id="bExp" data-tip="Export this preset as text (SysEx in the plugin).">Export</button><button class="hb" id="bImp" data-tip="Import a preset. It is checked first.">Import</button></div></div>
   <div class="tabs" style="margin-left:18px"><button class="hb tab on" id="tSound" data-tip="Sound page: the synth front panel.">Sound</button><button class="hb tab" id="tFx" data-tip="FX page: trance gate, the MIX READY chain and the MASTER tools (our own twist).">FX</button></div><div class="hsp"><span id="msg"></span></div><button class="hb" id="bGuide" data-tip="Quick guide and shortcuts.">Guide</button><button class="hb" id="bSet" data-tip="Settings: bubbles, power saving, colour look.">Settings</button><button class="hb" id="bAbout" data-tip="About, support and install notes.">About &amp; Support</button></div>
  <div id="body">${buildPanel()}</div>
- <div id="ftr"><span>Studio 87 · JPurrr-8000 v3.2 design mockup</span><span id="sizeRO"></span></div><div id="scrim"></div></div><div class="cheek r" data-cheek></div><div id="tip" hidden></div><div id="val" hidden></div>`;
+ <div id="mpmenu" hidden role="menu"><button class="hb" data-a="ren" role="menuitem" data-tip="Rename your preset of this block.">Rename</button><button class="hb" data-a="del" role="menuitem" data-tip="Delete your preset of this block. Asks first.">Delete</button></div><div id="ftr"><span>Studio 87 · JPurrr-8000 v3.3 design mockup</span><span id="sizeRO"></span></div><div id="scrim"></div></div><div class="cheek r" data-cheek></div><div id="tip" hidden></div><div id="val" hidden></div>`;
 }
 const win=$('#win');
 win.innerHTML=buildWin();
@@ -434,7 +453,8 @@ win.style.width=W+'px';win.style.height=H+'px';
 const store=sget('jpurr1',{});
 const S=Object.assign({bubbles:true,power:true,look:'jp',sound:true},store.settings||{});
 let userPresets=store.user||[];
-const save=()=>sset('jpurr1',{settings:S,user:userPresets});
+let userBlock={};/* v3.3: your FX block presets, {blockKey:[{n:name,v:{paramId:value}}]} stored as store.blocks */
+const save=()=>sset('jpurr1',{settings:S,user:userPresets,blocks:userBlock});
 function applyLook(){win.dataset.look=S.look==='jp'?'':S.look;if(!S.look||S.look==='jp')win.removeAttribute('data-look');cacheColors();drawAll();}
 
 /* ================= parameter engine ================= */
@@ -472,7 +492,7 @@ function deps(id){
 }
 function depsAll(){['o1w','o2w','m2s','vc1','vc2','prev','os','ksh'].forEach(i=>{if(i==='os'||i==='ksh')paint(i);else deps(i);});}
 let mpReady=false;
-function setP(id,v,user){const p=P[id];v=clamp(Math.round(v),p.min,p.max);if(v===p.v&&!user)return;if(id==='gpt'&&user&&v>0)P.gpat.v=gmask(GPATS[v-1][1]);p.v=v;if(id==='m2d')P[['m2dp','m2df','m2da'][P.m2s.v]].v=v;paint(id);deps(id);
+function setP(id,v,user){const p=P[id];v=clamp(Math.round(v),p.min,p.max);if(v===p.v&&!user)return;if(id==='gpt'&&user&&v>0)P.gpat.v=gmask(GPATS[v-1][1]);p.v=v;if(id==='m2d')P[['m2dp','m2df','m2da'][P.m2s.v]].v=v;paint(id);deps(id);if(id==='bend'||id==='mod'||id==='m2d'||id==='m2r'||id==='m2s'){wheelPaint();bendAudio();}
  if(p.t==='w'&&p.mom){p.v=0;paint(id);}
  if(id[0]==='q')procApply();
  if(mpReady&&(id[0]==='q'||id[0]==='g'))mpSync();
@@ -760,12 +780,12 @@ function drawMeter(){const c=cx('cv_m');if(!c)return;const {x,w,h}=c;const top=4
  x.save();x.shadowColor='#ff1383';x.shadowBlur=meter.clip>0?8:0;x.fillStyle=meter.clip>0?'#ff1383':CC.grid;rr(36,0,44,3,1.5);x.fill();x.restore();}
 
 /* ================= audio preview (rough, not the plugin engine) ================= */
-let ctx=null,master=null,an=null,buf=null,toneL=null,toneH=null,dly=null,dlyG=null,fb=null,bendSrc=null,gateG=null,gNext=0,gStep=0,gT0=0,gDur=.1;const voices=new Map();
+let ctx=null,master=null,an=null,buf=null,toneL=null,toneH=null,dly=null,dlyG=null,fb=null,bendSrc=null,modLfo=null,modP=null,modF=null,gateG=null,gNext=0,gStep=0,gT0=0,gDur=.1;const voices=new Map();
 function ensureAudio(){if(ctx||!S.sound)return;try{const AC=window.AudioContext||window.webkitAudioContext;ctx=new AC();
  master=ctx.createGain();toneL=ctx.createBiquadFilter();toneL.type='lowshelf';toneL.frequency.value=200;toneH=ctx.createBiquadFilter();toneH.type='highshelf';toneH.frequency.value=4000;
  dly=ctx.createDelay(1.5);dlyG=ctx.createGain();fb=ctx.createGain();an=ctx.createAnalyser();an.fftSize=1024;
  gateG=ctx.createGain();master.connect(gateG);gateG.connect(toneL);toneL.connect(toneH);buildProc();toneH.connect(pIn);toneH.connect(dly);dly.connect(dlyG);dlyG.connect(pIn);dly.connect(fb);fb.connect(dly);pOut.connect(an);an.connect(ctx.destination);procApply();
- setInterval(gateTick,25);bendSrc=ctx.createConstantSource();bendSrc.offset.value=0;bendSrc.start();buf=new Float32Array(an.fftSize);}catch(e){ctx=null;}}
+ setInterval(gateTick,25);bendSrc=ctx.createConstantSource();bendSrc.offset.value=0;bendSrc.start();modLfo=ctx.createOscillator();modLfo.frequency.value=5;modP=ctx.createGain();modF=ctx.createGain();modP.gain.value=0;modF.gain.value=0;modLfo.connect(modP);modLfo.connect(modF);modLfo.start();buf=new Float32Array(an.fftSize);}catch(e){ctx=null;}}
 
 /* ===== MIX READY chain: preview version (rough, the plugin does it properly) ===== */
 let pIn=null,pOut=null;const pN={};let pKey='';
@@ -832,7 +852,7 @@ function gateTick(){if(!ctx||!gateG)return;const now=ctx.currentTime;
  while(gNext<now+.12){const on=(P.gpat.v>>(gStep%16))&1,nx=(P.gpat.v>>((gStep+1)%16))&1;gateG.gain.setTargetAtTime(on?1:lo,gNext,sm/3);if(on&&dc>.01)gateG.gain.setTargetAtTime(lo,gNext+sm*1.2,gDur*(1.2*(1-dc)+.05));if(!on&&nx&&sw>.01){gateG.gain.setValueAtTime(lo,gNext+gDur*(1-sw));gateG.gain.linearRampToValueAtTime(1,gNext+gDur);}gNext+=gDur;gStep++;}}
 function gatePhase(){if(!ctx||!P.gon.v||!voices.size||!gNext)return -1;return Math.floor(Math.max(0,ctx.currentTime-gT0)/gDur)%16;}
 function curveD(x){const co=[10028.7312891634,-50818.8652045924,111363.4808729368,-138150.6761080548,106649.6679158292,-53046.9642751875,17019.9518580080,-3425.0836591318,404.2703938388,-24.1878824391,0.6717417634,0.0030115596];let r=0;for(const k of co)r=r*x+k;return r;}
-function noteOn(n){ensureAudio();if(!ctx||!S.sound)return;if(ctx.state==='suspended')ctx.resume();if(voices.has(n))return;if(voices.size>=16){const k=voices.keys().next().value;noteOff(k,true);}
+function noteOn(n){ensureAudio();if(!ctx||!S.sound)return;if(ctx.state==='suspended')ctx.resume();if(voices.has(n))return;bendAudio();if(voices.size>=16){const k=voices.keys().next().value;noteOff(k,true);}
  const t=ctx.currentTime,nk=n+12*P.ksh.v,f0=440*Math.pow(2,(nk-69)/12)*Math.pow(2,P.os.v);
  master.gain.value=.22*P.vol.v/127;toneL.gain.value=P.tb.v/64*12;toneH.gain.value=P.tt.v/64*12;
  dly.delayTime.value=.02+P.dt.v/127*.6;fb.gain.value=Math.min(.85,P.dfb.v/127);dlyG.gain.value=P.dl.v/127*.8;
@@ -841,7 +861,7 @@ function noteOn(n){ensureAudio();if(!ctx||!S.sound)return;if(ctx.state==='suspen
  const pdep=P.pd.v/64*1200,pa_=tm(P.pa.v,.001,2),pdc=tm(P.pdd.v,.01,3);
  const mk=(type,f,det,dest,g,pe)=>{const o=ctx.createOscillator();o.type=type;o.frequency.value=f;o.detune.value=det;
   if(pe&&P.pd.v){o.detune.setValueAtTime(det,t);o.detune.linearRampToValueAtTime(det+pdep,t+pa_);o.detune.setTargetAtTime(det,t+pa_,pdc/3);}
-  if(bendSrc){bendSrc.connect(o.detune);o.onended=()=>{try{bendSrc.disconnect(o.detune)}catch(e){}};}
+  if(bendSrc){bendSrc.connect(o.detune);modP.connect(o.detune);o.onended=()=>{try{bendSrc.disconnect(o.detune);modP.disconnect(o.detune)}catch(e){}};}
   const gg=ctx.createGain();gg.gain.value=g;o.connect(gg);gg.connect(dest);o.start(t);oscs.push(o);return o;};
  const w1=P.o1w.v;
  if(w1===0){const m=P.o1c2.v/127,d=P.o1c1.v/127,cr=curveD(d);const K7=[-0.11002313,-0.06288439,-0.01952356,0,0.01991221,0.06216538,0.10745242];
@@ -860,6 +880,7 @@ function noteOn(n){ensureAudio();if(!ctx||!S.sound)return;if(ctx.state==='suspen
  fl2.frequency.setValueAtTime(cut,t);fl2.frequency.linearRampToValueAtTime(peak,t+fa);fl2.frequency.setTargetAtTime(sus,t+fa,fd/3);
  const amp=ctx.createGain();amp.gain.setValueAtTime(0,t);const aa=tm(P.aea.v,.002,3),ad=tm(P.aed.v,.01,4),as=P.aes.v/127*.9;
  amp.gain.linearRampToValueAtTime(1,t+aa);amp.gain.setTargetAtTime(as,t+aa,ad/3);
+ if(modF){modF.connect(fl1.detune);modF.connect(fl2.detune);oscs[0].addEventListener('ended',()=>{try{modF.disconnect(fl1.detune);modF.disconnect(fl2.detune)}catch(e){}});}
  mixO.connect(fl1);fl1.connect(fl2);fl2.connect(amp);amp.connect(master);
  const vo={oscs,amp,fl1,fl2,rel:tm(P.aer.v,.01,5),t0:t,aa,ad,fa,fd,pa:pa_,pdc,tr:null};voices.set(n,vo);LV.last=vo;setActive(n,true);}
 function noteOff(n,quick){const v=voices.get(n);if(!v||!ctx)return;voices.delete(n);setActive(n,false);const t=ctx.currentTime,r=quick?.03:v.rel;v.tr=t;
@@ -868,8 +889,8 @@ function setActive(n,on){const k=keyEls[n];if(k)k.classList.toggle('on',on);}
 
 /* ================= preview keyboard ================= */
 const keyEls={};
-(function buildKeys(){const kb=$('#kbd');const startN=36;const whites=[];for(let n=startN;n<=96;n++)if(![1,3,6,8,10].includes(n%12))whites.push(n);
- const kw=100/whites.length;whites.forEach((n,i)=>{const d=document.createElement('div');d.className='wk';d.style.left=(i*kw)+'%';d.style.width=kw+'%';d.dataset.n=n;kb.appendChild(d);keyEls[n]=d;});
+(function buildKeys(){const kb=$('#keys');const startN=36;const whites=[];for(let n=startN;n<=96;n++)if(![1,3,6,8,10].includes(n%12))whites.push(n);
+ const kw=100/whites.length;whites.forEach((n,i)=>{const d=document.createElement('div');d.className='wk';d.style.left=(i*kw)+'%';d.style.width=kw+'%';d.dataset.n=n;if(n%12===0)d.innerHTML='<span class="kl">C'+(n/12-1)+'</span>';kb.appendChild(d);keyEls[n]=d;});
  whites.forEach((n,i)=>{if([0,2,5,7,9].includes(n%12)&&n+1<=96){const d=document.createElement('div');d.className='bk';d.style.left=((i+1)*kw-kw*.3)+'%';d.style.width=(kw*.6)+'%';d.dataset.n=n+1;kb.appendChild(d);keyEls[n+1]=d;}});
  let down=null;const nn=e=>{const t=e.target.closest('[data-n]');return t?+t.dataset.n:null};
  kb.addEventListener('pointerdown',e=>{const n=nn(e);if(n==null)return;e.preventDefault();kb.setPointerCapture(e.pointerId);down=n;noteOn(n);});
@@ -990,12 +1011,12 @@ function guide(){openDlg('Guide',`<p>Every control has a bubble after about one 
 <li>RIBBON / CTRL ASSIGN, then touch a knob or slider: the ribbon and the control lever now move it. The bend and mod pad springs back; the ribbon can hold its value.</li>
 <li>SOUND and FX tabs at the top: SOUND is the front panel, FX holds the trance gate.</li><li>Double click the preset name to rename. Saving over a factory sound makes your own copy. WRITE opens Save.</li>
 <li>Resize from any edge or corner; the shape stays the same. Double click a wood cheek for 100%.</li>
-<li>Preview keys: play the bottom keyboard with the mouse, or type <span class="kb2">Z S X D C V G B H N J M</span> and <span class="kb2">Q 2 W 3 E R 5 T 6 Y 7 U I</span>. PREVIEW hides it.</li><li>Voices: 8 up to 128. The preview sound ignores Unison, the voice count, chorus and LFOs.</li></ul>`,[CLOSE]);}
+<li>Keyboard: play the bottom keys with the mouse, or type <span class="kb2">Z S X D C V G B H N J M</span> and <span class="kb2">Q 2 W 3 E R 5 T 6 Y 7 U I</span>. PREVIEW hides the strip. Left of the keys: BEND springs back to the middle, MOD stays where you leave it. Drag, scroll or use the arrow keys.</li><li>FX block presets: SAVE keeps the knobs of a block as your own preset. The ... button renames or deletes your presets. Factory block presets cannot be changed.</li><li>Voices: 8 up to 128. The preview sound ignores Unison, the voice count, chorus and LFOs.</li></ul>`,[CLOSE]);}
 function settings(){openDlg('Settings',`<label class="chk"><input type="checkbox" id="sBub" ${S.bubbles?'checked':''}> Show info bubbles</label><label class="chk"><input type="checkbox" id="sPow" ${S.power?'checked':''}> Power saving: pause meters and displays when the window is hidden</label><label class="chk"><input type="checkbox" id="sSnd" ${S.sound?'checked':''}> Preview sound on (mockup only)</label>
 <label>Colour look<select id="sLook"><option value="jp">JP Blue (default)</option><option value="navy">Neon Navy</option><option value="soda">Purple Soda Pop</option><option value="purr">PurrOne charcoal</option></select></label><p class="hint">The look is saved with the plugin settings, not with each preset. Wood cheeks, logo, bubbles and meter colours stay the same in every look.</p>`,
  [{t:'Done',go:1,f:()=>{S.bubbles=$('#sBub').checked;S.power=$('#sPow').checked;S.sound=$('#sSnd').checked;S.look=$('#sLook').value;save();applyLook();closeDlg();}},CLOSE]);$('#sLook').value=S.look;}
 function about(){openDlg('About & Support',`<p><b>JPurrr-8000</b> by Studio 87. Free and open source (AGPL-3.0-or-later). Works 100% offline.</p><p>A virtual analog synth in the spirit of the late 90s JP series: Super Saw oscillators, 12 or 24 dB filter, multi effects and delay. Not affiliated with or endorsed by Roland or Arturia. All names belong to their owners.</p>
-<ul><li>Version: v3.2 design mockup (the real window is not ported yet).</li><li>Your presets: <span class="kb2">Studio 87/JPurrr-8000/presets</span> in your user data folder. Uninstalling keeps them unless you choose to delete them.</li><li>Install: Windows installer, macOS package, Linux Flatpak or plain VST3.</li></ul><p class="hint">Support is optional. No features are locked and there are no reminders.</p>`,[{t:'GitHub',f:()=>window.open('https://github.com/SpeakingColors/JPurrr-8000','_blank','noopener')},{t:'Releases',f:()=>window.open('https://github.com/SpeakingColors/JPurrr-8000/releases','_blank','noopener')},{t:'Ko-fi',f:()=>window.open('https://ko-fi.com/studio87','_blank','noopener')},CLOSE]);}
+<ul><li>Version: v3.3 design mockup (the real window is not ported yet).</li><li>Your presets: <span class="kb2">Studio 87/JPurrr-8000/presets</span> in your user data folder. Uninstalling keeps them unless you choose to delete them.</li><li>Install: Windows installer, macOS package, Linux Flatpak or plain VST3.</li></ul><p class="hint">Support is optional. No features are locked and there are no reminders.</p>`,[{t:'GitHub',f:()=>window.open('https://github.com/SpeakingColors/JPurrr-8000','_blank','noopener')},{t:'Releases',f:()=>window.open('https://github.com/SpeakingColors/JPurrr-8000/releases','_blank','noopener')},{t:'Ko-fi',f:()=>window.open('https://ko-fi.com/studio87','_blank','noopener')},CLOSE]);}
 function exportDlg(){const o={app:'JPurrr-8000',format:1,name:cur.name,type:cur.type||'Lead',v:snapshot()};
  openDlg('Export preset',`<p>This is the preset as text. In the plugin it also exports as SysEx (one message per preset, checksum). Copy it to keep it.</p><textarea id="xt" readonly>${esc(JSON.stringify(o,null,1))}</textarea>`,[{t:'Copy',go:1,f:()=>{const t=$('#xt');t.select();try{navigator.clipboard.writeText(t.value).then(()=>say('Copied'),()=>{});}catch(e){}}},CLOSE]);}
 function importDlg(){openDlg('Import preset',`<p>Paste preset text. It is checked first: unknown keys are ignored and wrong types are rejected.</p><textarea id="it" placeholder='{"app":"JPurrr-8000","format":1,"name":"...","v":{}}'></textarea><div id="ie" class="hint"></div>`,
@@ -1084,7 +1105,9 @@ function openPage(i){const name=BANKS[i-1];editOn=true;showL1();updateNav();
 const velSet=new Set();
 function doAssign(id){const p=P[id];if(assigning==='rib'){ribT=id;ribBase=p.v;say('Ribbon and lever now move '+p.label.replace(/\s+/g,' '));}else{velSet.has(id)?velSet.delete(id):velSet.add(id);say('Velocity morph '+(velSet.has(id)?'on':'off')+' for '+p.label.replace(/\s+/g,' ')+' (works in the plugin)');}assigning=null;updateNav();requestDraw();}
 function bendCents(){const b=P.bend.v;return b>=0?b/63*P.bu.v*100:b/64*(-P.bd.v)*100;}
-function bendAudio(){if(!ctx||!bendSrc)return;bendSrc.offset.setTargetAtTime(bendCents(),ctx.currentTime,.02);}
+function bendAudio(){if(!ctx||!bendSrc)return;bendSrc.offset.setTargetAtTime(bendCents(),ctx.currentTime,.02);modAudio();}
+/* v3.3: the mod wheel (and lever) set the LFO 2 depth: pitch destination = vibrato (about 2 st at full), filter = wobble (about 1 octave). AMP is not simulated. */
+function modAudio(){if(!ctx||!modLfo)return;const t=ctx.currentTime,m=P.mod.v/127,d=P.m2d.v/64,sd=P.m2s.v;modLfo.frequency.setTargetAtTime(tm(P.m2r.v,.3,12),t,.02);modP.gain.setTargetAtTime(sd===0?m*d*200:0,t,.02);modF.gain.setTargetAtTime(sd===1?m*d*1200:0,t,.02);}
 function bindGate(){const g=$('#cv_gate');if(!g)return;let on=false,val=1;const idx=e=>{const b=g.getBoundingClientRect();return clamp(Math.floor((e.clientX-b.left)/b.width*16),0,15);};
  const apply=e=>{const i=idx(e);const bit=1<<i;const nv=val?(P.gpat.v|bit):(P.gpat.v&~bit);if(nv!==P.gpat.v){P.gpat.v=nv;P.gpt.v=0;paint('gpt');markDirty();requestDraw();}};
  g.addEventListener('pointerdown',e=>{on=true;g.setPointerCapture(e.pointerId);const i=idx(e);val=((P.gpat.v>>i)&1)?0:1;apply(e);e.preventDefault();});g.addEventListener('pointermove',e=>{if(on)apply(e);});
