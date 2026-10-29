@@ -164,7 +164,7 @@ static int selftest() {
         auto bk = plan(EC::SysexJP8000, true, 17, -1);
         check(bk.ok && bk.sounds == 51 && bk.messages == 51 && bk.data.getSize() == 51 * 251 && bk.fileName == "Bank A (JP-8000).syx", "export: a bank of 51 sounds is 51 messages");
         auto back = jpurrr::sysexToPatches((const uint8_t*) bk.data.getData(), bk.data.getSize());
-        check(back.ok && back.patches.size() == 51 && back.info[0].slotName == "A11" && back.info[50].slotName == "B15", "export: the bank starts at A11 and fills the slots in order");
+        check(back.ok && back.patches.size() == 51 && back.info[0].slotName == "A11" && back.info[50].slotName == "A73", "export: the bank starts at A11 and fills the slots in order");
         check(!plan(EC::SysexJP8080, false, 16, -1).ok && !plan(EC::SysexJP8080, false, 33, 0).ok && !plan(EC::SysexJP8080, true, 40, -1).ok, "export: a device ID outside 17 to 32 is refused");
         a.presets.cur.bank = "F"; a.presets.cur.factory = false;
         check(!plan(EC::SysexJP8080, true, 17, -1).ok && !plan(EC::SysexJP8080, true, 17, -1).error.isEmpty(), "export: an empty bank gives a message");
