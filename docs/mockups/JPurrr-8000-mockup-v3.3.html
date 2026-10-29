@@ -177,7 +177,7 @@ canvas.cv#cv_pad,canvas.cv#cv_rib{cursor:crosshair;touch-action:none}
 .dlg.page .two label{gap:2px}
 .dlg.page input[type=range]{padding:0;height:18px}
 @media (prefers-reduced-motion: reduce){ *{scroll-behavior:auto} .sw.blink .led{animation:none;background:var(--led)} }
-.mprow{display:flex;align-items:center;gap:8px;margin-bottom:2px;min-width:0}.mpsel{flex:0 1 auto;min-width:100px;max-width:210px;height:24px;font-size:18.4px}
+.mprow{display:flex;align-items:center;gap:6px;margin-bottom:2px;min-width:0;max-width:100%}.mpsel{flex:0 1 150px;width:150px;min-width:100px;max-width:210px;height:24px;font-size:18.4px}
 .mpsel optgroup{font:600 16.7px 'Barlow Condensed',sans-serif;font-style:normal;color:var(--acc)}.mpsel option{font:600 18.4px 'Barlow Condensed',sans-serif;color:var(--selfg)}
 .hb.mpb{flex:none;height:24px;padding:0 8px;font-size:16.7px;letter-spacing:.08em;display:inline-flex;align-items:center;justify-content:center}.hb.mpb svg{width:18px;height:18px;display:block}.hb.mpb.mpmore{padding:0;width:28px}
 #mpmenu{position:absolute;z-index:80;background:var(--hdr);border:1px solid var(--acc);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.6);padding:6px;display:flex;flex-direction:column;gap:3px;min-width:170px}#mpmenu[hidden]{display:none!important}#mpmenu .hb{width:100%;text-align:left;height:32px;font-size:19.5px}
@@ -1170,13 +1170,85 @@ const MPD={
   ['Bright Limit',{qm3t:56,qm3r:70,qm3a:20,qm3y:30,qm3z:-2,qm4t:56,qm4r:60,qm4a:15,qm4y:30,qm4z:-2}],
   ['Gentle Glue',{qm1o:1,qm1t:80,qm1r:20,qm1a:80,qm2t:80,qm2r:20,qm2a:80,qm3t:80,qm3r:20,qm3a:80,qm4t:80,qm4r:20,qm4a:80,qmmx:127}]]}};
 const mpVals=(k,pr)=>{const o={};MPD[k].ids.forEach(id=>o[id]=(id in pr[1])?pr[1][id]:DEFS[id]);return o;};
-function mpMatch(k){const m=MPD[k];for(const pr of m.list){const o=mpVals(k,pr);if(m.ids.every(id=>P[id].v===o[id]))return pr[0];}return null;}
-function mpSync(){if(!mpReady)return;document.querySelectorAll('.mpsel').forEach(sel=>{const nm=mpMatch(sel.dataset.mp);const v=nm===null?'~custom':nm;if(sel.value!==v)sel.value=v;});}
+/* ===== v3.3: your own block presets (SAVE, RENAME, DELETE) ===== */
+const MPMAX=64;
+const mpUser=k=>userBlock[k]||(userBlock[k]=[]);
+function mpLoadUser(){const raw=store.blocks&&typeof store.blocks==='object'&&!Array.isArray(store.blocks)?store.blocks:{};userBlock=Object.assign({},raw);
+ Object.keys(MPD).forEach(k=>{const a=Array.isArray(raw[k])?raw[k]:[],out=[];
+  a.forEach(e=>{if(!e||typeof e.n!=='string'||!e.n.trim()||!e.v||typeof e.v!=='object'||out.length>=MPMAX)return;const n=e.n.trim().slice(0,40);if(out.some(x=>x.n.toLowerCase()===n.toLowerCase())||MPD[k].list.some(p=>p[0].toLowerCase()===n.toLowerCase()))return;
+   const v={};MPD[k].ids.concat(k==='gate'?['gpat']:[]).forEach(id=>{const x=e.v[id];v[id]=(typeof x==='number'&&isFinite(x)&&x>=P[id].min&&x<=P[id].max)?Math.round(x):DEFS[id];});out.push({n,v});});
+  userBlock[k]=out;});}
+const mpSnap=k=>{const v={};MPD[k].ids.forEach(id=>v[id]=P[id].v);if(k==='gate')v.gpat=P.gpat.v;return v;};
+const mpEqU=(k,e)=>MPD[k].ids.every(id=>P[id].v===e.v[id])&&(k!=='gate'||e.v.gpt>0||e.v.gpat===P.gpat.v);
+const mpEqF=(k,pr)=>{const o=mpVals(k,pr);return MPD[k].ids.every(id=>P[id].v===o[id]);};
+function mpEqVal(k,val){if(val.startsWith('u:')){const e=mpUser(k).find(x=>x.n===val.slice(2));return !!e&&mpEqU(k,e);}const pr=MPD[k].list.find(p=>p[0]===val);return !!pr&&mpEqF(k,pr);}
+function mpMatch(k){for(const pr of MPD[k].list)if(mpEqF(k,pr))return pr[0];for(const e of mpUser(k))if(mpEqU(k,e))return 'u:'+e.n;return null;}
+function mpSync(){if(!mpReady)return;document.querySelectorAll('.mpsel').forEach(sel=>{const k=sel.dataset.mp;let v=sel._pick&&mpEqVal(k,sel._pick)?sel._pick:mpMatch(k);if(v===null)v='~custom';if(sel.value!==v)sel.value=v;});}
+function mpFill(k){const m=MPD[k],u=mpUser(k);document.querySelectorAll('.mpsel[data-mp="'+k+'"]').forEach(sel=>{
+ sel.innerHTML=m.list.map(p=>`<option value="${esc(p[0])}">${esc(p[0])}</option>`).join('')+(u.length?'<optgroup label="YOUR PRESETS">'+u.map(e=>`<option value="u:${esc(e.n)}">${esc(e.n)}</option>`).join('')+'</optgroup>':'')+'<option value="~custom" disabled>Custom</option>';});}
+const mpSel=k=>document.querySelector('.mpsel[data-mp="'+k+'"]');
+function mpApply(k,o){const m=MPD[k];m.ids.filter(id=>id!=='gpt').forEach(id=>setP(id,o[id],true));if(m.ids.includes('gpt'))setP('gpt',o.gpt,true);
+ if(k==='gate'&&o.gpt===0&&typeof o.gpat==='number'){P.gpat.v=o.gpat;paint('gpat');requestDraw();}}
 function mpBuild(){
  ['Pad','Bass','Pluck','Chord','FX'].forEach(t=>{const qv=qvals(t);Object.keys(MPD).forEach(k=>{const m=MPD[k],o={};m.ids.forEach(id=>o[id]=(id in qv)?qv[id]:DEFS[id]);const dup=m.list.some(p=>{const q=mpVals(k,p);return m.ids.every(id=>q[id]===o[id]);});if(!dup)m.list.push([t+' sound type',o]);});});
- document.querySelectorAll('.mpsel').forEach(sel=>{const m=MPD[sel.dataset.mp];sel.innerHTML=m.list.map(p=>`<option>${esc(p[0])}</option>`).join('')+'<option value="~custom" disabled>Custom</option>';});
+ mpLoadUser();Object.keys(MPD).forEach(mpFill);
  mpReady=true;mpSync();
- win.addEventListener('change',e=>{const sel=e.target.closest&&e.target.closest('.mpsel');if(!sel||sel.value==='~custom')return;const k=sel.dataset.mp,m=MPD[k],pr=m.list.find(p=>p[0]===sel.value);if(!pr)return;const o=mpVals(k,pr);m.ids.filter(id=>id!=='gpt').forEach(id=>setP(id,o[id],true));if(m.ids.includes('gpt'))setP('gpt',o.gpt,true);mpSync();say(m.title+': '+pr[0]);});}
+ win.addEventListener('change',e=>{const sel=e.target.closest&&e.target.closest('.mpsel');if(!sel||sel.value==='~custom')return;const k=sel.dataset.mp,m=MPD[k];
+  if(sel.value.startsWith('u:')){const en=mpUser(k).find(x=>x.n===sel.value.slice(2));if(!en)return;sel._pick=sel.value;mpApply(k,en.v);mpSync();say(m.title+': '+en.n);return;}
+  const pr=m.list.find(p=>p[0]===sel.value);if(!pr)return;sel._pick=sel.value;mpApply(k,mpVals(k,pr));mpSync();say(m.title+': '+pr[0]);});
+ win.addEventListener('click',e=>{const sv=e.target.closest('[data-mpsave]');if(sv){mpMenuHide();mpSaveDlg(sv.dataset.mpsave);return;}
+  const mo=e.target.closest('[data-mpmore]');if(mo){e.stopPropagation();mpMenuToggle(mo);}});
+ const mm=$('#mpmenu');mm.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const k=mm.dataset.k;mpMenuHide();if(b.dataset.a==='ren')mpRenameDlg(k);else mpDelDlg(k);});
+ document.addEventListener('pointerdown',e=>{if(!mm.hidden&&!e.target.closest('#mpmenu')&&!e.target.closest('[data-mpmore]'))mpMenuHide();});document.addEventListener('keydown',e=>{if(e.key==='Escape')mpMenuHide();});}
+function mpMenuHide(){const m=$('#mpmenu');if(m)m.hidden=true;}
+function mpMenuToggle(btn){const mm=$('#mpmenu');if(!mm.hidden&&mm.dataset.k===btn.dataset.mpmore){mpMenuHide();return;}mm.dataset.k=btn.dataset.mpmore;mm.hidden=false;
+ const cr=$('#center').getBoundingClientRect(),br=btn.getBoundingClientRect(),sc=cr.width/$('#center').offsetWidth||scale;
+ mm.style.left='0px';mm.style.top='0px';const w=mm.offsetWidth;mm.style.left=clamp((br.right-cr.left)/sc-w,4,$('#center').offsetWidth-w-4)+'px';mm.style.top=((br.bottom-cr.top)/sc+4)+'px';}
+/* the selected preset of a block: {name} for your own, else says why not */
+function mpOwn(k){const v=mpSel(k).value;if(v.startsWith('u:'))return mpUser(k).find(x=>x.n===v.slice(2))||null;say(v==='~custom'?'Pick one of your own presets first':'Factory presets cannot be changed');return null;}
+function mpSaveDlg(k,pre){const m=MPD[k],sel=mpSel(k);let def=pre;if(def==null){const v=sel.value;def=v.startsWith('u:')?v.slice(2):'My '+m.title.toLowerCase();}
+ openDlg('Save block preset',`<p>Saves the knobs of <b>${esc(m.title)}</b>. Factory presets stay as they are.</p><label>Name<input type="text" id="mpn" value="${esc(def)}" maxlength="40"></label><div id="mpc" class="hint"></div>`,[{t:'Save',go:1,f:()=>mpDoSave(k)},CLOSE]);
+ const inp=$('#mpn');inp.addEventListener('keydown',e=>{if(e.key==='Enter')mpDoSave(k);});}
+function mpUniq(k,base){let n=base,i=2;const taken=x=>MPD[k].list.some(p=>p[0].toLowerCase()===x.toLowerCase())||mpUser(k).some(e=>e.n.toLowerCase()===x.toLowerCase());while(taken(n))n=base+' '+(i++);return n.slice(0,40);}
+function mpAfterSave(k,name,msg){mpFill(k);const sel=mpSel(k);sel._pick='u:'+name;mpSync();save();closeDlg();say(msg);}
+function mpDoSave(k,forceNew){const m=MPD[k],name=($('#mpn').value.trim()||'Untitled').slice(0,40);
+ if(m.list.some(p=>p[0].toLowerCase()===name.toLowerCase())){$('#mpc').textContent='Factory presets cannot be changed. Pick another name.';return;}
+ const ex=mpUser(k).find(e=>e.n.toLowerCase()===name.toLowerCase());
+ if(ex&&!forceNew){openDlg('Replace this preset?',`<p>There is already a preset called <b>${esc(ex.n)}</b> for ${esc(m.title)}.</p>`,[{t:'Overwrite',go:1,f:()=>{ex.v=mpSnap(k);mpAfterSave(k,ex.n,'Overwritten');}},{t:'Save as new',f:()=>{if(mpUser(k).length>=MPMAX){closeDlg();say('Your list for this block is full');return;}const n=mpUniq(k,ex.n);mpUser(k).push({n,v:mpSnap(k)});mpAfterSave(k,n,'Saved as new');}},{t:'Cancel',f:()=>mpSaveDlg(k,name)}]);return;}
+ if(mpUser(k).length>=MPMAX){closeDlg();say('Your list for this block is full');return;}
+ mpUser(k).push({n:name,v:mpSnap(k)});mpAfterSave(k,name,'Saved: '+name);}
+function mpRenameDlg(k){const en=mpOwn(k);if(!en)return;const m=MPD[k];
+ openDlg('Rename preset',`<p>Preset of <b>${esc(m.title)}</b>.</p><label>Name<input type="text" id="mpn" value="${esc(en.n)}" maxlength="40"></label><div id="mpc" class="hint"></div>`,[{t:'Rename',go:1,f:()=>mpDoRename(k,en)},CLOSE]);
+ $('#mpn').addEventListener('keydown',e=>{if(e.key==='Enter')mpDoRename(k,en);});}
+function mpDoRename(k,en){const m=MPD[k],name=$('#mpn').value.trim().slice(0,40);if(!name)return;if(name===en.n){closeDlg();return;}
+ if(m.list.some(p=>p[0].toLowerCase()===name.toLowerCase())){$('#mpc').textContent='Factory presets cannot be changed. Pick another name.';return;}
+ if(mpUser(k).some(e=>e!==en&&e.n.toLowerCase()===name.toLowerCase())){$('#mpc').textContent='That name is already used. Pick another one.';return;}
+ en.n=name;mpAfterSave(k,name,'Renamed');}
+function mpDelDlg(k){const en=mpOwn(k);if(!en)return;const m=MPD[k];
+ openDlg('Delete this preset?',`<p>${esc(en.n)} will be removed from ${esc(m.title)}.</p>`,[{t:'Delete',go:1,f:()=>{const a=mpUser(k),i=a.indexOf(en);if(i>=0)a.splice(i,1);mpFill(k);const sel=mpSel(k);sel._pick=null;mpSync();save();closeDlg();say('Deleted');}},CLOSE]);}
+
+/* ===== v3.3: pitch wheel and mod wheel ===== */
+function bendNorm(){const b=P.bend.v;return b>=0?.5+b/63/2:.5+b/64/2;}
+function wheelPaint(){const a=$('#wBend'),b=$('#wMod');if(!a||!b)return;const nb=bendNorm(),nm=P.mod.v/127;a.style.setProperty('--wn',nb);b.style.setProperty('--wn',nm);
+ a.setAttribute('aria-valuenow',P.bend.v);a.setAttribute('aria-valuetext',wheelText('bend'));b.setAttribute('aria-valuenow',P.mod.v);b.setAttribute('aria-valuetext',wheelText('mod'));}
+function wheelText(id){if(id==='mod')return 'MOD  '+P.mod.v;const c=Math.round(bendCents());return 'BEND  '+(c>0?'+':'')+(c/100).toFixed(1)+' st';}
+function bindWheels(){const el={bend:$('#wBend'),mod:$('#wMod')};if(!el.bend)return;
+ const nOf=id=>id==='bend'?bendNorm():P.mod.v/127;
+ const setN=(id,n)=>{n=clamp(n,0,1);if(id==='bend'){const t=(n-.5)*2;setP('bend',t>=0?t*63:t*64,false);}else setP('mod',n*127,false);bendAudio();wheelPaint();};
+ const show=id=>{const v=$('#val');v.hidden=false;v.textContent=wheelText(id);placeNear(v,el[id],'below');};
+ let spring=0;const springBack=()=>{cancelAnimationFrame(spring);const v0=P.bend.v,t0=performance.now();const st=t=>{const k=Math.min(1,(t-t0)/140);setP('bend',v0*(1-k),false);bendAudio();wheelPaint();if(k<1)spring=requestAnimationFrame(st);};spring=requestAnimationFrame(st);};
+ ['bend','mod'].forEach(id=>{const w=el[id];let d=null,hideT=0,idleT=0;
+  const flash=()=>{show(id);clearTimeout(hideT);hideT=setTimeout(()=>{$('#val').hidden=true;},700);};
+  w.addEventListener('pointerdown',e=>{e.preventDefault();cancelAnimationFrame(spring);hideTip();try{w.setPointerCapture(e.pointerId);}catch(x){}w.focus({preventScroll:true});d={y:e.clientY,n:nOf(id),h:w.getBoundingClientRect().height};w.classList.add('drag');show(id);});
+  w.addEventListener('pointermove',e=>{if(!d)return;setN(id,d.n+(d.y-e.clientY)/(d.h*.8));show(id);});
+  const up=()=>{if(!d)return;d=null;w.classList.remove('drag');$('#val').hidden=true;if(id==='bend')springBack();};
+  w.addEventListener('pointerup',up);w.addEventListener('pointercancel',up);
+  w.addEventListener('wheel',e=>{e.preventDefault();const dir=e.deltaY<0?1:-1;if(id==='bend'){cancelAnimationFrame(spring);setN('bend',nOf('bend')+dir*.08);clearTimeout(idleT);idleT=setTimeout(springBack,260);}else setN('mod',nOf('mod')+dir*(e.shiftKey?1:6)/127);flash();},{passive:false});
+  w.addEventListener('keydown',e=>{const dir=e.key==='ArrowUp'||e.key==='PageUp'?1:e.key==='ArrowDown'||e.key==='PageDown'?-1:0;if(id==='mod'&&e.key==='Home'){setN('mod',0);flash();e.preventDefault();return;}if(!dir)return;e.preventDefault();e.stopPropagation();
+   if(id==='bend'){cancelAnimationFrame(spring);setN('bend',nOf('bend')+dir*(e.key.startsWith('Page')?.25:.08));}else setN('mod',nOf('mod')+dir*(e.key.startsWith('Page')?16:e.shiftKey?1:4)/127);flash();});
+  if(id==='bend')w.addEventListener('keyup',e=>{if(/^(Arrow|Page)/.test(e.key))springBack();});
+  if(id==='mod')w.addEventListener('dblclick',()=>{setN('mod',0);flash();});});
+ wheelPaint();}
 
 /* ===== v3.2: OTT band edges and multiband crossovers are draggable ===== */
 function bindOtt(){const c=$('#cv_qv');if(!c)return;const IDS=[['qvdl','qvul'],['qvdm','qvum'],['qvdh','qvuh']];let drag=null;
@@ -1193,7 +1265,7 @@ function bindMb(){const c=$('#cv_qdm');if(!c)return;const FX=[['qmx1',40,400],['
  const up=()=>{drag=-1;};c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);}
 
 /* ================= start ================= */
-ORDER.forEach(paint);depsAll();bindLever();bindOtt();bindMb();mpBuild();
+ORDER.forEach(paint);depsAll();bindLever();bindOtt();bindMb();mpBuild();bindWheels();
 cacheColors();if(S.look&&S.look!=='jp')win.dataset.look=S.look;cacheColors();
 loadPreset(FACTORY[0]);initScale();drawAll();loop();
 document.fonts&&document.fonts.ready.then(()=>{cacheColors();drawAll();});
