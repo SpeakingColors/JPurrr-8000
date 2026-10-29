@@ -139,6 +139,38 @@ int main() {
     proc.setInt(P_bend, 0);
     strip->noteOff(60); render(proc, 48000 * 6 / 256);
 
+    // EDIT PARTS (mockup v3.5): the PARTS band, the window heights, the key tints and the split marker on the strip
+    {
+        proc.setInt(P_km, 0); proc.setInt(P_sp, 60); root.tick(0.25);
+        check(root.designHeight() == 1105 && !root.partsShown() && !strip->tint.on, "parts: band closed by default, SOUND page with strip 1105 px, plain keys");
+        root.setPartsOpen(true); root.tick(0.3);
+        check(root.partsShown() && root.designHeight() == 1280, "parts: EDIT PARTS on grows the window by the band (175 px): 1280");
+        proc.setInt(P_prev, 0); root.tick(0.31);
+        check(root.designHeight() == 1106, "parts: strip off + band open = 1106 on SOUND");
+        proc.setInt(P_prev, 1); root.tick(0.32);
+        root.showPage(1);
+        check(!root.partsShown() && root.designHeight() == 1135 && !strip->tint.on, "parts: FX page shows no band and keeps its own height (1135)");
+        root.showPage(0); root.tick(0.33);
+        check(root.partsShown() && root.designHeight() == 1280, "parts: the band comes back with the SOUND page (state kept)");
+        check(strip->splitHandle().isEmpty() && strip->tint.on && strip->tint.km == 0, "parts: SINGLE has no split marker");
+        proc.setInt(P_km, 2); root.tick(0.34);
+        check(strip->tint.on && strip->tint.km == 2 && !strip->splitHandle().isEmpty(), "parts: SPLIT shows the split marker");
+        auto* sp = strip->findChildWithID("split"); check(sp != nullptr, "parts: split marker component exists");
+        if (sp) {
+            sp->keyPressed(juce::KeyPress(juce::KeyPress::rightKey)); check(proc.getInt(P_sp) == 61, "parts: arrow right moves the split point one key");
+            sp->keyPressed(juce::KeyPress(juce::KeyPress::leftKey)); sp->keyPressed(juce::KeyPress(juce::KeyPress::leftKey)); check(proc.getInt(P_sp) == 59, "parts: arrow left moves it down");
+            sp->keyPressed(juce::KeyPress(juce::KeyPress::pageUpKey)); check(proc.getInt(P_sp) == 71, "parts: page up moves it an octave");
+            sp->keyPressed(juce::KeyPress(juce::KeyPress::rightKey, juce::ModifierKeys::shiftModifier, 0)); check(proc.getInt(P_sp) == 83, "parts: shift + arrow moves it an octave");
+            for (int i = 0; i < 3; ++i) sp->keyPressed(juce::KeyPress(juce::KeyPress::pageUpKey)); check(proc.getInt(P_sp) == 96, "parts: the split point stops at C7 (96)");
+            proc.setInt(P_sp, 60);
+        }
+        proc.setInt(P_km, 1); root.tick(0.35);
+        check(strip->tint.km == 1 && strip->splitHandle().isEmpty(), "parts: DUAL has the tint and no handle (the label UPPER + LOWER on every key)");
+        root.setPartsOpen(false); root.tick(0.36);
+        check(!root.partsShown() && root.designHeight() == 1105 && !strip->tint.on, "parts: closing the band gives the plain strip and 1105 px back");
+        proc.setInt(P_km, 0); root.tick(0.37);
+    }
+
     // PREVIEW off while keys are held: everything is released
     strip->noteOn(67); strip->noteOn(71);
     render(proc, 20, 4);

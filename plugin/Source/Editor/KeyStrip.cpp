@@ -17,7 +17,7 @@ public:
     }
     void paint(juce::Graphics& g) override {
         g.addTransform(juce::AffineTransform::translation(-(kStrip.r.x + (float) getX()), -(float) getY()));
-        drawKeyStripKeys(g, 0.0f, strip.lit);
+        drawKeyStripKeys(g, strip.L(), 0.0f, strip.lit, strip.tint);
     }
     // the point is in strip coordinates (x is a window x)
     int noteAt(juce::Point<float> p) const { return keyAtPoint(boxes.data(), (int) boxes.size(), p.x, p.y); }
@@ -43,6 +43,109 @@ private:
     KeyboardStrip& strip; std::vector<KeyBox> boxes; int down[16];
     static int src(const juce::MouseEvent& e) { return juce::jlimit(0, 15, e.source.getIndex()); }
     juce::Point<float> toStrip(juce::Point<float> local) const { return { local.x + (float) getX() + kStrip.r.x, local.y + (float) getY() }; }
+};
+
+// ------------------------------------------------------------------------------ split marker (mockup v3.5 #spl)
+// Over the keys while the PARTS band is shown: in SPLIT the stepped split line with the draggable SPLIT handle (LOWER and UPPER captions beside
+// it), in DUAL the caption "UPPER + LOWER on every key". The handle snaps to a key, arrow keys move it, it sets the Split Point parameter.
+class SplitW : public juce::Component {
+public:
+    explicit SplitW(KeyboardStrip& s) : strip(s) { setComponentID("split"); setMouseCursor(juce::MouseCursor::LeftRightResizeCursor); setWantsKeyboardFocus(true); setMouseClickGrabsKeyboardFocus(true); }
+    int km() const { return strip.tint.km; }
+    int sp() const { return strip.ctl.get(P_sp); }
+    bool active() const { return strip.tint.on && km() != 0; }
+    // the key area (padding box of #keys) in this component's frame (the component covers the border box of #keys)
+    juce::Rectangle<float> pad() const { return { 1.0f, 1.0f, (float) getWidth() - 2.0f, (float) getHeight() - 2.0f }; }
+    struct Geo { juce::Rectangle<float> handle, capL, capR; bool showL = false, showR = false; float wSmall = 0, wNote = 0; };
+    static juce::Font fSmall() { return fontOf(kCond, 16.7f, 700, 0.14f); }
+    static juce::Font fNote() { return fontOf(kMono, 18.4f, 600); }
+    static juce::Font fCap() { return fontOf(kCond, 16.7f, 700, 0.14f); }
+    Geo geo() const {
+        Geo g; const auto P = pad(); const auto s = splitX(sp());
+        g.wSmall = textWidth(fSmall(), "SPLIT"); g.wNote = textWidth(fNote(), noteNameOf(sp()));
+        const float w = 2 + 20 + g.wSmall + 8 + g.wNote;
+        const float cx = juce::jlimit(P.getX() + 76.0f, P.getRight() - 76.0f, P.getX() + s.xt * P.getWidth() / 100.0f);
+        g.handle = { cx - w / 2.0f, P.getY() + 6.0f, w, 26.0f };
+        const float wl = textWidth(fCap(), juce::String::fromUTF8("\xe2\x97\x80 LOWER")) + 20, wr = textWidth(fCap(), juce::String::fromUTF8("UPPER \xe2\x96\xb6")) + 20;
+        g.capL = { g.handle.getX() + 1.0f - 8.0f - wl, g.handle.getY(), wl, 26.0f };
+        g.capR = { g.handle.getRight() - 1.0f + 8.0f, g.handle.getY(), wr, 26.0f };
+        g.showL = s.xt > 14.0f; g.showR = s.xt < 86.0f;
+        return g;
+    }
+    juce::Rectangle<float> handleRect() const { return geo().handle; }
+    void paint(juce::Graphics& g) override {
+        if (!active()) return;
+        const Look& L = strip.L(); const auto P = pad();
+        auto cap = [&](juce::Rectangle<float> r, const juce::String& text, juce::Colour c) {
+            g.setColour(L[hdr].withAlpha(0.88f)); g.fillRoundedRectangle(r, 4.0f);
+            g.setColour(L[edge]); g.drawRoundedRectangle(r.reduced(0.5f), 4.0f, 1.0f);
+            g.setColour(c); g.setFont(fCap()); drawCentredBase(g, text, r);
+        };
+        if (km() == 1) {                                                // DUAL
+            const float wU = textWidth(fCap(), "UPPER"), wP = textWidth(fCap(), juce::String::fromUTF8("\xc2\xa0+\xc2\xa0")), wL = textWidth(fCap(), "LOWER"), wT = textWidth(fCap(), juce::String::fromUTF8("\xc2\xa0on every key"));
+            const juce::Rectangle<float> r(P.getX() + 8.0f, P.getY() + 6.0f, 20.0f + wU + wP + wL + wT, 26.0f);
+            g.setColour(L[hdr].withAlpha(0.88f)); g.fillRoundedRectangle(r, 4.0f);
+            g.setColour(L[edge]); g.drawRoundedRectangle(r.reduced(0.5f), 4.0f, 1.0f);
+            g.setFont(fCap()); const float base = baselineIn(r, fCap()); float x = r.getX() + 10.0f;
+            g.setColour(L[acc]); drawTextAt(g, "UPPER", x, base, 'l'); x += wU;
+            g.setColour(L[lbl]); drawTextAt(g, juce::String::fromUTF8("\xc2\xa0+\xc2\xa0"), x, base, 'l'); x += wP;
+            g.setColour(L[acc2]); drawTextAt(g, "LOWER", x, base, 'l'); x += wL;
+            g.setColour(L[lbl2]); drawTextAt(g, juce::String::fromUTF8("\xc2\xa0on every key"), x, base, 'l');
+            return;
+        }
+        drawSplitLines(g, L, P, sp());
+        const auto G = geo(); const bool hot = dragging || ring || hover;
+        g.setColour(juce::Colours::black.withAlpha(0.6f)); g.fillRoundedRectangle(G.handle.translated(0, 2).expanded(1.0f), 5.0f);       // 0 2px 6px rgba(0,0,0,.6)
+        if (hot) { g.setColour(L[acc]); g.drawRoundedRectangle(G.handle.expanded(2.0f), 6.0f, 2.0f); }
+        g.setColour(L[hdr]); g.fillRoundedRectangle(G.handle, 4.0f);
+        g.setColour(hot ? L[acc] : L[lbl]); g.drawRoundedRectangle(G.handle.reduced(0.5f), 4.0f, 1.0f);
+        const float x0 = G.handle.getX() + 1 + 10, base = baselineIn(G.handle, fNote());
+        g.setColour(L[lbl2]); g.setFont(fSmall()); drawTextAt(g, "SPLIT", x0, baselineIn(G.handle, fSmall()), 'l');
+        g.setColour(L[lbl]); g.setFont(fNote()); drawTextAt(g, noteNameOf(sp()), x0 + G.wSmall + 8, base, 'l');
+        if (G.showL) cap(G.capL, juce::String::fromUTF8("\xe2\x97\x80 LOWER"), L[acc2]);
+        if (G.showR) cap(G.capR, juce::String::fromUTF8("UPPER \xe2\x96\xb6"), L[acc]);
+    }
+    bool hitTest(int x, int y) override {
+        if (!active() || km() != 2) return false;
+        const juce::Point<float> p((float) x, (float) y); const auto G = geo(); const auto P = pad(); const auto s = splitX(sp());
+        if (G.handle.contains(p) || (G.showL && G.capL.contains(p)) || (G.showR && G.capR.contains(p))) return true;
+        const float xt = P.getX() + s.xt * P.getWidth() / 100.0f, xb = P.getX() + s.xb * P.getWidth() / 100.0f;
+        if (juce::Rectangle<float>(xt - 2.0f, P.getY(), 4.0f, P.getHeight() * 0.6f).contains(p)) return true;
+        if (juce::Rectangle<float>(xb - 2.0f, P.getY() + P.getHeight() * 0.6f, 4.0f, P.getHeight() * 0.4f).contains(p)) return true;
+        return xt != xb && juce::Rectangle<float>(std::min(xt, xb), P.getY() + P.getHeight() * 0.6f - 2.0f, std::abs(xt - xb), 4.0f).contains(p);
+    }
+    void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); }
+    void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); }
+    void mouseDown(const juce::MouseEvent& e) override {
+        if (e.mods.isPopupMenu()) return;
+        strip.hideTip(); dragging = true; ring = false; setTo(e.position); repaint();
+    }
+    void mouseDrag(const juce::MouseEvent& e) override { if (dragging) setTo(e.position); }
+    void mouseUp(const juce::MouseEvent&) override { dragging = false; repaint(); }
+    bool keyPressed(const juce::KeyPress& k) override {
+        if (!active() || km() != 2) return false;
+        const int c = k.getKeyCode(); const bool shift = k.getModifiers().isShiftDown();
+        const int st = (c == juce::KeyPress::leftKey || c == juce::KeyPress::downKey) ? -1 : (c == juce::KeyPress::rightKey || c == juce::KeyPress::upKey) ? 1
+                     : c == juce::KeyPress::pageDownKey ? -12 : c == juce::KeyPress::pageUpKey ? 12 : 0;
+        if (!st) return false;
+        set(juce::jlimit(36, 96, sp() + st * (shift && std::abs(st) == 1 ? 12 : 1)));
+        return true;
+    }
+    void focusGained(FocusChangeType t) override { ring = (t == focusChangedByTabKey); repaint(); }
+    void focusLost(FocusChangeType) override { ring = false; dragging = false; repaint(); }
+    void refresh() { if (lastKm != km() || lastSp != sp() || lastOn != active()) { lastKm = km(); lastSp = sp(); lastOn = active(); repaint(); } }
+private:
+    KeyboardStrip& strip; bool dragging = false, ring = false, hover = false; int lastKm = -1, lastSp = -1; bool lastOn = false;
+    static float baselineIn(juce::Rectangle<float> r, const juce::Font& f) { return r.getY() + (r.getHeight() - (f.getAscent() + f.getDescent())) / 2.0f + f.getAscent(); }
+    static void drawCentredBase(juce::Graphics& g, const juce::String& s, juce::Rectangle<float> r) { drawTextAt(g, s, r.getCentreX(), baselineIn(r, g.getCurrentFont()), 'c'); }
+    void set(int v) { if (v != sp()) strip.ctl.user(P_sp, v); repaint(); strip.keysRepaint(); }
+    // the nearest key edge (as the top of the split line is seen) to the pointer
+    void setTo(juce::Point<float> p) {
+        const float f = juce::jlimit(0.0f, 100.0f, p.x / (float) getWidth() * 100.0f);
+        int best = 36; float bd = 1e9f;
+        for (int n = 36; n <= 96; ++n) { const float d = std::abs(splitX(n).xt - f); if (d < bd) { bd = d; best = n; } }
+        set(best);
+    }
 };
 
 // ------------------------------------------------------------------------------ wheels
@@ -183,6 +286,8 @@ KeyboardStrip::KeyboardStrip(JPurrr8000AudioProcessor& p, Ctx& c) : proc(p), x(c
     setInterceptsMouseClicks(false, true);
     keys = std::make_unique<KeysW>(*this);
     addAndMakeVisible(*keys);
+    split = std::make_unique<SplitW>(*this);
+    addAndMakeVisible(*split);
     for (int i = 0; i < 2; ++i) { wheels[i] = std::make_unique<WheelW>(*this, i); addAndMakeVisible(*wheels[i]); }
     place(0.0f);
 }
@@ -191,6 +296,7 @@ KeyboardStrip::~KeyboardStrip() { releaseAll(); }
 void KeyboardStrip::place(float stripY) {
     // children are placed in strip coordinates relative to the strip box: x - r.x, y
     keys->setBounds(snapRect(kStrip.keysRect).translated(-(int) std::lround(kStrip.r.x), 0));
+    split->setBounds(keys->getBounds());
     for (int i = 0; i < 2; ++i) {
         const auto& r = kStrip.wheels[(size_t) i].r;
         wheels[i]->setBounds(juce::Rectangle<int>((int) std::floor(r.x - kStrip.r.x) - 5, (int) std::floor(r.y) - 5, (int) std::ceil(r.w) + 10, (int) std::ceil(r.h) + 10));
@@ -210,7 +316,19 @@ void KeyboardStrip::animateForTest(int ms) {
 }
 void KeyboardStrip::snapshotState(int dragWheel, int focusWheel) { for (int i = 0; i < 2; ++i) wheels[i]->snapshotView(i == dragWheel, i == focusWheel); }
 
+void KeyboardStrip::setPartsMode(bool on) {
+    const KeyTint t { on, ctl.get(P_km), ctl.get(P_sp) };
+    if (t.on != tint.on || t.km != tint.km || t.sp != tint.sp) { tint = t; keys->repaint(); split->repaint(); }
+}
+void KeyboardStrip::keysRepaint() { setPartsMode(tint.on); keys->repaint(); }
+juce::Rectangle<float> KeyboardStrip::splitHandle() const {
+    if (!tint.on || tint.km != 2) return {};
+    auto r = split->handleRect().translated((float) split->getX() + kStrip.r.x, (float) split->getY());
+    return r;
+}
 void KeyboardStrip::refresh() {
+    setPartsMode(tint.on);                             // follow KEY MODE and the split point (panel, host, MIDI)
+    split->refresh();
     for (auto& w : wheels) w->refresh();
     // computer keys: a key that went up without us noticing, or focus that left the editor
     if (!ckeys.empty()) {

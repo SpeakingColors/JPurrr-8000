@@ -14,6 +14,8 @@ struct Ctx {
     std::function<void(juce::Component&, int)> showVal;     // value bubble under a control
     std::function<void()> hideVal, hideTip;
     std::function<void(int)> gotoPage;                      // 0 sound, 1 chain, 2 master
+    std::function<bool()> partsOpen;                        // v3.5 EDIT PARTS
+    std::function<void()> toggleParts;
     int page = 0;
 };
 

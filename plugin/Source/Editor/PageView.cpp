@@ -74,8 +74,13 @@ PageView::PageView(Ctx& ctx, int pi, DisplayEnv& e) : page(kPages[pi]), index(pi
         for (int ti = 0; ti < page.texts.n; ++ti) if (juce::String(page.texts[ti].id) == hb.id) skipText[(size_t) ti] = 1;
         auto* w = new HBtnW(x, hb, findText(hb.id), 0.0f);
         const juce::String id = hb.id;
-        w->isOn = [this, id] { return id == "tfx1" ? x.page == kChain : id == "tfx2" ? x.page == kMaster : false; };
-        w->onClick = [this, id] { if (x.gotoPage) x.gotoPage(id == "tfx1" ? kChain : kMaster); };
+        if (id == "bEditParts") {                           // v3.5: shows or hides the PARTS band and the split marker
+            w->isOn = [this] { return x.partsOpen && x.partsOpen(); };
+            w->onClick = [this] { if (x.toggleParts) x.toggleParts(); };
+        } else {
+            w->isOn = [this, id] { return id == "tfx1" ? x.page == kChain : id == "tfx2" ? x.page == kMaster : false; };
+            w->onClick = [this, id] { if (x.gotoPage) x.gotoPage(id == "tfx1" ? kChain : kMaster); };
+        }
         ctrls.add(w); place(w, hb.r);
     }
     for (auto& bb : page.bbtns) {                           // v3.3: SAVE and "..." of the block presets
@@ -151,19 +156,7 @@ void PageView::drawText(juce::Graphics& g, const Text& t, const juce::String* ov
 
 void PageView::paint(juce::Graphics& g) {
     const Look& L = x.L();
-    for (auto& s : page.secs) {
-        const float sx0 = std::round(s.r.x), sy0 = std::round(s.r.y), sx1 = std::round(s.r.x + s.r.w), sy1 = std::round(s.r.y + s.r.h);
-        juce::Rectangle<float> r(sx0, sy0, sx1 - sx0, sy1 - sy0);   // browsers snap box edges to device pixels
-        g.setColour(juce::Colours::black.withAlpha(0.25f)); g.fillRoundedRectangle(r.translated(0, 1), 3.0f);
-        g.setColour(L[pnl2]); g.fillRoundedRectangle(r, 3.0f);
-        g.setColour(L[hi]); g.fillRect(juce::Rectangle<float>(r.getX() + 1, r.getY() + 1, r.getWidth() - 2, 1.0f));
-        g.setColour(L[sbd]); g.drawRoundedRectangle(r.reduced(0.5f), 3.0f, 1.0f);
-        // title rules: the h3 is a flex row with a 1px line before and after the text
-        const float ly = std::round(s.ttl.y + s.ttl.h / 2.0f);
-        g.setColour(L[ttl].withAlpha(0.45f));
-        g.fillRect(s.ttl.x + 8.0f, ly, juce::jmax(0.0f, s.span.x - 8.0f - (s.ttl.x + 8.0f)), 1.0f);
-        g.fillRect(s.span.x + s.span.w + 8.0f, ly, juce::jmax(0.0f, s.ttl.x + s.ttl.w - 8.0f - (s.span.x + s.span.w + 8.0f)), 1.0f);
-    }
+    for (auto& s : page.secs) drawSection(g, L, s);
     for (auto& m : page.mbps) {
         const float mx0 = std::round(m.x), my0 = std::round(m.y);
         juce::Rectangle<float> r(mx0, my0, std::round(m.x + m.w) - mx0, std::round(m.y + m.h) - my0);

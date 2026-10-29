@@ -141,6 +141,106 @@ static int selftest() {
         jp::mpApplyUser(ctl, gate, 0);
         check(ctl.get(jp::Controller::idx("gpat")) == 0x1234 && ctl.get(jp::Controller::idx("gpt")) == 0, "block presets: gate pattern comes back");
     }
+
+    // ---- the two parts (mockup v3.5): own sound per part, loading rules, plugin state with both sounds, old sessions
+    {
+        using jp::Controller;
+        auto idx = [](const char* id) { return paramIndexById(id); };
+        JPurrr8000AudioProcessor a; a.prepareToPlay(44100.0, 512);
+        Controller ctl(a);
+        check(a.presets.size() > 12, "parts: factory sounds are there");
+        ctl.user(P_km, 2); ctl.user(P_sp, 60);
+        check(a.editPart() == kUpper, "parts: SPLIT with PANEL SELECT UPPER edits UPPER");
+        ctl.loadInto(3, kUpper); ctl.loadInto(11, kLower);
+        check(a.partMeta(kUpper).name == a.presets.at(3).name && a.partMeta(kLower).name == a.presets.at(11).name, "parts: each part has its own sound name");
+        const int o1w = idx("o1w"), av = idx("av");
+        bool differs = false; for (int i = 0; i < kNumParams; ++i) if (isPartParam(i) && a.presets.at(3).v[(size_t) i] != a.presets.at(11).v[(size_t) i]) differs = true;
+        check(differs, "parts: the two test sounds differ");
+        bool upperOnPanel = true; for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) upperOnPanel &= a.getInt(i) == a.presets.at(3).v[(size_t) i];
+        check(upperOnPanel && a.partValue(kLower, o1w) == a.presets.at(11).v[(size_t) o1w], "parts: the panel shows UPPER, LOWER keeps its values");
+        check(ctl.get(P_km) == 2 && ctl.get(P_sp) == 60, "parts: loading into a part leaves KEY MODE and Split Point alone");
+        ctl.user(P_ps, 0);                                                               // PANEL SELECT LOWER: the panel moves to LOWER
+        check(a.editPart() == kLower && a.presets.cur.name == a.presets.at(11).name, "parts: PANEL SELECT LOWER puts the LOWER sound on the panel");
+        bool lowerOnPanel = true; for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) lowerOnPanel &= a.getInt(i) == a.presets.at(11).v[(size_t) i];
+        check(lowerOnPanel && a.partValue(kUpper, o1w) == a.presets.at(3).v[(size_t) o1w], "parts: LOWER values on the panel, UPPER kept");
+        ctl.user(av, 77);                                                                // an edit on the panel reaches LOWER only
+        check(a.partValue(kLower, av) == 77 && a.partValue(kUpper, av) == a.presets.at(3).v[(size_t) av] && a.partMeta(kLower).dirty && !a.partMeta(kUpper).dirty, "parts: a panel edit changes the edited part only");
+        ctl.user(P_ps, 2);                                                               // BOTH shows UPPER and mirrors edits
+        check(a.editPart() == kUpper, "parts: BOTH shows UPPER");
+        ctl.user(av, 33);
+        check(a.partValue(kLower, av) == 33 && a.partValue(kUpper, av) == 33 && a.partMeta(kLower).dirty, "parts: BOTH edits both parts");
+        ctl.user(P_ps, 3); check(a.editPart() == kUpper, "parts: VOICE MOD keeps the part");
+        ctl.user(P_ps, 0); ctl.user(P_ps, 3); check(a.editPart() == kLower, "parts: VOICE MOD keeps LOWER when LOWER was edited");
+        ctl.user(P_ps, 1);
+        // loading a whole sound: it goes into the edited part; KEY MODE etc. only when the sound stores them
+        ctl.loadInto(5, -1);
+        check(a.partMeta(kUpper).name == a.presets.at(5).name && ctl.get(P_km) == 2 && ctl.get(P_sp) == 60 && a.partMeta(kLower).name == a.presets.at(11).name, "parts: a whole load goes into the edited part, a sound that stores nothing leaves KEY MODE and Split Point");
+        PresetEntry perf = a.presets.at(7); perf.name = "Stores Perf"; perf.bank = "F"; perf.v[(size_t) P_km] = 1; perf.v[(size_t) P_sp] = 48; perf.v[(size_t) P_pdet] = 20;
+        const int li = a.presets.saveUser(perf, {});
+        check(li >= 0, "parts: test preset saved");
+        ctl.loadInto(li, kLower);
+        check(ctl.get(P_km) == 2 && ctl.get(P_sp) == 60 && ctl.get(P_pdet) == 0, "parts: a load into one part never touches KEY MODE, Split Point, Part Detune");
+        ctl.loadInto(li, -1);
+        check(ctl.get(P_km) == 1 && ctl.get(P_sp) == 48 && ctl.get(P_pdet) == 20, "parts: a whole load brings back KEY MODE, Split Point and Part Detune the sound stores");
+        a.presets.deleteUser(a.presets.find("F", a.presets.at(li).slot));
+        // the voices and the arpeggiator follow the UPPER sound: LOWER loads leave them
+        const int vc = idx("vc"); ctl.user(vc, 12);
+        ctl.loadInto(11, kLower); check(ctl.get(vc) == 12, "parts: a load into LOWER leaves the voice count (shared by both parts)");
+        ctl.loadInto(11, kUpper); check(ctl.get(vc) == a.presets.at(11).v[(size_t) vc], "parts: a load into UPPER sets the shared values too");
+        // state round trip with both sounds
+        ctl.user(P_km, 2); ctl.user(P_ps, 0); ctl.loadInto(14, kUpper); ctl.loadInto(2, kLower);
+        ctl.user(av, 99);
+        juce::MemoryBlock mb; a.getStateInformation(mb);
+        JPurrr8000AudioProcessor b; b.prepareToPlay(44100.0, 512);
+        b.setStateInformation(mb.getData(), (int) mb.getSize());
+        bool same = b.editPart() == a.editPart() && b.getInt(P_km) == 2 && b.getInt(P_ps) == 0;
+        for (int p = 0; p < 2; ++p) for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) same &= b.partValue(p, i) == a.partValue(p, i);
+        check(same, "state: both part sounds, the edited part and KEY MODE come back");
+        check(b.partMeta(kUpper).name == a.partMeta(kUpper).name && b.partMeta(kLower).name == a.partMeta(kLower).name && b.partMeta(kLower).dirty == a.partMeta(kLower).dirty
+              && b.partMeta(kLower).genres == a.partMeta(kLower).genres && b.presets.cur.name == a.presets.cur.name, "state: the sound names, genres and edited flags of both parts come back");
+        // a session saved before the parts existed (state version 1, no part nodes) loads as before: one sound, both parts play it
+        {
+            auto xml = juce::AudioProcessor::getXmlFromBinary(mb.getData(), (int) mb.getSize());
+            auto st = juce::ValueTree::fromXml(*xml);
+            st.setProperty("stateVersion", 1, nullptr); st.removeProperty("editPart", nullptr); st.removeProperty("presetGenres", nullptr);
+            for (const char* n : { "PART0", "PART1" }) { auto c = st.getChildWithName(n); if (c.isValid()) st.removeChild(c, nullptr); }
+            juce::MemoryBlock old; if (auto x2 = st.createXml()) juce::AudioProcessor::copyXmlToBinary(*x2, old);
+            JPurrr8000AudioProcessor c; c.prepareToPlay(44100.0, 512);
+            c.setStateInformation(old.getData(), (int) old.getSize());
+            bool ok = c.getInt(P_km) == 2 && c.getInt(P_ps) == 0 && c.presets.cur.name == a.presets.cur.name;
+            for (int i = 0; i < kNumParams; ++i) ok &= c.getInt(i) == a.getInt(i) || (kParams[i].flags & kNoSave);
+            for (int i = 0; i < kNumParams; ++i) if (isPartParam(i)) ok &= c.partValue(kUpper, i) == c.getInt(i) && c.partValue(kLower, i) == c.getInt(i);
+            check(ok, "state: an old session (no part sounds) loads unchanged, both parts get its one sound");
+            check(c.editPart() == kLower, "state: an old session with PANEL SELECT LOWER edits LOWER");
+        }
+        // the real processor plays the parts: UPPER loud, LOWER silent, split at C4
+        {
+            JPurrr8000AudioProcessor p; p.prepareToPlay(48000.0, 512);
+            Controller pc(p);
+            pc.loadInto(0, kUpper);
+            int silent[kNumParams]; for (int i = 0; i < kNumParams; ++i) silent[i] = p.presets.at(0).v[(size_t) i];
+            silent[av] = 0; CurrentPreset m; m.name = "Silent"; p.putPart(kLower, silent, m);
+            pc.user(P_km, 2); pc.user(P_sp, 60);
+            auto peak = [&](int note, bool on) {
+                juce::AudioBuffer<float> buf(2, 512); juce::MidiBuffer mid; float pk = 0;
+                if (on) mid.addEvent(juce::MidiMessage::noteOn(1, note, (juce::uint8) 100), 0);
+                for (int blk = 0; blk < 12; ++blk) { p.processBlock(buf, mid); mid.clear(); for (int c = 0; c < 2; ++c) pk = std::max(pk, buf.getMagnitude(c, 0, 512)); }
+                return pk;
+            };
+            const float low = peak(48, true); { juce::AudioBuffer<float> b2(2, 512); juce::MidiBuffer m2; m2.addEvent(juce::MidiMessage::allNotesOff(1), 0); p.processBlock(b2, m2); for (int k = 0; k < 400; ++k) { m2.clear(); p.processBlock(b2, m2); } }
+            const float high = peak(72, true);
+            check(low < 1e-4f && high > 0.02f, "parts: processor in SPLIT plays LOWER below C4 (silent sound) and UPPER from C4");
+            pc.user(P_ps, 0);                                                            // panel edits LOWER now: the engine still plays the same two sounds
+            { juce::AudioBuffer<float> b2(2, 512); juce::MidiBuffer m2; m2.addEvent(juce::MidiMessage::allNotesOff(1), 0); p.processBlock(b2, m2); for (int k = 0; k < 400; ++k) { m2.clear(); p.processBlock(b2, m2); } }
+            const float low2 = peak(48, true);
+            { juce::AudioBuffer<float> b2(2, 512); juce::MidiBuffer m2; m2.addEvent(juce::MidiMessage::allNotesOff(1), 0); p.processBlock(b2, m2); for (int k = 0; k < 400; ++k) { m2.clear(); p.processBlock(b2, m2); } }
+            const float high2 = peak(72, true);
+            check(low2 < 2e-3f && high2 > 0.02f, "parts: the same with the panel on LOWER (the sounds do not change when the panel switches)");
+            pc.user(P_km, 1);                                                            // DUAL: both parts on every key
+            { juce::AudioBuffer<float> b2(2, 512); juce::MidiBuffer m2; m2.addEvent(juce::MidiMessage::allNotesOff(1), 0); p.processBlock(b2, m2); for (int k = 0; k < 400; ++k) { m2.clear(); p.processBlock(b2, m2); } }
+            check(peak(48, true) < 1e-4f ? false : true, "parts: DUAL sounds on every key (UPPER is audible on a low key)");
+        }
+    }
     tmp.deleteRecursively();
     std::printf(fails ? "SELFTEST FAILED (%d)\n" : "SELFTEST OK\n", fails);
     return fails ? 1 : 0;
@@ -162,7 +262,8 @@ int main(int argc, char** argv) {
     juce::File out(argc > 1 ? argv[1] : "snap-plugin"); out.createDirectory();
     juce::StringArray states;
     for (int i = 2; i < argc; ++i) states.add(argv[i]);
-    if (states.isEmpty()) states = { "sound", "chain", "master", "sound_nokbd", "chain_nokbd", "master_nokbd", "guide", "settings", "about", "save", "browser", "export", "import", "page1", "page2", "page4", "page6", "page7", "page8", "menu", "look_navy", "look_soda", "look_purr" };
+    if (states.isEmpty()) states = { "sound", "chain", "master", "sound_nokbd", "chain_nokbd", "master_nokbd", "guide", "settings", "about", "save", "browser", "export", "import", "page1", "page2", "page4", "page6", "page7", "page8", "menu", "look_navy", "look_soda", "look_purr",
+        "sound_parts_split", "sound_parts_dual", "sound_parts_single", "sound_parts_split_nokbd", "sound_parts_dual_nokbd", "sound_parts_single_nokbd", "sound_parts_split_ps0", "sound_parts_split_ps2", "sound_parts_split_ps3" };
 
     JPurrr8000AudioProcessor proc;
     proc.prepareToPlay(44100.0, 512);

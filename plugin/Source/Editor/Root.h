@@ -9,6 +9,7 @@ class PnameW;
 class MenuPanel;
 class Bubble;
 class KeyboardStrip;
+class PartsBand;
 
 class Root : public juce::Component, private juce::Timer {
 public:
@@ -18,8 +19,11 @@ public:
     void tick(double nowSeconds);                      // 30 Hz from the editor
     void showPage(int p);
     int pageIndex() const { return page; }
-    int designHeight() const;                          // page height, with the keyboard strip while PREVIEW is on
+    int designHeight() const;                          // page height, with the keyboard strip while PREVIEW is on and the PARTS band while it is shown
     bool stripShown() const;
+    bool partsOpen() const { return partsOpenFlag; }   // EDIT PARTS (v3.5): kept while you visit FX and MASTER, not saved with the plugin state
+    bool partsShown() const;                           // the band is on screen: EDIT PARTS on and the SOUND page
+    void setPartsOpen(bool open);
     void layoutStrip();                                // place the keyboard strip under the page, show or hide it with PREVIEW
     void syncHeight();                                 // follow a PREVIEW change: resize the content and tell the editor
     std::function<void()> onPageChanged;               // the editor resizes itself
@@ -63,6 +67,10 @@ private:
     bool applyBlockState(const juce::String& name);
     std::unique_ptr<Bubble> tipBubble, valBubble;
     std::unique_ptr<KeyboardStrip> strip;
+    std::unique_ptr<PartsBand> band;
+    bool partsOpenFlag = false;
+    float stripYNow() const;
+    mutable layout::Tip splitTip;
     std::unique_ptr<DialogLayer> dialogs;
     juce::Image texture;
     juce::String lastInfo, lastMsg, lastTitle;

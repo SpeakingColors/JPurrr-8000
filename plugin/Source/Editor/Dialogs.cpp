@@ -849,6 +849,7 @@ private:
 struct BrowserUi {
     Root& root; DialogLayer& layer; DialogFrame& f;
     String bank { "A" }, q, typ, gen;
+    int part = -1;                                       // v3.5: -1 the whole panel, 0 UPPER part, 1 LOWER part
     std::vector<std::unique_ptr<Chip>> banks, types, genres, hist;
     DCap* cap = nullptr; DField* search = nullptr; PList* list = nullptr;
     Para *hType = nullptr, *hGenre = nullptr, *hHist = nullptr, *none = nullptr, *note = nullptr;
@@ -859,7 +860,8 @@ struct BrowserUi {
         auto c = std::make_unique<Chip>(root, text, key); f.content.addAndMakeVisible(*c); v.push_back(std::move(c)); return v.back().get();
     }
     void render() {
-        auto& ctl = root.controller(); auto& pm = ctl.pm; const auto& cur = pm.cur;
+        auto& ctl = root.controller(); auto& pm = ctl.pm;
+        const CurrentPreset cur = part < 0 ? pm.cur : ctl.proc.partMeta(part);          // the sound marked in the list
         const bool start = bank == "A" && q.isEmpty() && typ.isEmpty() && gen.isEmpty();
         std::vector<PList::Row> items;
         for (int i = 0; i < pm.size(); ++i) {
@@ -889,7 +891,7 @@ struct BrowserUi {
     }
     void historyPick(const String& h) {
         auto& pm = root.controller().pm; const String b = h.substring(0, 1); const int slot = h.substring(1).getIntValue();
-        const int li = pm.find(b, slot); if (li >= 0) { root.controller().load(li); render(); }
+        const int li = pm.find(b, slot); if (li >= 0) { root.controller().loadInto(li, part); render(); }
     }
     float layout(float w) {
         const float leftW = 230 * Z, gap = 12 * Z, rx = leftW + gap, rw = w - rx;
@@ -921,9 +923,10 @@ struct BrowserUi {
 
 } // namespace
 
-void DialogLayer::openBrowser() {
-    auto& f = begin("Preset browser", 820);
+void DialogLayer::openBrowser(int part) {
+    auto& f = begin(part < 0 ? String("Preset browser") : String("Preset browser: ") + (part == 0 ? "UPPER" : "LOWER") + " part", 820);
     auto ui = std::make_shared<BrowserUi>(root, *this, f);
+    ui->part = part;
     ui->cap = f.add<DCap>(root, "Search");
     ui->search = f.add<DField>(root, String(), "name, type, genre or tag", false, false);
     ui->list = f.add<PList>(root);
@@ -936,7 +939,7 @@ void DialogLayer::openBrowser() {
     for (int i = 0; i < 10; ++i) { const String t = String::fromUTF8(layout::kTypes[i]); auto* c = ui->mk(ui->types, t, t); c->onClick = [u = ui.get(), t] { u->typ = u->typ == t ? String() : t; u->list->scroll = 0; u->render(); }; }
     for (int i = 0; i < 9; ++i) { const String t = String::fromUTF8(layout::kGenres[i]); auto* c = ui->mk(ui->genres, t, t); c->onClick = [u = ui.get(), t] { u->gen = u->gen == t ? String() : t; u->list->scroll = 0; u->render(); }; }
     ui->search->onChange = [u = ui.get()] { u->q = u->search->ed.getText().toLowerCase(); u->list->scroll = 0; u->render(); };
-    ui->list->onPick = [u = ui.get()](int li) { u->root.controller().load(li); u->render(); };
+    ui->list->onPick = [u = ui.get()](int li) { u->root.controller().loadInto(li, u->part); u->render(); };
     f.layoutBody = [ui](float w) { return ui->layout(w); };       // the lambda keeps the state alive
     // like the mockup, the browser opens on bank A whatever is loaded
     ui->render();

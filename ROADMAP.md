@@ -10,9 +10,12 @@ Rough order. Nothing here is promised for a date.
 - MIDI: CC map (JP-8080 factory numbers), RPN, own NRPN scheme (see docs/midi-and-sysex.md).
 - Installers for Linux, Windows and macOS, PDF manual.
 
+## Done since 0.1.0
+- Dual and Split with a different sound per part: UPPER and LOWER cards (EDIT PARTS on the SOUND page), PANEL SELECT edits one part or both, both sounds are saved with the session.
+
 ## Next
+- The effects section (bass, treble, multi-FX, delay) is one effect for both parts and follows the UPPER sound.
 - Check the SysEx exports and the enum orders (OSC1 waveform, Multi-FX type, Delay type) on real hardware.
-- Dual and Split with a different patch per part.
 - Voice modulator and external input processing.
 - RPS recording and ROM patterns, Motion recording.
 - Preview keyboard and PREVIEW switch in the standalone.

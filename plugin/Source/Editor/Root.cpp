@@ -1,5 +1,6 @@
 #include "Root.h"
 #include "KeyStrip.h"
+#include "PartsBand.h"
 #include "../PluginProcessor.h"
 #include "BlockPresets.h"
 using namespace jp;
@@ -209,6 +210,11 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
     strip->hideTip = [this] { hideTip(); };
     strip->modalOpen = [this] { return dialogs && dialogs->isOpen(); };
 
+    band = std::make_unique<PartsBand>(p, ctx); addChildComponent(*band); band->place();
+    band->openBrowser = [this](int part) { dialogs->openBrowser(part); };
+    band->hideTip = [this] { hideTip(); };
+    ctx.partsOpen = [this] { return partsOpenFlag; };
+    ctx.toggleParts = [this] { setPartsOpen(!partsOpenFlag); };
     menu = std::make_unique<MenuPanel>(ctx); addChildComponent(*menu);
     menu->onPick = [this](int i) {
         if (i == 0) ctl.openSave(); else if (i == 1) pname->startEdit(); else if (i == 2) ctl.openDelete();
@@ -237,6 +243,7 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
     ctl.openSave = [this] { dialogs->openSave(); };
     ctl.openBrowser = [this] { dialogs->openBrowser(); };
     ctl.openDelete = [this] { dialogs->openDelete(); };
+    ctl.openPartBrowser = [this](int part) { dialogs->openBrowser(part); };
     ctl.startRename = [this] { pname->startEdit(); };
     ctl.closeDialog = [this] { dialogs->close(); };
     ctl.openPage = [this](int b) { dialogs->openPage(b); };
@@ -257,7 +264,7 @@ void Root::applyLook(const juce::String& id) {
     texture = panelTexture(look());
     for (auto* p : pages) p->lookChanged();
     for (auto* h : header) h->lookChanged();
-    strip->lookChanged();
+    strip->lookChanged(); band->lookChanged();
     dialogs->lookChanged(); repaint();
 }
 
@@ -284,14 +291,23 @@ void Root::showPage(int p) {
 }
 
 void Root::layoutStrip() {
-    strip->place(kPages[page].stripY);
+    strip->place(stripYNow());
+    strip->setPartsMode(partsShown());
+    band->setVisible(partsShown());
     if (stripShown()) strip->setVisible(true); else { strip->releaseAll(); strip->setVisible(false); }   // PREVIEW off: nothing may keep sounding
 }
 
 bool Root::stripShown() const { return ctl.get(P_prev) != 0; }
-int Root::designHeight() const { return stripShown() ? kPages[page].h : kPages[page].hBare; }
+bool Root::partsShown() const { return partsOpenFlag && page == kSound; }
+float Root::stripYNow() const { return partsShown() ? kParts.stripY : kPages[page].stripY; }
+int Root::designHeight() const { return (stripShown() ? kPages[page].h : kPages[page].hBare) + (partsShown() ? juce::roundToInt(kParts.extra) : 0); }
+void Root::setPartsOpen(bool open) {
+    if (partsOpenFlag == open) return;
+    partsOpenFlag = open; hideTip();
+    layoutStrip(); syncHeight(); repaint();
+}
 void Root::syncHeight() {
-    if (strip->isVisible() != stripShown()) layoutStrip();
+    if (strip->isVisible() != stripShown() || band->isVisible() != partsShown()) layoutStrip();
     if (getHeight() == designHeight()) return;
     setSize(kDesignW, designHeight());
     dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, designHeight()));
@@ -303,6 +319,7 @@ void Root::tick(double now) {
     syncHeight();
     env.nowSeconds = now;
     pages[page]->refresh();
+    if (band->isVisible()) band->refresh();
     if (strip->isVisible()) strip->refresh();
     for (auto* h : header) h->refresh();
     pages[page]->tickDisplays(now);
@@ -382,6 +399,14 @@ const Tip* Root::tipAtPoint(juce::Point<float> p, juce::Rectangle<float>&) const
                 return &wheelTips[i];
             }
         }
+    }
+    if (partsShown()) {
+        const auto h = strip->splitHandle();                // the split handle of the keyboard strip
+        if (stripShown() && !h.isEmpty() && p.x >= h.getX() && p.x < h.getRight() && p.y >= stripYNow() + h.getY() && p.y < stripYNow() + h.getBottom()) {
+            splitTip = { { h.getX(), stripYNow() + h.getY(), h.getWidth(), h.getHeight() }, "Split point: drag it along the keys (it snaps to a key), or use the arrow keys. Keys below it play the LOWER part, this key and the keys above play the UPPER part. It sets the Split Point parameter (also on the EDIT page, BANK 1).", "" };
+            return &splitTip;
+        }
+        if (auto* bt = band->tipAt(p)) return bt;
     }
     const Tip* best = nullptr; float ba = 1e12f;
     for (auto& t : kChrome.tips) if (p.x >= t.r.x && p.x <= t.r.x + t.r.w && p.y >= t.r.y && p.y <= t.r.y + t.r.h) { const float a = t.r.w * t.r.h; if (a <= ba) { best = &t; ba = a; } }
@@ -483,7 +508,13 @@ bool Root::applyState(const juce::String& s) {
             else if (k == "dragb") drag = 0; else if (k == "dragm") drag = 1; else if (k == "focusb") focus = 0; else if (k == "focusm") focus = 1;
         }
         strip->snapshotState(drag, focus); return true; }
-    if (s == "reset") { strip->releaseAll(); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
+    if (s == "reset") { setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
+    if (s.startsWith("sound_parts_")) {                  // test hook: sound_parts_<split|dual|single>[_ps0|_ps2|_ps3][_nokbd]: the PARTS band open on the SOUND page
+        juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();
+        ctl.quiet(P_prev, t.contains("nokbd") ? 0 : 1); ctl.quiet(P_ps, 1);
+        for (auto& k : t) if (k.length() == 3 && k.startsWith("ps")) ctl.quiet(P_ps, k.substring(2).getIntValue());
+        ctl.quiet(P_km, t.contains("single") ? 0 : t.contains("dual") ? 1 : 2);
+        setPartsOpen(true); showPage(kSound); ctl.msgUntil = 0; return true; }
     if (s.endsWith("_nokbd")) {                          // test hook: PREVIEW off, keyboard strip hidden (sound_nokbd chain_nokbd master_nokbd)
         ctl.quiet(P_prev, 0); const auto n = s.upToFirstOccurrenceOf("_nokbd", false, false);
         showPage(n == "chain" ? kChain : n == "master" ? kMaster : kSound); return true; }

@@ -20,7 +20,7 @@ public:
 
     bool isOpen() const { return panel != nullptr; }
     void close();
-    void openGuide(); void openSettings(); void openAbout(); void openSave(); void openBrowser();
+    void openGuide(); void openSettings(); void openAbout(); void openSave(); void openBrowser(int part = -1);       // part: -1 the whole panel, 0 UPPER, 1 LOWER (v3.5)
     void openExport(); void openImport(); void openDelete(); void openPage(int bank);
     // FX block presets (mp = kMp index): SAVE, the replace question, rename and delete of one of your presets
     void openBlockSave(int mp, const juce::String* preName = nullptr);

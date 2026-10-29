@@ -10,6 +10,7 @@ namespace jp {
 
 class WheelW;
 class KeysW;
+class SplitW;
 
 class KeyboardStrip : public juce::Component {
 public:
@@ -19,6 +20,11 @@ public:
     void place(float stripY);                          // position under the current page
     void refresh();                                    // 30 Hz: follow the lever values (pad, MIDI CC 1), release notes that must not stick
     void lookChanged();
+    // v3.5: while the PARTS band is shown the keys get the LOWER / UPPER tints and the split marker (KEY MODE DUAL and SPLIT)
+    void setPartsMode(bool on);
+    void keysRepaint();
+    juce::Rectangle<float> splitHandle() const;        // the split handle in strip coordinates (window x, y from the top of the strip); empty when not shown
+    jp::KeyTint tint;
     // test hook (snapshot tool): handles jump to their values, pretend a wheel is dragged or has keyboard focus (-1 none, 0 BEND, 1 MOD)
     void snapshotState(int dragWheel, int focusWheel);
     void animateForTest(int ms);                       // test hook (headless check): run the wheel animations for ms without a message loop
@@ -40,13 +46,14 @@ public:
     const Look& L() const { return x.L(); }
 
 private:
-    friend class WheelW; friend class KeysW;
+    friend class WheelW; friend class KeysW; friend class SplitW;
     JPurrr8000AudioProcessor& proc; Ctx& x; Controller& ctl;
     jpurrr::HeldNotes held;
     bool lit[128] = {};
     struct CKey { int code; int note; };
     std::vector<CKey> ckeys;
     std::unique_ptr<KeysW> keys;
+    std::unique_ptr<SplitW> split;
     std::unique_ptr<WheelW> wheels[2];
     void releaseComputerKeys();
 };
