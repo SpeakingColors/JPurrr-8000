@@ -1,4 +1,4 @@
-// Dumps the geometry of the approved mockup (docs/mockups/JPurrr-8000-mockup-v3.3.html) to data/layout.json.
+// Dumps the geometry of the approved mockup (docs/mockups/JPurrr-8000-mockup-v3.5.html) to data/layout.json.
 // The plugin window is generated from this file (tools/gen_layout.py), so a re-dump updates the plugin.
 // Usage: node tools/dump_layout.js [out.json]      (needs Playwright, no network)
 const fs = require('fs'), path = require('path');
@@ -69,6 +69,7 @@ function walk() {
   q('.brand svg', el => items.push({ k: 'cat', rect: R(el.getBoundingClientRect()), tok: 'logo' }));
   q('.logo svg', el => items.push({ k: 'cat', rect: R(el.getBoundingClientRect()), tok: 'logo' }));
   q('#hdr .hb', el => { const bs = el.closest('#pmenu'); if (bs) return; items.push({ k: 'hbtn', id: el.id, tab: el.classList.contains('tab'), sq: el.classList.contains('sq'), on: el.classList.contains('on'), t: el.textContent.trim(), rect: R(el.getBoundingClientRect()), tip: el.dataset.tip || '' }); });
+  q('#bEditParts', el => items.push({ k: 'hbtn', id: el.id, tab: false, on: el.classList.contains('on'), t: el.textContent.trim(), rect: R(el.getBoundingClientRect()), tip: el.dataset.tip || '' }));   // v3.5
   q('.fxtabs .hb', el => items.push({ k: 'hbtn', id: el.id, tab: true, on: el.classList.contains('on'), t: el.textContent.trim(), rect: R(el.getBoundingClientRect()), tip: el.dataset.tip || '' }));
   q('#pname', el => items.push({ k: 'pname', rect: R(el.getBoundingClientRect()), tip: el.dataset.tip, f: fontOf(el) }));
   q('#pinfo', el => items.push({ k: 'pinfo', rect: R(el.getBoundingClientRect()), f: fontOf(el) }));
@@ -103,6 +104,39 @@ function walk() {
   q('[data-tip]', el => { if (el.closest('#hdr') || el.closest('#kbd')) return; items.push({ k: 'tip', rect: R(el.getBoundingClientRect()), tip: el.dataset.tip, for: el.dataset.for || '' }); });
   probe.remove();
   return items.map(i => { const o = Object.assign({}, i); delete o._el; return o; });
+}
+
+
+// v3.5: the PARTS band (LOWER card, KEYS map, UPPER card). Runs inside the page with the band open in SPLIT. x = window x, y = relative to the top of the band
+// (the band starts 8 px under the panels of the SOUND page); inner rectangles are relative to their card or map. The texts are dynamic (sound names,
+// chips, key mode) and are drawn by the plugin: only their boxes and baselines are taken here.
+function dumpParts() {
+  const win = document.querySelector('#win'), W0 = win.getBoundingClientRect(), band = document.querySelector('#parts'), B0 = band.getBoundingClientRect();
+  const rr = (r, ox, oy) => ({ x: +(r.left - W0.left - (ox || 0)).toFixed(2), y: +(r.top - B0.top - (oy || 0)).toFixed(2), w: +r.width.toFixed(2), h: +r.height.toFixed(2) });
+  const cvs = document.createElement('canvas').getContext('2d');
+  const asc = el => { const cs = getComputedStyle(el); const fam = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim(); cvs.font = `${cs.fontWeight} ${cs.fontSize} "${fam}"`; return Math.round(cvs.measureText('Hx').fontBoundingBoxAscent); };
+  const base = (el, ox, oy) => { const n = [...el.childNodes].find(n => n.nodeType === 3 && n.nodeValue.trim()); if (!n) return null; const rg = document.createRange(); rg.setStart(n, 0); rg.setEnd(n, 1); const r = rg.getClientRects()[0]; return +(r.top - B0.top - (oy || 0) + asc(el)).toFixed(2); };
+  const el = (e, ox, oy) => e ? Object.assign(rr(e.getBoundingClientRect(), ox, oy), { base: base(e, ox, oy) }) : null;
+  const sec = band.getBoundingClientRect(), ttl = band.querySelector('.ttl');
+  const out = { sec: { rect: rr(sec), title: band.querySelector('.ttl span').textContent, ttl: rr(ttl.getBoundingClientRect()), span: rr(ttl.querySelector('span').getBoundingClientRect()) }, cards: {}, btns: [] };
+  for (const k of ['l', 'u']) {
+    const c = band.querySelector('.pt-card.' + k), cr = c.getBoundingClientRect(), ox = cr.left - W0.left, oy = cr.top - B0.top;
+    const o = { rect: rr(cr), led: el(c.querySelector('.led'), ox, oy), title: el(c.querySelector('.pt-h b'), ox, oy), role: el(c.querySelector('.pt-role'), ox, oy), ed: el(c.querySelector('.pt-ed'), ox, oy),
+      prev: el(c.querySelector('[data-a=prev]'), ox, oy), name: el(c.querySelector('.pt-name'), ox, oy), next: el(c.querySelector('[data-a=next]'), ox, oy), browse: el(c.querySelector('button[data-a=browse]'), ox, oy),
+      chipsRow: el(c.querySelector('.pt-chips'), ox, oy), chip: el(c.querySelector('.pt-chip:not(.id)'), ox, oy), chipId: el(c.querySelector('.pt-chip.id'), ox, oy) };
+    out.cards[k] = o;
+    for (const a of ['prev', 'next', 'browse']) { const b = c.querySelector(a === 'browse' ? 'button[data-a=browse]' : '[data-a=' + a + ']'); const n = [...b.childNodes].find(n => n.nodeType === 3);
+      const rg = document.createRange(); rg.setStart(n, 0); rg.setEnd(n, n.nodeValue.length); const tr = rg.getBoundingClientRect(); const cs = getComputedStyle(b);
+      out.btns.push({ id: 'pt_' + a + '_' + k, a, card: k, t: b.textContent.trim(), rect: rr(b.getBoundingClientRect()), tip: b.dataset.tip, sq: b.classList.contains('sq'), line: { x: +(tr.left - W0.left).toFixed(2), w: +tr.width.toFixed(2), base: +(tr.top - B0.top + asc(b)).toFixed(2) },
+        f: { size: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight), ls: cs.letterSpacing === 'normal' ? 0 : +(parseFloat(cs.letterSpacing) / parseFloat(cs.fontSize)).toFixed(4) } }); }
+  }
+  const m = band.querySelector('.pt-map'), mr = m.getBoundingClientRect(), mx = mr.left - W0.left, my = mr.top - B0.top;
+  out.map = { rect: rr(mr), title: el(m.querySelector('.pm-h b'), mx, my), pill: el(m.querySelector('.pill'), mx, my), text: el(m.querySelector('.pm-h > span:not(.pill):not(.sp)'), mx, my), sp: el(m.querySelector('.pm-h .sp'), mx, my),
+    mini: el(m.querySelector('.mini'), mx, my), oct: el(m.querySelector('.pm-oct'), mx, my), octI: el(m.querySelector('.pm-oct i'), mx, my) };
+  out.tips = { card: band.querySelector('.pt-card.u').dataset.tip, map: m.dataset.tip, name: band.querySelector('.pt-name').dataset.tip };
+  out.splitTip = document.querySelector('#spH').dataset.tip;
+  out.h = +B0.height.toFixed(2);
+  return out;
 }
 
 (async () => {
@@ -242,6 +276,14 @@ function walk() {
     if (t) out.dialogs[name] = t;
     await p.evaluate(() => window.__JP.closeDlg());
   }
+  // v3.5: the PARTS band. Window heights with the band open (SOUND page only): strip shown and PREVIEW off.
+  await p.evaluate(() => { __JPparts.setParts(true); __JP.setP('km', 2, true); }); await p.waitForTimeout(200);
+  out.parts = await p.evaluate(dumpParts);
+  const hp = await p.evaluate(() => { const J = window.__JP, w = document.querySelector('#win'), k = document.querySelector('#kbd'); const shown = w.offsetHeight, sy = k.getBoundingClientRect().top - w.getBoundingClientRect().top;
+    J.setP('prev', 0, true); const bare = w.offsetHeight; J.setP('prev', 1, true); return { shown, bare, stripY: +sy.toFixed(2) }; });
+  out.parts.hOpen = hp.shown; out.parts.hOpenBare = hp.bare; out.parts.stripYOpen = hp.stripY;
+  out.parts.top = out.stripY.sound;                       // y of the band in the window = where the strip starts when the band is closed
+  await p.evaluate(() => { __JPparts.setParts(false); __JP.setP('km', 0, true); });
   // tooltips and value bubble geometry
   out.bubbles = await p.evaluate(() => { const win = document.querySelector('#win'); const tip = document.querySelector('#tip'); tip.hidden = false; tip.innerHTML = 'Tip text<br><b>Now: 12</b> · double click resets'; const r = tip.getBoundingClientRect(); const cs = getComputedStyle(tip); tip.hidden = true; return { tipPad: cs.padding, tipZoom: cs.zoom, w: r.width, h: r.height }; });
   fs.mkdirSync(path.dirname(outFile), { recursive: true });

@@ -1,9 +1,9 @@
-// Opens the approved mockup (v3.3) in headless Chromium at design scale 1 (2920 wide, the height follows the page) with the shipped fonts.
+// Opens the approved mockup (v3.5) in headless Chromium at design scale 1 (2920 wide, the height follows the page) with the shipped fonts.
 // Used by dump_layout.js and snap_mockup.js. Needs Playwright (npm) and no network.
 const fs = require('fs'), path = require('path'), os = require('os');
 let chromium; try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = require('/opt/npm-tools/node_modules/playwright')); }
 const ROOT = path.resolve(__dirname, '..');
-const MOCK = path.join(ROOT, 'docs/mockups/JPurrr-8000-mockup-v3.3.html');
+const MOCK = path.join(ROOT, 'docs/mockups/JPurrr-8000-mockup-v3.5.html');
 const FONTS = path.join(ROOT, 'plugin/Resources/fonts');
 
 function fontCss() {

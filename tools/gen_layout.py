@@ -109,6 +109,22 @@ slabels = sarr('KeyLabel', 'labels', lrows)
 kfont = [t for t in S['texts'] if t['col'] == 'rgb(107, 114, 128)'][0]
 w('}')
 w('const KeyStrip kStrip = {%s,%s,%s,%d,%d,%s,%s,%s,%s,%s,%s};' % (R(S['rect']), R(S['keysRect']), R(S['whls']), min(k['n'] for k in S['keys']), max(k['n'] for k in S['keys']), F(kfont['f']), col(kfont['col']), swheels, skeys, slabels, stexts))
+# v3.5 PARTS band
+PT = d['parts']
+def PB(o): return '{%s,%s}' % (R(o), f(o['base'] if o.get('base') is not None else 0))
+def PC(c): return '{%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s}' % (R(c['rect']), PB(c['led']), PB(c['title']), PB(c['role']), PB(c['ed'] or {'x': 0, 'y': 0, 'w': 0, 'h': 0}), PB(c['prev']), PB(c['name']), PB(c['next']), PB(c['browse']), PB(c['chipsRow']), PB(c['chip']), PB(c['chipId']))
+# the PANEL EDITS tag only exists on the edited card: take its box from the UPPER card for both
+PT['cards']['l']['ed'] = PT['cards']['u']['ed']
+PT['cards']['l']['ed'] = dict(PT['cards']['l']['ed'], x=PT['cards']['l']['ed']['x'])
+M = PT['map']
+w('namespace {')
+w('const Line parts_btnlines[] = {%s};' % ','.join('{%s,%s,%s,%s}' % (cs(b['t']), f(b['line']['x']), f(b['line']['w']), f(b['line']['base'])) for b in PT['btns']))
+w('const Text parts_btntexts[] = {%s};' % ','.join("{%s,%s,'c',-1,0xffffffff,%s,{parts_btnlines+%d,1}}" % (cs(b['id']), F({'fam': 'Barlow Condensed', 'size': b['f']['size'], 'weight': b['f']['weight'], 'ls': b['f']['ls']}), R(b['rect']), i) for i, b in enumerate(PT['btns'])))
+w('const HBtn parts_btns[] = {%s};' % ','.join('{%s,%s,%s,false,%s}' % (cs(b['id']), R(b['rect']), cs(b['t']), 'true' if b['sq'] else 'false') for b in PT['btns']))
+w('}')
+w('const PartsGeo kParts = {%s,%s,%s,{%s,%s,%s,%s},%s,%s,{%s,%s,%s,%s,%s,%s,%s,%s},{parts_btns,%d},{parts_btntexts,%d}};' % (
+    f(PT['top']), f(PT['hOpen'] - d['pageHk']['sound']), f(PT['stripYOpen']), R(PT['sec']['rect']), cs(PT['sec']['title']), R(PT['sec']['ttl']), R(PT['sec']['span']),
+    PC(PT['cards']['l']), PC(PT['cards']['u']), R(M['rect']), PB(M['title']), PB(M['pill']), PB(M['text']), PB(M['sp']), PB(M['mini']), PB(M['oct']), PB(M['octI']), len(PT['btns']), len(PT['btns'])))
 w('namespace {')
 w('}')
 w('const Page kPages[kNumPages] = {sound_page, chain_page, master_page};')

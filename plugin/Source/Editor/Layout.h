@@ -62,6 +62,22 @@ struct KeyStrip {
     Span<KeyLabel> labels;
     Span<Text> texts;               // wheel captions BEND, MOD, +, -, MAX, 0 (Text::tok colours, y relative to the strip)
 };
+// v3.5 PARTS band (LOWER card, KEYS map, UPPER card) on the SOUND page while EDIT PARTS is on. Rectangles: x is a window x, y is relative to the
+// top of the band (kParts.top in the window). Inner boxes of a card or the map are relative to the card or map. base = text baseline in the same frame.
+// The texts (sound names, chips, key mode ...) change with the state and are drawn by the plugin; only boxes and baselines come from the mockup.
+struct PBox { Rect r; float base; };
+struct PCard { Rect r; PBox led, title, role, ed, prev, name, next, browse, chipsRow, chip, chipId; };
+struct PMap { Rect r; PBox title, pill, text, sp, mini, oct, octI; };
+struct PartsGeo {
+    float top;                      // y of the band in the window (also where the strip starts while the band is closed)
+    float extra;                    // window height added while the band is shown (band + the 8 px gap)
+    float stripY;                   // top of the keyboard strip while the band is shown
+    Sec sec;                        // the PARTS frame: r, title, ttl, span
+    PCard lower, upper;             // lower is the left card
+    PMap map;
+    Span<HBtn> btns; Span<Text> btnTexts;   // pt_prev_l, pt_next_l, pt_browse_l, then the same for u
+};
+extern const PartsGeo kParts;
 extern const KeyStrip kStrip;
 extern const int kChromeH;          // window height in which the chrome (footer, cheeks) was dumped: footer shift = page height - kChromeH
 enum PageId { kSound = 0, kChain = 1, kMaster = 2, kNumPages = 3 };
