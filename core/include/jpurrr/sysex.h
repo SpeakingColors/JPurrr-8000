@@ -21,7 +21,9 @@ bool parseUserPatchName(const std::string& name, int& index);   // accepts "A11"
 // Roland checksum: (128 - (sum of address and data bytes mod 128)) mod 128.
 uint8_t rolandChecksum(const uint8_t* addressAndData, size_t n);
 
-// The DEVICE ID setting (parameter 'did', 17..32) as the wire value 10h..1Fh.
+// The DEVICE ID setting (parameter 'did', 17..32, as the instrument shows it) as the wire value 10h..1Fh. The default is 17 (10h).
+constexpr int kSysexDeviceNumberMin = 17, kSysexDeviceNumberMax = 32, kSysexDeviceNumberDefault = 17;
+constexpr bool sysexDeviceNumberValid(int number) { return number >= kSysexDeviceNumberMin && number <= kSysexDeviceNumberMax; }
 inline int sysexDeviceFromParam(int did) { return did - 1; }
 
 // Pack four 7 bit address bytes into one number and back.

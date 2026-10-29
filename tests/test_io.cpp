@@ -582,6 +582,95 @@ TEST(io_save_helpers) {
     CHECK(saveBankAsJson(two, "x").find("\"bank\": \"x\"") != std::string::npos);
 }
 
+// The export dialog: format (JP-8080 / JP-8000), device ID 17..32, edit buffer or a user slot, one sound or a whole bank.
+TEST(io_export_dialog_destinations) {
+    Patch p = demoPatch();
+    auto addr = [](const std::vector<uint8_t>& m) { return std::vector<uint8_t>(m.begin() + 6, m.begin() + 10); };
+    for (SysexModel model : { SysexModel::JP8080, SysexModel::JP8000 }) {
+        const bool b80 = model == SysexModel::JP8080;
+        // edit buffer: temporary patch of the upper part, nothing in user memory
+        auto eb = savePatchAsSysexEditBuffer(p, 0x10, model);
+        CHECK(eb.ok && eb.messages.size() == (b80 ? 2u : 1u));
+        CHECK((addr(eb.messages[0]) == std::vector<uint8_t>{ 1, 0, 0x40, 0 }));
+        if (b80) CHECK((addr(eb.messages[1]) == std::vector<uint8_t>{ 1, 0, 0x41, 0x72 }));
+        size_t total = 0; for (auto& m : eb.messages) total += m.size();
+        CHECK(total == eb.bytes.size() && eb.bytes.size() == (b80 ? 12u * 2 + 248 : 12u + 239));   // 272 and 251 bytes: the sizes the dialog shows
+        for (auto& m : eb.messages) { RolandMessage rm; std::string err; CHECK(parseRolandMessage(m.data(), m.size(), rm, err) && rm.command == 0x12 && rm.address < sysexAddr(2, 0, 0, 0)); }
+        // the same sound into every user slot address A11..B88: 02 <bank> <2 * n> 00
+        for (int i = 0; i < kUserPatchCount; ++i) {
+            auto r = savePatchAsSysex(p, 0x10, i, model);
+            CHECK(r.ok && (addr(r.messages[0]) == std::vector<uint8_t>{ 2, uint8_t(i / 64), uint8_t((i % 64) * 2), 0 }));
+        }
+        CHECK(!savePatchAsSysex(p, 0x10, 128, model).ok && !savePatchAsSysex(p, 0x10, -1, model).ok);
+    }
+    // the slot names the dialog offers are the ones the importer reports back
+    for (int i : { 0, 1, 8, 63, 64, 127 }) {
+        auto im = sysexToPatches(savePatchAsSysex(p, 0x10, i, SysexModel::JP8080).bytes);
+        CHECK(im.ok && im.info[0].slotName == userPatchName(i));
+    }
+    CHECK(userPatchName(0) == "A11" && userPatchName(63) == "A88" && userPatchName(64) == "B11" && userPatchName(127) == "B88");
+    // the edit buffer comes back as the temporary upper patch
+    auto im = sysexToPatches(savePatchAsSysexEditBuffer(p, 0x10, SysexModel::JP8080).bytes);
+    CHECK(im.ok && im.info[0].area == SysexArea::TempUpper);
+}
+
+TEST(io_export_dialog_device_id) {
+    Patch p = demoPatch();
+    CHECK(kSysexDeviceNumberMin == 17 && kSysexDeviceNumberMax == 32 && kSysexDeviceNumberDefault == 17);
+    CHECK(sysexDeviceNumberValid(17) && sysexDeviceNumberValid(32) && !sysexDeviceNumberValid(16) && !sysexDeviceNumberValid(33) && !sysexDeviceNumberValid(0));
+    CHECK(sysexDeviceFromParam(17) == 0x10 && sysexDeviceFromParam(32) == 0x1F);
+    for (int n = 17; n <= 32; ++n) {
+        const int dev = sysexDeviceFromParam(n);
+        for (auto model : { SysexModel::JP8080, SysexModel::JP8000 }) {
+            for (auto r : { savePatchAsSysex(p, dev, 5, model), savePatchAsSysexEditBuffer(p, dev, model), saveBankAsSysex({ p, p }, dev, model) }) {
+                CHECK(r.ok);
+                for (auto& m : r.messages) { RolandMessage rm; std::string err; CHECK(parseRolandMessage(m.data(), m.size(), rm, err) && rm.deviceId == dev && m[2] == dev); }
+            }
+        }
+    }
+    // outside 17..32 nothing is written
+    for (int n : { 16, 33, 0, -1, 128 }) {
+        const int dev = sysexDeviceFromParam(n);
+        CHECK(!savePatchAsSysex(p, dev, 0).ok && !savePatchAsSysexEditBuffer(p, dev).ok && !saveBankAsSysex({ p }, dev).ok);
+        CHECK(!savePatchAsSysexEditBuffer(p, dev).error.empty());
+    }
+}
+
+TEST(io_export_dialog_bank) {
+    Patch p = demoPatch();
+    // a bank of 128 fills A11..B88 exactly; fewer patches stop early; the first one lands on A11
+    std::vector<Patch> full(128, p);
+    for (int i = 0; i < 128; ++i) full[(size_t) i].name = "S" + std::to_string(i);
+    auto r = saveBankAsSysex(full, 0x10, SysexModel::JP8080);
+    CHECK(r.ok && r.messages.size() == 256);
+    auto im = sysexToPatches(r.bytes);
+    CHECK(im.ok && im.patches.size() == 128 && im.info[0].slotName == "A11" && im.info[127].slotName == "B88" && im.patches[127].name == "S127");
+    auto r8 = saveBankAsSysex(full, 0x1F, SysexModel::JP8000);
+    CHECK(r8.ok && r8.messages.size() == 128);
+    im = sysexToPatches(r8.bytes);
+    CHECK(im.ok && im.patches.size() == 128 && im.info[127].slotName == "B88");
+    CHECK(!saveBankAsSysex(std::vector<Patch>(129, p), 0x10).ok);
+    std::vector<Patch> few(12, p);
+    r = saveBankAsSysex(few, 0x10, SysexModel::JP8080);
+    im = sysexToPatches(r.bytes);
+    CHECK(r.ok && r.messages.size() == 24 && im.patches.size() == 12);
+    CHECK(im.info[0].slotName == "A11" && im.info[11].slotName == "A24");
+    CHECK(!saveBankAsSysex({}, 0x10).ok);
+    // a start slot: the bank continues from there and must still fit
+    r = saveBankAsSysex(few, 0x10, SysexModel::JP8080, 64);
+    im = sysexToPatches(r.bytes);
+    CHECK(r.ok && im.info[0].slotName == "B11" && im.info[11].slotName == "B24");
+    CHECK(saveBankAsSysex(few, 0x10, SysexModel::JP8080, 116).ok && !saveBankAsSysex(few, 0x10, SysexModel::JP8080, 117).ok);
+    CHECK(!saveBankAsSysex(few, 0x10, SysexModel::JP8080, 128).ok && !saveBankAsSysex(few, 0x10, SysexModel::JP8080, -1).ok);
+    // the warnings of all patches are collected once each; the JP-8000 reports DISTORTION
+    Patch d = p; d.v[paramIndexById("xt")] = 12;
+    auto w = saveBankAsSysex({ d, d, p }, 0x10, SysexModel::JP8000);
+    int n = 0; for (auto& s : w.warnings) if (s.find("DISTORTION") != std::string::npos) ++n;
+    CHECK(w.ok && n == 1);
+    auto w80 = saveBankAsSysex({ d }, 0x10, SysexModel::JP8080);
+    for (auto& s : w80.warnings) CHECK(s.find("DISTORTION") == std::string::npos);
+}
+
 // ---------------------------------------------------------------- MIDI map
 TEST(io_midi_cc_table) {
     int n; const MidiCcEntry* t = midiCcTable(n);
