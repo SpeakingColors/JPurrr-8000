@@ -275,8 +275,8 @@ TEST(soundfx_delay_pingpong_alternates) {
 }
 
 TEST(soundfx_delay_sync) {
-    // 1/4 at 120 bpm = 500 ms, 1/8 dotted = 375 ms, 1/16 = 125 ms, 1/2 at 60 bpm = 2 s
-    struct C { int idx; double bpm; double ms; } cs[] = { { 7, 120, 500 }, { 6, 120, 375 }, { 1, 120, 125 }, { 10, 60, 2000 }, { 4, 90, 333.333 }, { 8, 120, 666.667 } };
+    // 1/4 at 120 bpm = 500 ms, 1/8 dotted = 375 ms, 1/16 = 125 ms, 1/2 at 60 bpm = 2 s, which MONO LONG halves to 1 s (manual p.87)
+    struct C { int idx; double bpm; double ms; } cs[] = { { 7, 120, 500 }, { 6, 120, 375 }, { 1, 120, 125 }, { 10, 60, 1000 }, { 4, 90, 333.333 }, { 8, 120, 666.667 } };
     for (auto& c : cs) {
         std::vector<float> l, r;
         impulseDelay(44100, 4, 3, c.idx, c.bpm, l, r);       // the knob must be ignored while sync is on
@@ -293,6 +293,38 @@ TEST(soundfx_delay_sync) {
     CHECK(std::fabs(SoundFx::syncBeats(10) - 2.0) < 1e-12);
     CHECK(std::fabs(SoundFx::syncBeats(17) - 12.0) < 1e-12);
     CHECK(SoundFx::syncBeats(23) == 0.0);
+}
+
+// JP-8000 manual p.87: a mono delay cannot be longer than 1250 ms, a panning delay not longer than 625 ms; a longer synced time is halved.
+// The manual prints the tempi below which the (mono) delay is halved: 8th = 24, dotted 8th = 36, quarter triplet = 32, quarter = 48,
+// dotted quarter = 72, half triplet = 64, half = 96.
+TEST(soundfx_delay_sync_halves_past_the_maximum) {
+    struct T { int idx; double bpm; };
+    const T printed[] = { { 4, 24 }, { 6, 36 }, { 5, 32 }, { 7, 48 }, { 9, 72 }, { 8, 64 }, { 10, 96 } };   // sync index, tempo of the table
+    for (const T& t : printed) {
+        const double atT = SoundFx::delaySyncMs(4, t.idx, t.bpm);
+        CHECK(std::fabs(atT - 1250.0) < 0.01);                                   // exactly at the limit: not halved
+        const double slower = SoundFx::delaySyncMs(4, t.idx, t.bpm - 0.5);
+        CHECK(slower < 700.0 && slower > 500.0);                                 // just below: halved (a bit over 625 ms)
+        const double faster = SoundFx::delaySyncMs(4, t.idx, t.bpm + 5.0);
+        CHECK(faster < 1250.0 && faster > 600.0);                                // faster: the plain note length
+        CHECK(std::fabs(faster - SoundFx::syncBeats(t.idx) * 60000.0 / (t.bpm + 5.0)) < 0.01);
+    }
+    // panning types stop at 625 ms: a quarter note at 90 bpm is 667 ms, so it is halved to 333 ms
+    CHECK(std::fabs(SoundFx::delaySyncMs(0, 7, 90.0) - 333.333) < 0.01);
+    CHECK(std::fabs(SoundFx::delaySyncMs(1, 7, 96.0) - 625.0) < 0.01);
+    CHECK(std::fabs(SoundFx::delaySyncMs(0, 7, 120.0) - 500.0) < 0.01);
+    // the slowest tempo (20) and the longest note (half) still end up inside the limit
+    for (int type = 0; type < 5; ++type) CHECK(SoundFx::delaySyncMs(type, 10, 20.0) <= (type >= 3 ? 1250.0 : 625.0) + 1e-6);
+    CHECK(SoundFx::delaySyncMs(4, 0, 120.0) == 0.0);
+    // heard: MONO LONG, half note at 60 bpm (2 s) sounds at 1 s, PANNING L>R at 100 bpm quarter (600 ms) is not halved
+    std::vector<float> l, r;
+    impulseDelay(44100, 4, 3, 10, 60.0, l, r);
+    CHECK(std::fabs((double) firstEcho(l, 1002, 0.f) - (1000.0 + 1000.0 * 44.1)) <= 1.0);
+    impulseDelay(44100, 0, 3, 7, 100.0, l, r);
+    CHECK(std::fabs((double) firstEcho(l, 1002, 0.f) - (1000.0 + 600.0 * 44.1)) <= 1.0);
+    impulseDelay(44100, 0, 3, 8, 100.0, l, r);                                    // half note triplet 800 ms: over 625, halved to 400 ms
+    CHECK(std::fabs((double) firstEcho(l, 1002, 0.f) - (1000.0 + 400.0 * 44.1)) <= 1.0);
 }
 
 static double echoEnergy(const std::vector<float>& x, size_t centre, size_t half = 8) {

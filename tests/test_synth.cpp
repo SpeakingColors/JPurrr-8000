@@ -5,6 +5,7 @@
 #include "jpurrr/live.h"
 #include "jpurrr/synth_math.h"
 #include "../core/src/dsp/synth_dsp.h"
+#include "../core/src/dsp/synth_voice.h"
 #include <algorithm>
 #include <ctime>
 #include <cmath>
@@ -553,4 +554,84 @@ TEST(synth_benchmark) {
     CHECK(pct < 10.0);
 #endif
     CHECK(pct > 0.0);
+}
+
+// ---------------------------------------------------------------- engine check against the JP-8000 owner's manual (docs/engine-check-jp8000.md)
+
+TEST(synth_manual_key_follow_scale) {
+    // p.61: KEY FOLLOW +32 = +100 percent, +64 = +200 percent, -64 = -100 percent, 0 = fixed cutoff.
+    int v[kNumParams]; std::memcpy(v, factoryPatch(0).v, sizeof v);
+    PatchParams pp;
+    const struct { int fk; float oct; } t[] = { { 64, 2.f }, { 32, 1.f }, { 16, 0.5f }, { 0, 0.f }, { -16, -0.25f }, { -32, -0.5f }, { -64, -1.f } };
+    for (const auto& c : t) { v[P_fk] = c.fk; pp.derive(v, 0.f); CHECK(std::fabs(pp.s[PatchParams::S_fkey] - c.oct) < 1e-6f); }
+}
+
+TEST(synth_manual_lfo2_is_a_triangle) {
+    // p.73: "The LFO 2 waveform is triangle wave."
+    CHECK(std::fabs(lfo2Wave(0.0)) < 1e-12 && std::fabs(lfo2Wave(0.25) - 1.0) < 1e-12);
+    CHECK(std::fabs(lfo2Wave(0.5)) < 1e-12 && std::fabs(lfo2Wave(0.75) + 1.0) < 1e-12);
+    CHECK(std::fabs(lfo2Wave(0.125) - 0.5) < 1e-12 && std::fabs(lfo2Wave(0.875) + 0.5) < 1e-12);
+    // In the engine: tremolo from the lever (AMP depth) follows that shape. A sine would give a gain of 0.856 at an eighth of the
+    // cycle (1 - d (1 - sin) / 2, d = 0.98), the triangle gives 0.754; at a quarter of the cycle both are at full level.
+    Rig rig(48000.0, 0);
+    rig.set(P_m2r, 55); rig.set(P_m2da, 63); rig.set(P_m2dp, 0); rig.set(P_m2df, 0);
+    rig.set(P_al, 0); rig.set(P_fl, 0); rig.set(P_ol, 0); rig.set(P_ap, 0); rig.set(P_fe, 0); rig.set(P_fr, 0); rig.set(P_fc, 127);
+    rig.set(P_aea, 0); rig.set(P_aes, 127); rig.set(P_o1w, 6); rig.set(P_ob, -64); rig.set(P_uni, 0); rig.set(P_mono, 0); rig.set(P_leg, 0);
+    rig.s.controller(0, 1, 127);
+    rig.s.noteOn(0, 57, 100);
+    const double T = 1.0 / knobLfoRate(55);
+    std::vector<float> o; rig.run((int) (1.3 * T * 48000.0), &o);
+    auto rms = [&](double sec) { const size_t c = (size_t) (sec * 48000.0), h = 480; double e = 0; for (size_t i = c - h; i < c + h; ++i) e += (double) o[i] * o[i]; return std::sqrt(e / (2.0 * h)); };
+    const double r8 = rms(T / 8.0), r4 = rms(T / 4.0), r2 = rms(T / 2.0), r58 = rms(T * 5.0 / 8.0), r34 = rms(T * 3.0 / 4.0);
+    CHECK(r4 > 0.0);
+    CHECK(r8 / r4 > 0.70 && r8 / r4 < 0.80);
+    CHECK(r34 < 0.08 * r4);                                                    // the trough at three quarters of the cycle
+    CHECK(std::fabs((r2 - r58) - (r58 - r34)) < 0.25 * (r2 - r34));          // straight flanks (a sine would bend them)
+}
+
+TEST(synth_manual_auto_pan_ignores_lfo1_fade) {
+    // p.62: "The LFO 1 Fade Time setting has no effect on Auto Pan." Square LFO 1 starts high: the note is panned to one side at once
+    // although FADE is at its longest (while the tremolo and vibrato of LFO 1 would still be faded in).
+    Rig rig(48000.0, 0);
+    rig.set(P_ap, 1); rig.set(P_al, 63); rig.set(P_l1w, 2); rig.set(P_l1r, 20); rig.set(P_l1f, 127); rig.set(P_l1s, 0);
+    rig.set(P_fl, 0); rig.set(P_ol, 0); rig.set(P_m2da, 0); rig.set(P_aea, 0); rig.set(P_o1w, 6); rig.set(P_ob, -64); rig.set(P_fe, 0);
+    rig.set(P_fc, 127); rig.set(P_fr, 0); rig.set(P_uni, 0);
+    rig.s.noteOn(0, 57, 100);
+    double el = 0, er = 0; int done = 0;
+    while (done < 4800) { rig.s.process(rig.l.data(), rig.r.data(), 256); for (int i = 0; i < 256; ++i) { el += rig.l[(size_t) i] * rig.l[(size_t) i]; er += rig.r[(size_t) i] * rig.r[(size_t) i]; } done += 256; }
+    CHECK(er > 0.0 && el < 0.01 * er);                                          // hard right within the first 100 ms
+    // tremolo on the same LFO (AMP LFO 1 depth, no pan) still fades in: depth -64 would mute the first, high half of the square at once,
+    // but with the longest FADE the level stays close to the level without LFO depth.
+    auto level = [&](int al) {
+        Rig tr(48000.0, 0);
+        tr.set(P_ap, 0); tr.set(P_al, al); tr.set(P_l1w, 2); tr.set(P_l1r, 20); tr.set(P_l1f, 127); tr.set(P_fl, 0); tr.set(P_ol, 0); tr.set(P_m2da, 0);
+        tr.set(P_aea, 0); tr.set(P_o1w, 6); tr.set(P_ob, -64); tr.set(P_fe, 0); tr.set(P_fc, 127); tr.set(P_fr, 0); tr.set(P_uni, 0);
+        std::vector<float> a; tr.s.noteOn(0, 57, 100); tr.run(4800, &a);
+        double e = 0; for (size_t i = 2400; i < a.size(); ++i) e += (double) a[i] * a[i];
+        return std::sqrt(e);
+    };
+    CHECK(level(-64) > 0.85 * level(0));
+}
+
+TEST(synth_manual_split_arpeggiates_only_the_lower_part) {
+    // p.75: in SPLIT only the Lower part is arpeggiated; ARP DEST (p.76) is for DUAL.
+    for (int dest = 0; dest < 3; ++dest) {
+        Rig rig; Live live; rig.s.setLive(&live);
+        rig.set(P_km, 2); rig.set(P_sp, 60); rig.set(P_aon, 1); rig.set(P_adst, dest); rig.set(P_apt, 4); rig.s.setTempo(120.0);
+        rig.s.noteOn(0, 72, 100);                                               // upper area: plays at once, no arpeggio
+        rig.run(24000);
+        CHECK(live.arpSteps.load() == 0);
+        CHECK(rig.s.heldVoices() == 1);
+        rig.s.noteOn(0, 48, 100);                                               // lower area: arpeggiated
+        rig.run(24000);
+        CHECK(live.arpSteps.load() > 4);
+    }
+    // DUAL still follows ARP DEST: UPPER only, then LOWER only
+    for (int dest = 1; dest <= 2; ++dest) {
+        Rig rig; Live live; rig.s.setLive(&live);
+        rig.set(P_km, 1); rig.set(P_aon, 1); rig.set(P_adst, dest); rig.s.setTempo(120.0);
+        rig.s.noteOn(0, 60, 100); rig.run(24000);
+        CHECK(live.arpSteps.load() > 4);
+        CHECK(rig.s.heldVoices() >= 2);                                         // the other part holds the key at once
+    }
 }
