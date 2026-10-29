@@ -15,7 +15,7 @@ Rough order. Nothing here is promised for a date.
 - Keyboard strip with BEND and MOD wheels (mouse and computer keys), PREVIEW switch, split marker and part tints on the keys.
 - Your own FX block presets: SAVE, rename and delete on every block, listed under YOUR PRESETS.
 - A window height for each page (with or without the keyboard strip and the PARTS band).
-- The arpeggiator is checked end to end through the plugin (button, strip and MIDI notes, host tempo, MODE, RANGE, HOLD); the TEMPO knob sets the speed when the host gives no tempo (Standalone).
+- Arpeggiator: checked end to end through the plugin (button, strip and MIDI notes, host tempo, MODE, RANGE, HOLD). Fixed: a step could fire three times in a row and skip notes of the pattern; a new chord starts at the beginning of the pattern; the TEMPO knob sets the speed when the host gives no tempo (Standalone).
 
 ## Next
 - Check the three enum orders (OSC1 waveform, Multi-FX type, Delay type) and the SysEx exports on real hardware.
