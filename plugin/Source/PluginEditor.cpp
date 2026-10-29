@@ -23,6 +23,8 @@ JPurrrEditor::JPurrrEditor(JPurrr8000AudioProcessor& p) : juce::AudioProcessorEd
     setScaleWidth(w);
     t0 = juce::Time::getMillisecondCounterHiRes() * 0.001;
     startTimerHz(30);
+    if (juce::JUCEApplicationBase::isStandaloneApp())     // the computer keys play the keyboard strip: take keyboard focus when the window opens
+        juce::Timer::callAfterDelay(400, [sp = juce::Component::SafePointer<juce::Component>(&root)] { if (sp != nullptr && sp->isShowing()) sp->grabKeyboardFocus(); });
 }
 JPurrrEditor::~JPurrrEditor() { stopTimer(); }
 

@@ -7,6 +7,7 @@
 #include "jpurrr/soundfx.h"
 #include "jpurrr/live.h"
 #include "jpurrr/midi_map.h"
+#include "jpurrr/keyboard.h"
 #include "PresetManager.h"
 
 // Parameter values are plain integers in the units of jpurrr::kParams (same as the mockup).
@@ -47,6 +48,10 @@ public:
     juce::AudioProcessorParameter* hostParam(int idx) const { return hostParams[(size_t) idx]; }
 
     juce::String presetName { "Init" };
+    // --- the editor's keyboard strip (message thread only; lock-free queue, the audio thread plays them at the start of the next block) ---
+    void stripNoteOn(int note);
+    void stripNoteOff(int note);
+
     juce::AudioProcessorValueTreeState apvts;
     PresetManager presets;                           // factory + user sounds and the current sound (message thread)
     jpurrr::Live live;                               // readouts for the editor displays (audio thread writes)
@@ -59,6 +64,13 @@ private:
     juce::AbstractFifo midiFifo { kMidiFifo };
     std::array<jpurrr::MidiUpdate, kMidiFifo> midiFifoData {};
     std::array<jpurrr::MidiMapper, 16> mappers;
+    // Notes of the keyboard strip travel from the message thread to the audio thread through this FIFO (single producer).
+    struct StripEvent { std::int8_t kind; std::int8_t note; };         // 0 note on, 1 note off
+    static constexpr int kStripFifo = 256;
+    juce::AbstractFifo stripFifo { kStripFifo };
+    std::array<StripEvent, kStripFifo> stripData {};
+    std::atomic<bool> stripPanic { false };                            // a note off did not fit in the FIFO: release everything
+    void pushStrip(StripEvent e);
     std::atomic<int> wantedLatency { 0 };
     int reportedLatency = 0;
     static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout();

@@ -18,6 +18,10 @@ public:
     void noteOn(int ch, int note, int vel);        // ch 0..15, vel 1..127
     void noteOff(int ch, int note);
     void allNotesOff();
+    // Notes from the on-screen keyboard strip: they play whatever the part MIDI channels are set to (the mockup keyboard always
+    // sounds). They use channel index 15 inside, so they never clash with notes from a MIDI keyboard.
+    void stripNoteOn(int note, int vel);
+    void stripNoteOff(int note);
     void pitchBend(int ch, int value14);           // -8192..8191
     void controller(int ch, int cc, int value);    // 0..127: 1 mod wheel, 64 sustain, 120 all sound off, 121 reset controllers, 123 all notes off
     void channelPressure(int ch, int value);       // adds to the mod wheel (LFO 2)
