@@ -3,10 +3,13 @@
 #include "PluginEditor.h"
 #include "Editor/Fonts.h"
 #include "Editor/KeyStrip.h"
+#include "Editor/Widgets.h"
 #include "jpurrr/patch.h"
 #include <juce_events/juce_events.h>
 #include <cmath>
 #include <cstdio>
+#include <functional>
+#include <set>
 #include <vector>
 using namespace jpurrr;
 
@@ -32,6 +35,56 @@ static Run render(JPurrr8000AudioProcessor& p, int blocks, int tailBlocks = 0) {
     for (int lag = 31; lag < 799 && !bestLag; ++lag) if (ac[(size_t) lag] >= 0.85 * mx && mx > 0.3 && ac[(size_t) lag] >= ac[(size_t) lag - 1] && ac[(size_t) lag] >= ac[(size_t) lag + 1]) bestLag = lag;
     r.f0 = bestLag ? 48000.0 / bestLag : 0; return r;
 }
+
+
+// ---- arpeggiator through the real processor -------------------------------------------------------------------------------------
+// A stand-in for the host's play head: tempo (or none), transport state and a quarter note position that moves with the audio.
+struct FakeHost : juce::AudioPlayHead {
+    juce::Optional<double> bpm; bool playing = false; double ppq = 0.0;
+    juce::Optional<PositionInfo> getPosition() const override {
+        PositionInfo i; if (bpm) i.setBpm(*bpm); i.setIsPlaying(playing); i.setPpqPosition(ppq); return i;
+    }
+};
+struct Seg { int start = 0, len = 0; double f0 = 0; };
+// mono audio of `blocks` blocks of 256 samples; `midi0` goes into the first block (hardware MIDI path); `host` advances after each block
+static std::vector<float> capture(JPurrr8000AudioProcessor& p, int blocks, const juce::MidiBuffer* midi0 = nullptr, FakeHost* host = nullptr, double bpmNow = 120.0) {
+    std::vector<float> out; juce::AudioBuffer<float> buf(2, 256); juce::MidiBuffer midi;
+    for (int b = 0; b < blocks; ++b) {
+        buf.clear(); midi.clear(); if (b == 0 && midi0) midi = *midi0;
+        p.processBlock(buf, midi);
+        out.insert(out.end(), buf.getReadPointer(0), buf.getReadPointer(0) + 256);
+        if (host && host->playing) host->ppq += 256.0 / 48000.0 * bpmNow / 60.0;
+    }
+    return out;
+}
+static double pitchOf(const std::vector<float>& x, int from, int n) {            // autocorrelation, 60 Hz to 1.6 kHz at 48 kHz
+    if (from + n + 800 > (int) x.size()) return 0;
+    std::vector<double> ac(800, 0.0); double mx = 0;
+    for (int lag = 30; lag < 800; ++lag) { double s = 0, e = 1e-9; for (int i = 0; i < n; ++i) { s += (double) x[(size_t) (from + i)] * x[(size_t) (from + i + lag)]; e += (double) x[(size_t) (from + i)] * x[(size_t) (from + i)]; } ac[(size_t) lag] = s / e; mx = std::max(mx, s / e); }
+    for (int lag = 31; lag < 799; ++lag) if (ac[(size_t) lag] >= 0.85 * mx && mx > 0.3 && ac[(size_t) lag] >= ac[(size_t) lag - 1] && ac[(size_t) lag] >= ac[(size_t) lag + 1]) return 48000.0 / lag;
+    return 0;
+}
+// notes of the arpeggio: stretches of sound separated by silence (the arpeggiator gates each step at 60 percent), with their pitch
+static std::vector<Seg> segments(const std::vector<float>& x) {
+    const int B = 32; std::vector<double> env; double top = 0;
+    for (size_t i = 0; i + B <= x.size(); i += B) { double s = 0; for (int k = 0; k < B; ++k) s += std::fabs(x[i + (size_t) k]); env.push_back(s / B); top = std::max(top, env.back()); }
+    std::vector<Seg> segs; bool on = false; Seg cur;
+    for (size_t k = 0; k < env.size(); ++k) {
+        const bool o = env[k] > 0.15 * top;
+        if (o && !on) { cur = {}; cur.start = (int) k * B; on = true; }
+        if (!o && on) { cur.len = (int) k * B - cur.start; segs.push_back(cur); on = false; }
+    }
+    for (auto& s : segs) if (s.len > 1500) s.f0 = pitchOf(x, s.start + 600, juce::jmin(1200, s.len - 900));
+    return segs;
+}
+static double hz(int note) { return 440.0 * std::pow(2.0, (note - 69) / 12.0); }
+// does the pitch sequence of the notes match `want` (MIDI note numbers), starting at segment `from`?
+static bool sequenceIs(const std::vector<Seg>& s, int from, const std::vector<int>& want, int count) {
+    if ((int) s.size() < from + count) return false;
+    for (int i = 0; i < count; ++i) { const double w = hz(want[(size_t) i % want.size()]); if (std::fabs(s[(size_t) (from + i)].f0 / w - 1.0) > 0.04) return false; }
+    return true;
+}
+static double meanGap(const std::vector<Seg>& s) { if (s.size() < 3) return 0; return (double) (s.back().start - s.front().start) / (double) (s.size() - 1); }
 
 int main() {
     juce::ScopedJuceInitialiser_GUI init;
@@ -138,6 +191,108 @@ int main() {
     check(std::fabs(dn.f0 / base.f0 - 0.5) < 0.08, "BEND down 12 semitones: one octave lower");
     proc.setInt(P_bend, 0);
     strip->noteOff(60); render(proc, 48000 * 6 / 256);
+
+
+    // ARPEGGIATOR: the editor's ON/OFF button -> P_aon -> synth; strip notes and hardware MIDI notes both go through it; tempo from the host
+    {
+        { Patch init; init.reset(); proc.setAll(init.v); }
+        proc.setInt(P_pch, 5); proc.setInt(P_km, 0); proc.setInt(P_prev, 1); root.tick(0.5);
+        // a plain sound whose notes are easy to tell apart: no effects section, fast attack and release, full sustain
+        proc.setInt(P_aea, 0); proc.setInt(P_aer, 8); proc.setInt(P_aed, 127); proc.setInt(P_aes, 127);
+        proc.setInt(P_apt, 4); proc.setInt(P_amd, 0); proc.setInt(P_arg, 0); proc.setInt(P_ahold, 0); proc.setInt(P_adst, 0);
+        FakeHost host; host.bpm = 120.0; proc.setPlayHead(&host);
+        auto chord = [&](bool on) { for (int n : { 60, 64, 67 }) { if (on) proc.stripNoteOn(n); else proc.stripNoteOff(n); } };
+        auto settle = [&] { render(proc, 48000 * 5 / 256); };
+
+        // the ON / OFF button on the ARPEGGIATOR panel is a SwitchW for "aon": click it with the mouse
+        jp::SwitchW* aonBtn = nullptr;
+        std::function<void(juce::Component&)> find = [&](juce::Component& c) { for (auto* ch : c.getChildren()) { if (auto* sw = dynamic_cast<jp::SwitchW*>(ch)) if (sw->id == "aon") aonBtn = sw; find(*ch); } };
+        find(root);
+        check(aonBtn != nullptr, "arp: the editor has the ON / OFF button (aon)");
+        check(proc.getInt(P_aon) == 0, "arp: off at the start");
+        auto clickAon = [&] {
+            auto ev = [&](juce::Point<float> p) { return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), p, juce::ModifierKeys(), 1.0f, juce::MouseInputSource::defaultOrientation, juce::MouseInputSource::defaultRotation, 0.0f, 0.0f, aonBtn, aonBtn, juce::Time::getCurrentTime(), p, juce::Time::getCurrentTime(), 1, false); };
+            aonBtn->mouseDown(ev({ 10, 10 })); aonBtn->mouseUp(ev({ 10, 10 }));
+        };
+
+        // arp off: a held chord is one long sound
+        chord(true);
+        { auto x = capture(proc, 48000 / 256, nullptr, &host); auto sg = segments(x); check(sg.size() == 1, "arp off: a held chord is one sustained sound (no retriggering)"); }
+        chord(false); settle();
+
+        // arp on by the button, then the chord from the strip: three notes in turn at the host tempo (120 bpm: 1/16 = 6000 samples)
+        if (aonBtn) clickAon();
+        check(proc.getInt(P_aon) == 1, "arp: the ON / OFF button sets P_aon");
+        chord(true);
+        auto x = capture(proc, 48000 * 2 / 256, nullptr, &host);
+        auto sg = segments(x);
+        std::printf("     strip chord, UP, 120 bpm: %d notes, mean step %.0f samples; pitches", (int) sg.size(), meanGap(sg));
+        for (size_t i = 0; i < sg.size() && i < 8; ++i) std::printf(" %.0f", sg[i].f0);
+        std::printf("\n");
+        check(sg.size() >= 14 && sg.size() <= 17, "arp: a held strip chord is retriggered 8 times per second at 120 bpm");
+        check(std::fabs(meanGap(sg) - 6000.0) < 120.0, "arp: one step is a 1/16 note (6000 samples at 120 bpm)");
+        check(sequenceIs(sg, 0, { 60, 64, 67 }, 9), "arp: UP plays C, E, G, C, E, G ... (the strip notes go through the arpeggiator)");
+        // TEMPO: the host tempo rules (60 bpm: half the speed, 240 bpm: double)
+        host.bpm = 60.0; capture(proc, 40, nullptr, &host);
+        sg = segments(capture(proc, 48000 * 3 / 256, nullptr, &host, 60.0));
+        check(std::fabs(meanGap(sg) - 12000.0) < 240.0, "arp: host tempo 60 bpm gives 12000 samples per step");
+        host.bpm = 240.0; capture(proc, 40, nullptr, &host);
+        sg = segments(capture(proc, 48000 * 1 / 256, nullptr, &host, 240.0));
+        check(std::fabs(meanGap(sg) - 3000.0) < 100.0, "arp: host tempo 240 bpm gives 3000 samples per step");
+        host.bpm = 120.0; capture(proc, 40, nullptr, &host);
+        // MODE
+        auto pitches = [&](int sec256) { return segments(capture(proc, sec256, nullptr, &host)); };
+        proc.setInt(P_amd, 1); capture(proc, 40, nullptr, &host); sg = pitches(48000 / 256);
+        check(sequenceIs(sg, 1, { 67, 64, 60 }, 6) || sequenceIs(sg, 0, { 67, 64, 60 }, 6) || sequenceIs(sg, 2, { 67, 64, 60 }, 5), "arp: MODE DOWN plays G, E, C");
+        proc.setInt(P_amd, 2); capture(proc, 40, nullptr, &host); sg = pitches(48000 / 256);
+        { bool ok = false; for (int f = 0; f < 4 && !ok; ++f) ok = sequenceIs(sg, f, { 60, 64, 67, 64 }, 6); check(ok, "arp: MODE UP & DOWN plays C, E, G, E, C, E ..."); }
+        proc.setInt(P_amd, 3); capture(proc, 40, nullptr, &host); sg = pitches(48000 * 2 / 256);
+        { std::set<int> seen; bool allInChord = true; for (auto& s : sg) { int best = -1; for (int n : { 60, 64, 67 }) if (std::fabs(s.f0 / hz(n) - 1.0) < 0.04) best = n; if (best < 0) allInChord = false; else seen.insert(best); }
+          check(allInChord && seen.size() == 3 && sg.size() > 10, "arp: MODE RANDOM plays the notes of the chord in no fixed order"); }
+        // RANGE 2 octaves
+        proc.setInt(P_amd, 0); proc.setInt(P_arg, 1); capture(proc, 40, nullptr, &host); sg = pitches(48000 * 2 / 256);
+        { bool ok = false; for (int f = 0; f < 4 && !ok; ++f) ok = sequenceIs(sg, f, { 60, 64, 67, 72, 76, 79 }, 8); check(ok, "arp: RANGE 2 climbs through two octaves (C E G C E G)"); }
+        proc.setInt(P_arg, 0);
+        // HOLD: keys up, the arpeggio goes on; HOLD off drops it
+        proc.setInt(P_ahold, 1); capture(proc, 20, nullptr, &host);
+        chord(false);
+        sg = pitches(48000 / 256);
+        check(sg.size() >= 7, "arp: HOLD keeps the arpeggio going after the keys are up");
+        proc.setInt(P_ahold, 0); capture(proc, 20, nullptr, &host);
+        check(capture(proc, 48000 * 2 / 256, nullptr, &host).size() > 0 && segments(capture(proc, 48000 / 256, nullptr, &host)).empty(), "arp: HOLD off with the keys up: silence");
+        // hardware MIDI: the same chord through the MIDI path
+        juce::MidiBuffer mb; for (int n : { 60, 64, 67 }) mb.addEvent(juce::MidiMessage::noteOn(1, n, (juce::uint8) 100), 0);
+        proc.setInt(P_pch, 1);
+        sg = segments(capture(proc, 48000 * 2 / 256, &mb, &host));
+        check(sg.size() >= 14 && sequenceIs(sg, 0, { 60, 64, 67 }, 9), "arp: a chord from hardware MIDI is arpeggiated the same way");
+        juce::MidiBuffer mo; for (int n : { 60, 64, 67 }) mo.addEvent(juce::MidiMessage::noteOff(1, n), 0);
+        capture(proc, 20, &mo, &host); settle();
+        proc.setInt(P_pch, 5);
+        // turning the arpeggiator off while it plays stops it, and a held chord is a plain chord again
+        chord(true); capture(proc, 40, nullptr, &host);
+        if (aonBtn) clickAon();
+        check(proc.getInt(P_aon) == 0, "arp: the button switches it off again");
+        capture(proc, 40, nullptr, &host);
+        check(segments(capture(proc, 48000 / 256, nullptr, &host)).size() <= 1, "arp: off again, the chord is sustained (no retriggering)");
+        chord(false); settle();
+
+        // no tempo from the host (as in Standalone): the ARPEGGIATOR TEMPO knob is used
+        host.bpm.reset(); proc.setInt(P_atp, 240); proc.setInt(P_aon, 1);
+        chord(true); capture(proc, 40, nullptr, &host);
+        sg = segments(capture(proc, 48000 / 256, nullptr, &host));
+        std::printf("     no host tempo, TEMPO knob 240: mean step %.0f samples\n", meanGap(sg));
+        check(std::fabs(meanGap(sg) - 3000.0) < 100.0, "arp: when the host gives no tempo the TEMPO knob sets the speed");
+        chord(false); settle();
+
+        // transport playing: the arpeggiator follows the host grid
+        host.bpm = 120.0; host.playing = true; host.ppq = 4.0; proc.setInt(P_atp, 128);
+        chord(true);
+        sg = segments(capture(proc, 48000 * 2 / 256, nullptr, &host, 120.0));
+        check(sg.size() >= 14 && std::fabs(meanGap(sg) - 6000.0) < 120.0, "arp: with the transport running it plays at the host tempo too");
+        chord(false); host.playing = false; settle();
+        proc.setInt(P_aon, 0); proc.setPlayHead(nullptr);
+        proc.setInt(P_pch, 5);
+    }
 
     // EDIT PARTS (mockup v3.5): the PARTS band, the window heights, the key tints and the split marker on the strip
     {
