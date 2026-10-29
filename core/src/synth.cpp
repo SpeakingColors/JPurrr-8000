@@ -3,8 +3,6 @@
 #include "jpurrr/synth.h"
 #include "dsp/synth_voice.h"
 #include <algorithm>
-#include <cstdio>
-#include <cstdlib>
 #include <vector>
 #if defined(__SSE__) || defined(_M_X64)
 #include <xmmintrin.h>
@@ -343,8 +341,8 @@ struct Synth::Impl {
         const int oct = seqPos / n, idx = seqPos % n;
         const int note = std::min(127, a.list[sorted[idx]].note + 12 * oct);
         a.curNote = note; a.curCh = chs[idx];
-        if (std::getenv("ARP_DEBUG")) std::printf("ARPDBG note %d pos %d n %d range %d mode %d\n", note, a.pos - 1, a.n, arpRange, arpMode);   // TEMP
         partOn(p, chs[idx], note, vels[idx]);
+        if (live) live->arpSteps.fetch_add(1, std::memory_order_relaxed);
         a.gateLeft = 0.6 * stepBeats() * 60.0 / bpm() * sr;
     }
     // samples until the next arpeggiator event (step or gate end), or a large number
@@ -369,7 +367,11 @@ struct Synth::Impl {
         if (!arpOn) return;
         bool fire = false;
         if (stepNow) { fire = true; stepNow = false; stepPhase = 0.0; }
-        else if (stepPhase >= 1.0 - 1e-9) { fire = true; stepPhase -= std::floor(stepPhase); }
+        else if (stepPhase >= 1.0 - 1e-9) {
+            fire = true;
+            // A phase a hair below 1 counts as 1 (rounding). Subtracting floor() of it would leave it where it was and fire the same step again.
+            stepPhase = stepPhase >= 1.0 ? stepPhase - std::floor(stepPhase) : 0.0;
+        }
         if (!fire) return;
         for (int p = 0; p < 2; ++p) if (arpActiveFor(p)) arpStepFire(p);
     }

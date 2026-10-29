@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <functional>
 #include <set>
 #include <vector>
@@ -244,11 +243,6 @@ int main() {
         std::printf("     strip chord, UP, 120 bpm: %d notes, mean step %.0f samples; pitches", (int) sg.size(), meanGap(sg));
         for (size_t i = 0; i < sg.size() && i < 8; ++i) std::printf(" %.0f", sg[i].f0);
         std::printf("\n");
-        if (std::getenv("STRIP_DEBUG")) {
-            double top = 0; std::vector<double> env; for (size_t i = 0; i + 192 <= x.size() && i < 96000; i += 192) { double a = 0; for (int k = 0; k < 192; ++k) a += std::fabs(x[i + (size_t) k]); env.push_back(a / 192); top = std::max(top, env.back()); }
-            for (size_t k = 0; k < env.size(); ++k) { std::printf("%d", (int) std::min(9.0, 9.0 * env[k] / top)); if ((k + 1) % 31 == 0) std::printf("\n"); }   // 31 blocks = 5952 samples per row
-            std::printf("\n");
-        }
         check(sg.size() >= 14 && sg.size() <= 17, "arp: a held strip chord is retriggered 8 times per second at 120 bpm");
         check(std::fabs(meanGap(sg) - 6000.0) < 120.0, "arp: one step is a 1/16 note (6000 samples at 120 bpm)");
         check(sequenceIs(sg, 0, { 60, 64, 67 }, 9), "arp: UP plays C, E, G, C, E, G ... (the strip notes go through the arpeggiator)");

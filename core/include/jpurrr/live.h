@@ -32,6 +32,7 @@ struct Live {
     // Synth side: counters the editor uses to animate envelope playheads.
     std::atomic<uint32_t> noteOnCount { 0 };                // incremented on every note on
     std::atomic<uint32_t> noteOffAllCount { 0 };            // incremented when the last held key is released
+    std::atomic<uint32_t> arpSteps { 0 };                   // incremented on every arpeggiator step (tests)
     std::atomic<int> activeVoices { 0 };
     std::atomic<int> lastNote { -1 }, lastVel { 0 };
 };

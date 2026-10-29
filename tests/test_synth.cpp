@@ -2,6 +2,7 @@
 #include "test_util.h"
 #include "jpurrr/patch.h"
 #include "jpurrr/synth.h"
+#include "jpurrr/live.h"
 #include "jpurrr/synth_math.h"
 #include "../core/src/dsp/synth_dsp.h"
 #include <algorithm>
@@ -405,6 +406,24 @@ TEST(synth_arpeggiator) {
     ud.s.noteOn(0, 60, 100); ud.s.noteOn(0, 65, 100);
     std::vector<float> o; ud.run(48000, &o);
     CHECK(finiteBounded(o, 1.0f));
+}
+
+TEST(synth_arpeggiator_steps_are_regular) {
+    // Every step fires once, at any tempo and block size. A step phase a hair below 1 used to fire the same step again and again
+    // (three notes in a row at 120 bpm), which skipped notes of the pattern.
+    const double tempi[] = { 120.0, 133.0, 127.3, 140.0, 97.7, 174.0 };
+    const int blocks[] = { 64, 256, 511 };
+    for (double bpm : tempi) for (int blk : blocks) {
+        Rig rig; Live live; rig.s.setLive(&live);
+        rig.set(P_aon, 1); rig.set(P_apt, 4); rig.set(P_amd, 0); rig.set(P_arg, 0);
+        rig.s.setTempo(bpm);
+        rig.s.noteOn(0, 60, 100); rig.s.noteOn(0, 64, 100); rig.s.noteOn(0, 67, 100);
+        const int total = 48000 * 10; int done = 0;
+        while (done < total) { const int m = std::min(blk, total - done); rig.s.process(rig.l.data(), rig.r.data(), m); done += m; }
+        const double expect = 10.0 * bpm / 60.0 / 0.25;                    // 1/16 steps in ten seconds
+        const double got = (double) live.arpSteps.load();
+        CHECK(std::fabs(got - expect) <= 2.0);                              // the first step is at once: one more or less is fine
+    }
 }
 
 TEST(synth_lfo_and_envelopes_move_the_sound) {

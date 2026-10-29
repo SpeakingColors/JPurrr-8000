@@ -29,6 +29,7 @@ static void overlayPopup(juce::Image& img, JPurrrEditor& editor, int mp) {
     const int b = lf.getPopupMenuBorderSize();
     juce::Graphics g(img);
     g.setOrigin((int) sel.getX() + 262 * 0 + (int) (layout::kCheekL.w * 0), (int) sel.getBottom());
+    g.reduceClipRegion(0, 0, w + 2 * b, h + 2 * b);            // the menu background fills its whole clip: keep it to the menu
     lf.drawPopupMenuBackground(g, w + 2 * b, h + 2 * b);
     int y = b;
     for (auto& it : items) {
