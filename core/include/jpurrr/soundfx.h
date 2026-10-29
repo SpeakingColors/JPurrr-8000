@@ -24,6 +24,10 @@ public:
     static double delayTimeMs(int delayType, int knob);
     // Length in quarter note beats for an index of the Delay Sync / Chorus Sync option lists; 0 for OFF, "LFO 1", unknown.
     static double syncBeats(int syncIndex);
+    // Delay time in ms when DELAY SYNC is on (syncIndex 1..10) at a tempo. JP-8000 manual p.87: a mono delay cannot be longer than
+    // 1250 ms and a panning delay not longer than 625 ms; a longer time is halved (repeatedly here, so it always fits).
+    // Mono = MONO SHORT and MONO LONG (delayType 3, 4), panning = the other three. Returns 0 for OFF.
+    static double delaySyncMs(int delayType, int syncIndex, double bpm);
 private:
     struct Impl; std::unique_ptr<Impl> impl_;
 };

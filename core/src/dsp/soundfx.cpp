@@ -238,15 +238,9 @@ struct SoundFx::Impl {
 
     void updateDelay() {
         double ms = SoundFx::delayTimeMs(pDty, pDt);
-        double beats = SoundFx::syncBeats(pDsy);
         double samples;
-        if (pDsy > 0 && beats > 0.0) {
-            double sec = beats * 60.0 / std::max(bpm, 20.0);
-            while (sec > 2.4) sec *= 0.5;                               // keep the rhythm, fold into the buffer
-            samples = sec * sr;
-        } else {
-            samples = ms * 0.001 * sr;
-        }
+        if (pDsy > 0 && SoundFx::syncBeats(pDsy) > 0.0) samples = SoundFx::delaySyncMs(pDty, pDsy, bpm) * 0.001 * sr;
+        else samples = ms * 0.001 * sr;
         delay.setTarget(std::min(std::max(pDty, 0), 4), samples, (float)pDfb / 127.f * 0.88f, (float)pDl / 127.f);
     }
     void updateRate() {
@@ -266,6 +260,14 @@ double SoundFx::delayTimeMs(int type, int knob) {
     return std::max(1.0, kDelayMaxMs[type] * (double)knob / 127.0);
 }
 double SoundFx::syncBeats(int idx) { return sfx::syncBeats(idx); }
+double SoundFx::delaySyncMs(int type, int idx, double bpm) {
+    const double beats = sfx::syncBeats(idx);
+    if (!(beats > 0.0)) return 0.0;
+    const double limit = type >= 3 ? 1250.0 : 625.0;                   // mono / panning, manual p.65 and p.87
+    double ms = beats * 60000.0 / std::max(bpm, 20.0);
+    while (ms > limit + 1e-9) ms *= 0.5;                                // keep the rhythm: half the specified interval
+    return ms;
+}
 int SoundFx::latencySamples() const { return 0; }
 
 void SoundFx::prepare(double sampleRate, int maxBlock) {
