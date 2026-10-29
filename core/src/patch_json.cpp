@@ -3,6 +3,7 @@
 // Bank: {"app":"JPurrr-8000","format":1,"bank":name,"patches":[{name,type,genres,v},..]}
 // Strict small JSON parser written for this file: no dependencies, depth limited, never throws.
 #include "jpurrr/patch.h"
+#include "jpurrr/block_presets.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -378,6 +379,60 @@ bool bankFromJson(const std::string& text, std::vector<Patch>& out, std::string&
         got.push_back(std::move(p));
     }
     out = std::move(got); bankName = std::move(name);
+    return true;
+}
+
+
+// ------------------------------------------------------------------ block presets (own FX block presets)
+std::string BlockPresetStore::toJson() const {
+    std::string out = "{\n \"app\": \"JPurrr-8000\",\n \"format\": " + std::to_string(kFormatVersion) + ",\n \"blocks\": {";
+    bool firstBlock = true;
+    for (const auto& b : blocks_) {
+        if (b.second.empty()) continue;
+        out += firstBlock ? "\n  " : ",\n  "; firstBlock = false;
+        esc(out, b.first); out += ": [";
+        for (size_t i = 0; i < b.second.size(); ++i) {
+            const auto& e = b.second[i];
+            out += i ? ",\n   {" : "\n   {";
+            out += "\"n\": "; esc(out, e.name); out += ", \"v\": {";
+            for (size_t k = 0; k < e.vals.size(); ++k) { if (k) out += ", "; esc(out, e.vals[k].first); out += ": " + std::to_string(e.vals[k].second); }
+            out += "}}";
+        }
+        out += "\n  ]";
+    }
+    out += firstBlock ? "}\n}\n" : "\n }\n}\n";
+    return out;
+}
+bool BlockPresetStore::fromJson(const std::string& text, std::string& err) {
+    JV root;
+    if (!parseText(text, root, err)) return false;
+    if (root.t != JV::Obj || !checkApp(root, err)) { if (err.empty()) err = "This is not a JPurrr-8000 file."; return false; }
+    std::map<std::string, std::vector<BlockPresetEntry>> nb;
+    const JV* bl = root.find("blocks");
+    if (bl && bl->t == JV::Obj) {
+        for (const auto& kv : bl->o) {
+            if (kv.second.t != JV::Arr || kv.first.empty() || kv.first.size() > 16) continue;
+            auto& list = nb[kv.first];
+            for (const JV& e : kv.second.a) {
+                if (e.t != JV::Obj || int(list.size()) >= kMaxPerBlock) continue;
+                const JV* n = e.find("n"); const JV* v = e.find("v");
+                if (!n || n->t != JV::Str || !v || v->t != JV::Obj) continue;
+                BlockPresetEntry ent; ent.name = cleanName(n->s);
+                if (ent.name.empty()) continue;
+                bool dup = false;
+                for (const auto& x : list) { if (x.name.size() == ent.name.size() && std::equal(x.name.begin(), x.name.end(), ent.name.begin(), [](char a, char b) { return std::tolower((unsigned char) a) == std::tolower((unsigned char) b); })) dup = true; }
+                if (dup) continue;
+                for (const auto& pv : v->o) {
+                    if (pv.second.t != JV::Num || pv.first.empty() || pv.first.size() > 12) continue;
+                    if (!(pv.second.n > -1e9 && pv.second.n < 1e9)) continue;
+                    ent.vals.emplace_back(pv.first, int(std::lround(pv.second.n)));
+                }
+                list.push_back(std::move(ent));
+            }
+            if (list.empty()) nb.erase(kv.first);
+        }
+    }
+    blocks_ = std::move(nb);
     return true;
 }
 
