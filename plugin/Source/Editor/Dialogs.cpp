@@ -1,5 +1,7 @@
 #include "Dialogs.h"
 #include "Root.h"
+#include "BlockPresets.h"
+#include "../BlockPresetFile.h"
 #include <cmath>
 using namespace jp;
 using namespace jpurrr;
@@ -33,6 +35,7 @@ public:
     DBtn(Root& r, const String& t, bool g) : root(r), text(t.toUpperCase()), go(g) { setWantsKeyboardFocus(true); setPaintingIsUnclipped(true); }
     std::function<void()> onClick; bool ring = false;
     static juce::Font font() { return fc(18.4, 600, 0.06f); }
+    static inline bool viaKey = false;                         // the last press on a dialog button came from the keyboard (Enter or Space)
     float prefWidth() const { return 2.0f + 2 * 10 * Z + jp::textWidth(font(), text); }
     void paint(juce::Graphics& g) override {
         const Look& lk = root.look(); auto r = getLocalBounds().toFloat();
@@ -42,19 +45,19 @@ public:
         g.setColour(go ? lk[layout::acc] : lk[layout::btnbd]); g.drawRoundedRectangle(r.reduced(0.5f), 4 * Z, 1.0f);
         const auto f = font(); g.setFont(f); g.setColour(go ? kGoText : lk[layout::lbl]);
         drawTextAt(g, text, r.getX() + 1 + 10 * Z, std::round(r.getY() + 1 + (r.getHeight() - 2 - nrm(f)) / 2 + asc(f)), 'l');
-        if (ring || hasKeyboardFocus(false)) drawRing(g, r, 4 * Z, lk[layout::acc], 2 * Z, 1 * Z);
+        if (ring || (hasKeyboardFocus(false) && !mouseFocus)) drawRing(g, r, 4 * Z, lk[layout::acc], 2 * Z, 1 * Z);
     }
     void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); }
     void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); }
-    void mouseUp(const juce::MouseEvent& e) override { if (contains(e.getPosition()) && !e.mods.isPopupMenu() && onClick) onClick(); }
+    void mouseUp(const juce::MouseEvent& e) override { if (contains(e.getPosition()) && !e.mods.isPopupMenu() && onClick) { viaKey = false; onClick(); } }
     bool keyPressed(const juce::KeyPress& k) override {
-        if (k == juce::KeyPress::returnKey || k == juce::KeyPress::spaceKey) { if (onClick) onClick(); return true; }
+        if (k == juce::KeyPress::returnKey || k == juce::KeyPress::spaceKey) { if (onClick) { viaKey = true; onClick(); } return true; }
         return false;
     }
     void focusLost(FocusChangeType) override { ring = false; repaint(); }
-    void focusGained(FocusChangeType) override { repaint(); }
+    void focusGained(FocusChangeType cause) override { mouseFocus = cause == focusChangedByMouseClick; repaint(); }
 private:
-    Root& root; String text; bool go, hover = false;
+    Root& root; String text; bool go, hover = false, mouseFocus = false;
 };
 
 class DChk : public juce::Component {                          // label.chk with a native checkbox
@@ -132,6 +135,7 @@ public:
         if (placeholder.isNotEmpty()) ed.setTextToShowWhenEmpty(placeholder, juce::Colour(0xff757575));
         ed.applyFontToAllText(f);
         ed.onTextChange = [this] { if (onChange) onChange(); };
+        ed.onFocusLost = [this] { ring = false; repaint(); };
     }
     juce::TextEditor ed; bool ring = false; std::function<void()> onChange;
     float heightCss() const { return multi ? 170.0f * Z : 45.0f; }
@@ -139,13 +143,17 @@ public:
         const Look& lk = root.look(); auto r = getLocalBounds().toFloat();
         g.setColour(lk[layout::sel]); g.fillRoundedRectangle(r, 3 * Z);
         g.setColour(lk[layout::btnbd]); g.drawRoundedRectangle(r.reduced(0.5f), 3 * Z, 1.0f);
-        if (ring || ed.hasKeyboardFocus(true)) drawRing(g, r, 3 * Z);
+        if (ring || ed.hasKeyboardFocus(true)) {              // Chrome's default focus ring: 1 px white just outside the border, 1 px dark inside
+            g.setColour(juce::Colours::white); g.drawRoundedRectangle(r.expanded(0.5f), 3 * Z + 0.5f, 1.0f);
+            g.setColour(juce::Colour(0xff101010)); g.drawRoundedRectangle(r.reduced(0.5f), 3 * Z - 0.5f, 1.0f);
+        }
     }
     void resized() override {
         auto r = getLocalBounds().toFloat().reduced(1.0f + 8 * Z, 1.0f + 5 * Z);
         ed.setBounds(r.toNearestInt());
     }
     void mouseDown(const juce::MouseEvent&) override { ed.grabKeyboardFocus(); }
+    void focusOfChildComponentChanged(FocusChangeType) override { repaint(); }
 private:
     Root& root; bool multi;
 };
@@ -453,6 +461,7 @@ void DialogLayer::refresh() {
     graveyard.clear();
     if (panel != nullptr && panel->onRefresh) panel->onRefresh();
 }
+void DialogLayer::pressFirstButton() { if (panel != nullptr && !panel->buttons.empty() && panel->buttons[0]->onClick) { juce::Component::unfocusAllComponents(); DBtn::viaKey = false; panel->buttons[0]->onClick(); } }
 void DialogLayer::relayout() { if (panel != nullptr) panel->fit(getLocalBounds()); }
 void DialogLayer::lookChanged() { if (panel != nullptr) panel->lookChanged(); repaint(); }
 
@@ -609,6 +618,117 @@ void DialogLayer::openDelete() {
     auto* del = f.button("Delete", true, [this] { auto& cc = root.controller(); if (cc.deleteCurrent()) this->close(); });
     f.button("Close", false, [this] { this->close(); });
     del->ring = true; finish(f); focusIf(del);
+}
+
+// ------------------------------------------------------------------------------------------------ FX block presets
+void DialogLayer::openBlockSave(int mp, const String* preName) {
+    auto& c = root.controller();
+    const String blk = String::fromUTF8(layout::kMp[mp].title);
+    String def;
+    if (preName != nullptr) def = *preName;
+    else {
+        BlockPresetFile::get().refreshIfChanged();
+        const MpChoice ch = mpCurrent(c, mp);
+        def = ch.user >= 0 ? String::fromUTF8(mpUserList(mp)[(size_t) ch.user].name.c_str()) : "My " + blk.toLowerCase();
+    }
+    auto& f = begin("Save block preset", 640);
+    auto* p = f.add<Para>(root, std::vector<PR>{ n("Saves the knobs of "), b(blk), n(". Factory presets stay as they are.") });
+    auto* cap = f.add<DCap>(root, "Name"); auto* name = f.add<DField>(root, def, String(), false, false);
+    name->ed.setInputRestrictions(40);
+    auto* hint = f.add<Para>(root, std::vector<PR>{}, true);
+    f.layoutBody = [=](float w) {
+        const int W = juce::roundToInt(w); float y = 0; const float cg = 3 * Z;
+        p->setTopLeftPosition(0, 0); y += p->layoutFor(w) + kGap;
+        cap->setBounds(0, juce::roundToInt(y), W, 26); name->setBounds(0, juce::roundToInt(y + 26 + cg), W, 45); y += 26 + cg + 45 + kGap;
+        hint->setTopLeftPosition(0, juce::roundToInt(y)); y += hint->layoutFor(w);
+        return y;
+    };
+    auto doSave = [=] {
+        auto& ctl = root.controller();
+        const String nm = mpCleanName(name->ed.getText());
+        if (mpFactoryNameTaken(mp, nm)) { hint->setRuns({ n("Factory presets cannot be changed. Pick another name.") }); if (panel) panel->fit(getLocalBounds()); return; }
+        BlockPresetFile::get().refreshIfChanged();
+        const int ex = mpUserIndex(mp, nm);
+        if (ex >= 0) { openBlockReplace(mp, String::fromUTF8(mpUserList(mp)[(size_t) ex].name.c_str()), nm); return; }
+        const auto r = mpStore(ctl, mp, nm, false);
+        this->close();
+        if (r == MpDone::Ok) ctl.say("Saved: " + nm);
+    };
+    f.button("Save", true, doSave);
+    f.button("Close", false, [this] { this->close(); });
+    name->ed.onReturnKey = [doSave] { DBtn::viaKey = true; doSave(); };
+    name->ring = true;
+    finish(f); focusIf(&name->ed);
+}
+
+void DialogLayer::openBlockReplace(int mp, const String& existing, const String& typed) {
+    const String blk = String::fromUTF8(layout::kMp[mp].title);
+    auto& f = begin("Replace this preset?", 640);
+    auto* p = f.add<Para>(root, std::vector<PR>{ n("There is already a preset called "), b(existing), n(" for " + blk + ".") });
+    f.layoutBody = [p](float w) { p->setTopLeftPosition(0, 0); return p->layoutFor(w); };
+    auto* ow = f.button("Overwrite", true, [=] {
+        auto& ctl = root.controller();
+        const auto r = mpStore(ctl, mp, existing, true);
+        this->close();
+        if (r == MpDone::Ok) ctl.say("Overwritten");
+    });
+    f.button("Save as new", false, [=] {
+        auto& ctl = root.controller(); String saved;
+        const auto r = mpStoreAsNew(ctl, mp, existing, saved);
+        this->close();
+        if (r == MpDone::Ok) ctl.say("Saved as new");
+    });
+    f.button("Cancel", false, [=] { openBlockSave(mp, &typed); });
+    ow->ring = DBtn::viaKey;                    // Chrome shows the ring only when the question came from the keyboard (Enter in the name field)
+    finish(f); focusIf(ow);
+}
+
+void DialogLayer::openBlockRename(int mp, const String& presetName) {
+    const String blk = String::fromUTF8(layout::kMp[mp].title);
+    auto& f = begin("Rename preset", 640);
+    auto* p = f.add<Para>(root, std::vector<PR>{ n("Preset of "), b(blk), n(".") });
+    auto* cap = f.add<DCap>(root, "Name"); auto* name = f.add<DField>(root, presetName, String(), false, false);
+    name->ed.setInputRestrictions(40);
+    auto* hint = f.add<Para>(root, std::vector<PR>{}, true);
+    f.layoutBody = [=](float w) {
+        const int W = juce::roundToInt(w); float y = 0; const float cg = 3 * Z;
+        p->setTopLeftPosition(0, 0); y += p->layoutFor(w) + kGap;
+        cap->setBounds(0, juce::roundToInt(y), W, 26); name->setBounds(0, juce::roundToInt(y + 26 + cg), W, 45); y += 26 + cg + 45 + kGap;
+        hint->setTopLeftPosition(0, juce::roundToInt(y)); y += hint->layoutFor(w);
+        return y;
+    };
+    auto doRename = [=] {
+        auto& ctl = root.controller();
+        const String nm = String::fromUTF8(jpurrr::BlockPresetStore::cleanName(name->ed.getText().toStdString()).c_str());
+        if (nm.isEmpty()) return;
+        if (nm == presetName) { this->close(); return; }
+        String why;
+        if (!mpRename(ctl, mp, presetName, nm, why)) {
+            if (why.isNotEmpty()) { hint->setRuns({ n(why) }); if (panel) panel->fit(getLocalBounds()); }
+            return;
+        }
+        this->close(); ctl.say("Renamed");
+    };
+    f.button("Rename", true, doRename);
+    f.button("Close", false, [this] { this->close(); });
+    name->ed.onReturnKey = [doRename] { DBtn::viaKey = true; doRename(); };
+    name->ring = true;
+    finish(f); focusIf(&name->ed);
+}
+
+void DialogLayer::openBlockDelete(int mp, const String& presetName) {
+    const String blk = String::fromUTF8(layout::kMp[mp].title);
+    auto& f = begin("Delete this preset?", 640);
+    auto* p = f.add<Para>(root, std::vector<PR>{ n(presetName + " will be removed from " + blk + ".") });
+    f.layoutBody = [p](float w) { p->setTopLeftPosition(0, 0); return p->layoutFor(w); };
+    auto* del = f.button("Delete", true, [=] {
+        auto& ctl = root.controller();
+        const bool ok = mpDelete(ctl, mp, presetName);
+        this->close();
+        if (ok) ctl.say("Deleted");
+    });
+    f.button("Close", false, [this] { this->close(); });
+    finish(f); focusIf(del);                    // opened from the "..." menu with the mouse: no focus ring, as in Chrome
 }
 
 // ------------------------------------------------------------------------------------------------ Export / import

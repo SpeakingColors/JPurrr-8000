@@ -3,6 +3,7 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <functional>
+#include <map>
 #include <set>
 #include "../PluginProcessor.h"
 #include "../PresetManager.h"
@@ -74,6 +75,9 @@ public:
     std::function<void()> openGuide, openSettings, openAbout, toggleMenu;
     std::function<void(int)> openPage;
     std::function<void(int)> touched;                   // user changed a parameter: displays show their parameter view
+    std::function<void(int)> blockSave;                 // SAVE of an FX block preset (kMp index)
+    std::function<void(int, juce::Component&)> blockMore;   // the "..." button of an FX block preset, with the button for placing the menu
+    std::map<int, juce::String> mpPick;                 // the preset last picked or saved per block ("f:<index>" or "u:<name>"), shown while it still matches
 
     juce::String lcd2Override; juce::uint32 lcd2Until = 0;
     juce::String msgText; juce::uint32 msgUntil = 0;

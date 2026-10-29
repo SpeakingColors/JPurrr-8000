@@ -2,6 +2,7 @@
 // The factory block presets live in the editor layout; this store only holds the user's own.
 // File text: {"app":"JPurrr-8000","format":1,"blocks":{"<block key>":[{"n":"name","v":{"<param id>":<int>,..}},..]}}
 #pragma once
+#include <functional>
 #include <map>
 #include <string>
 #include <utility>
@@ -28,7 +29,8 @@ public:
     Result rename(const std::string& block, const std::string& oldName, const std::string& newName);
     Result remove(const std::string& block, const std::string& name);
     // Free name for "save as new": "Name 2", "Name 3", ...
-    std::string freeName(const std::string& block, const std::string& name) const;
+    // `reserved` are names that may not be used either (the factory presets of the block).
+    std::string freeName(const std::string& block, const std::string& name, const std::vector<std::string>& reserved = {}) const;
 
     std::string toJson() const;
     // Replaces the content. Unknown keys are ignored, wrong types skipped, limits applied. False and err set only when the text is not a block preset file.
@@ -40,5 +42,14 @@ public:
 private:
     std::map<std::string, std::vector<BlockPresetEntry>> blocks_;
 };
+
+// Values of an entry for the block's parameter ids, in that order. A missing or out of range value takes the parameter default
+// (the same rule the mockup applies when it loads your presets).
+std::vector<int> blockPresetValues(const BlockPresetEntry& e, const std::vector<std::string>& ids);
+// Does the entry equal the current knobs? `current(id)` gives the live value. The trance gate also compares the pattern
+// ("gpat") unless the entry uses one of the built in patterns ("gpt" above 0).
+bool blockPresetMatches(const BlockPresetEntry& e, const std::vector<std::string>& ids, const std::function<int(const std::string&)>& current);
+// True when `name` equals one of the given names without regard to case.
+bool blockNameTaken(const std::vector<std::string>& names, const std::string& name);
 
 }  // namespace jpurrr

@@ -1,11 +1,14 @@
 #include "Widgets.h"
 #include <cstring>
 #include "Fonts.h"
+#include "BlockPresets.h"
+#include "../BlockPresetFile.h"
 using namespace jp;
 using namespace jp::layout;
 using namespace jpurrr;
 
 namespace {
+constexpr int kUserBase = 1000;             // popup ids of your own block presets (factory ones are 1..n, Custom is 10000)
 constexpr double kKnobPixels = 170.0;       // mockup: a full turn takes 170 design px
 double span(int i) { return (double) (kParams[i].max - kParams[i].min); }
 float norm(int i, int v) { return (float) (v - kParams[i].min) / (float) (kParams[i].max - kParams[i].min); }
@@ -25,6 +28,14 @@ struct MenuLnF : juce::LookAndFeel_V4 {
         g.setFont(getPopupMenuFont());
         g.drawText(text, area.reduced(18, 0), juce::Justification::centredLeft, true);
         if (isTicked) { g.fillEllipse((float) area.getX() + 7.0f, (float) area.getCentreY() - 2.5f, 5.0f, 5.0f); }
+    }
+    // optgroup label of the mockup: 16.7 px condensed 600, accent colour
+    void drawPopupMenuSectionHeader(juce::Graphics& g, const juce::Rectangle<int>& area, const juce::String& name) override {
+        g.setColour((*L)[acc]); g.setFont(fontOf(kCond, 16.7f, 600, 0.0f));
+        g.drawText(name, area.reduced(18, 0), juce::Justification::centredLeft, true);
+    }
+    void getIdealPopupMenuSectionHeaderSizeWithOptions(const juce::String& text, int, int& w, int& h, const juce::PopupMenu::Options&) override {
+        h = 26; w = (int) jp::textWidth(fontOf(kCond, 16.7f, 600, 0.0f), text) + 40;
     }
     int getPopupMenuBorderSize() override { return 2; }
     void getIdealPopupMenuItemSize(const juce::String& text, bool isSeparator, int standardHeight, int& idealWidth, int& idealHeight) override {
@@ -253,7 +264,12 @@ SelectW::SelectW(Ctx& c, const Select& sel, int i, int m) : Ctrl(c), idx(i), mp(
     text = currentText();
 }
 juce::String SelectW::currentText() const {
-    if (mp >= 0) { const int m = mpMatch(x.c, mp); return m < 0 ? "Custom" : juce::String(kMp[mp].list[m].name); }
+    if (mp >= 0) {
+        const MpChoice ch = mpCurrent(x.c, mp);
+        if (ch.factory >= 0) return juce::String(kMp[mp].list[ch.factory].name);
+        if (ch.user >= 0) return juce::String::fromUTF8(mpUserList(mp)[(size_t) ch.user].name.c_str());
+        return "Custom";
+    }
     const int v = x.c.get(idx); const ParamDef& d = kParams[idx];
     if (d.optCount > 0 && v >= d.min && v - d.min < d.optCount) return juce::String::fromUTF8(kOptionText[d.optStart + (v - d.min)]);
     return juce::String(v);
@@ -284,9 +300,15 @@ void SelectW::mouseDown(const juce::MouseEvent& e) {
     juce::PopupMenu m; auto& lf = menuLnF(); lf.L = &x.L(); m.setLookAndFeel(&lf);
     int cur = -1;
     if (mp >= 0) {
-        cur = mpMatch(x.c, mp);
-        for (int k = 0; k < kMp[mp].nList; ++k) m.addItem(k + 1, juce::String::fromUTF8(kMp[mp].list[k].name), true, k == cur);
-        m.addItem(10000, "Custom", false, cur < 0);
+        BlockPresetFile::get().refreshIfChanged();
+        const MpChoice ch = mpCurrent(x.c, mp);
+        for (int k = 0; k < kMp[mp].nList; ++k) m.addItem(k + 1, juce::String::fromUTF8(kMp[mp].list[k].name), true, k == ch.factory);
+        const auto& users = mpUserList(mp);
+        if (!users.empty()) {
+            m.addSectionHeader("YOUR PRESETS");
+            for (size_t u = 0; u < users.size(); ++u) m.addItem(kUserBase + (int) u, juce::String::fromUTF8(users[u].name.c_str()), true, (int) u == ch.user);
+        }
+        m.addItem(10000, "Custom", false, ch.custom());
     } else {
         const ParamDef& d = kParams[idx]; cur = x.c.get(idx) - d.min;
         for (int k = 0; k < d.optCount; ++k) m.addItem(k + 1, juce::String::fromUTF8(kOptionText[d.optStart + k]), true, k == cur);
@@ -295,7 +317,7 @@ void SelectW::mouseDown(const juce::MouseEvent& e) {
     m.showMenuAsync(opt, [sp = juce::Component::SafePointer<SelectW>(this)](int r) {
         if (!sp || r <= 0 || r == 10000) return;
         auto* me = sp.getComponent();
-        if (me->mp >= 0) { mpApply(me->x.c, me->mp, r - 1); }
+        if (me->mp >= 0) { if (r >= kUserBase) mpApplyUser(me->x.c, me->mp, r - kUserBase); else mpApply(me->x.c, me->mp, r - 1); }
         else { me->x.c.begin(me->idx); me->x.c.user(me->idx, kParams[me->idx].min + r - 1); me->x.c.end(me->idx); }
         me->refresh();
     });
@@ -324,6 +346,7 @@ void jp::mpApply(Controller& c, int m, int p) {
     int gpt = -1;
     for (int k = 0; k < d.nIds; ++k) { const int i = Controller::idx(d.ids[k]); if (juce::String(d.ids[k]) == "gpt") { gpt = k; continue; } c.user(i, pr.vals[k]); }
     if (gpt >= 0) c.user(Controller::idx("gpt"), pr.vals[gpt]);
+    c.mpPick[m] = "f:" + juce::String(p);
     c.say(juce::String(d.title) + ": " + pr.name);
 }
 
