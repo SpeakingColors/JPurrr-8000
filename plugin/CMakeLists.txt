@@ -51,3 +51,9 @@ target_link_libraries(jpurrr_render PRIVATE JPurrr8000 jpurrr_core JPurrrFonts)
 add_executable(jpurrr_hostcheck EXCLUDE_FROM_ALL ../tools/hostcheck.cpp)
 target_compile_definitions(jpurrr_hostcheck PRIVATE JUCE_PLUGINHOST_VST3=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1)
 target_link_libraries(jpurrr_hostcheck PRIVATE juce::juce_audio_processors juce::juce_gui_basics juce::juce_recommended_config_flags)
+
+# Headless check of the keyboard strip: strip notes make sound through the real processor, wheels, computer keys, PREVIEW off, editor close.
+add_executable(jpurrr_stripcheck EXCLUDE_FROM_ALL snapshot/stripcheck.cpp)
+target_include_directories(jpurrr_stripcheck PRIVATE Source $<TARGET_PROPERTY:JPurrr8000,INCLUDE_DIRECTORIES>)
+target_compile_definitions(jpurrr_stripcheck PRIVATE $<TARGET_PROPERTY:JPurrr8000,COMPILE_DEFINITIONS>)
+target_link_libraries(jpurrr_stripcheck PRIVATE JPurrr8000 jpurrr_core JPurrrFonts)

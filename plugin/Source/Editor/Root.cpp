@@ -1,4 +1,5 @@
 #include "Root.h"
+#include "KeyStrip.h"
 #include "../PluginProcessor.h"
 #include "BlockPresets.h"
 using namespace jp;
@@ -202,6 +203,12 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
     pname = std::make_unique<PnameW>(ctx, *this, [&]() -> const Text* { for (auto& t : kChrome.texts) if (juce::String(t.id) == "pname") return &t; return nullptr; }());
     addAndMakeVisible(*pname); pname->setBounds(juce::Rectangle<float>(kPname.x, kPname.y, kPname.w, kPname.h).toNearestInt());
 
+    strip = std::make_unique<KeyboardStrip>(p, ctx); addChildComponent(*strip);          // under the dialogs, bubbles and menu
+    strip->showBubble = [this](juce::Component& c, const juce::String& t) { showTextBubble(c, t); };
+    strip->hideBubble = [this] { hideValueBubble(); };
+    strip->hideTip = [this] { hideTip(); };
+    strip->modalOpen = [this] { return dialogs && dialogs->isOpen(); };
+
     menu = std::make_unique<MenuPanel>(ctx); addChildComponent(*menu);
     menu->onPick = [this](int i) {
         if (i == 0) ctl.openSave(); else if (i == 1) pname->startEdit(); else if (i == 2) ctl.openDelete();
@@ -242,7 +249,7 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
     showPage(kSound);
     startTimerHz(20);
 }
-Root::~Root() { stopTimer(); removeMouseListener(this); }
+Root::~Root() { stopTimer(); removeMouseListener(this); if (strip) strip->releaseAll(); }
 
 void Root::applyLook(const juce::String& id) {
     ctx.lookIdx = lookIndexOf(id); env.pal = paletteOf(look());
@@ -250,6 +257,7 @@ void Root::applyLook(const juce::String& id) {
     texture = panelTexture(look());
     for (auto* p : pages) p->lookChanged();
     for (auto* h : header) h->lookChanged();
+    strip->lookChanged();
     dialogs->lookChanged(); repaint();
 }
 
@@ -270,13 +278,20 @@ void Root::showPage(int p) {
     dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, designHeight()));
     pages[page]->refresh();
     // footer moves with the page height; header buttons stay
+    layoutStrip();
     hideTip(); repaint();
     if (onPageChanged) onPageChanged();
+}
+
+void Root::layoutStrip() {
+    strip->place(kPages[page].stripY);
+    if (stripShown()) strip->setVisible(true); else { strip->releaseAll(); strip->setVisible(false); }   // PREVIEW off: nothing may keep sounding
 }
 
 bool Root::stripShown() const { return ctl.get(P_prev) != 0; }
 int Root::designHeight() const { return stripShown() ? kPages[page].h : kPages[page].hBare; }
 void Root::syncHeight() {
+    if (strip->isVisible() != stripShown()) layoutStrip();
     if (getHeight() == designHeight()) return;
     setSize(kDesignW, designHeight());
     dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, designHeight()));
@@ -288,6 +303,7 @@ void Root::tick(double now) {
     syncHeight();
     env.nowSeconds = now;
     pages[page]->refresh();
+    if (strip->isVisible()) strip->refresh();
     for (auto* h : header) h->refresh();
     pages[page]->tickDisplays(now);
     dialogs->refresh();
@@ -324,7 +340,6 @@ void Root::paint(juce::Graphics& g) {
     g.setColour(L[hdr]); g.fillRect(juce::Rectangle<float>(kFtr.x, kFtr.y + dy, kFtr.w, kFtr.h));
     g.setColour(L[edge]); g.fillRect(juce::Rectangle<float>(kFtr.x, kFtr.y + dy, kFtr.w, 2));
     for (auto& c : kChrome.cats) drawCat(g, juce::Rectangle<float>(c.r.x, c.r.y, c.r.w, c.r.h), L[logo]);
-    if (stripShown()) drawKeyStripStatic(g, L, kPages[page].stripY);
     // header texts
     for (auto& t : kChrome.texts) {
         const juce::String id = t.id;
@@ -359,6 +374,15 @@ void Root::paint(juce::Graphics& g) {
 // ------------------------------------------------------------------------------ tips and bubbles
 const Tip* Root::tipAtPoint(juce::Point<float> p, juce::Rectangle<float>&) const {
     if (mpMenu->isVisible()) for (auto& t : mpTips) if (p.x >= t.r.x && p.x <= t.r.x + t.r.w && p.y >= t.r.y && p.y <= t.r.y + t.r.h) return &t;
+    if (stripShown()) {                                    // the BEND and MOD wheels have tips (data-tip); the keys do not
+        for (int i = 0; i < 2; ++i) {
+            const Wheel& w = kStrip.wheels[(size_t) i]; const float y0 = kPages[page].stripY;
+            if (p.x >= w.r.x && p.x < w.r.x + w.r.w && p.y >= y0 + w.r.y && p.y < y0 + w.r.y + w.r.h) {
+                wheelTips[i] = { { w.r.x, y0 + w.r.y, w.r.w, w.r.h }, w.tip, "" };
+                return &wheelTips[i];
+            }
+        }
+    }
     const Tip* best = nullptr; float ba = 1e12f;
     for (auto& t : kChrome.tips) if (p.x >= t.r.x && p.x <= t.r.x + t.r.w && p.y >= t.r.y && p.y <= t.r.y + t.r.h) { const float a = t.r.w * t.r.h; if (a <= ba) { best = &t; ba = a; } }
     if (best) return best;
@@ -396,8 +420,9 @@ bool Root::keyPressed(const juce::KeyPress& k) {
     if (k == juce::KeyPress::escapeKey && mpMenu->isVisible()) { hideBlockMenu(); return true; }
     if (k == juce::KeyPress::escapeKey && menu->isVisible()) { menu->setVisible(false); return true; }
     if (dialogs->isOpen() && dialogs->keyPressed(k)) return true;
-    return false;
+    return strip->keyDown(k);                          // computer keys play the keyboard strip while it is shown
 }
+bool Root::keyStateChanged(bool) { strip->keyStateChanged(); return false; }
 void Root::mouseDoubleClick(const juce::MouseEvent& e) {
     const auto p = e.getEventRelativeTo(this).position;
     if ((p.x < kCheekL.w || p.x >= kCheekR.x) && onDefaultSize) onDefaultSize();   // the mockup: double click a wood cheek for 100%
@@ -434,9 +459,10 @@ void Root::timerCallback() {
     stopTimer(); startTimerHz(20);
 }
 
-void Root::showValueBubble(juce::Component& c, int idx) {
+void Root::showValueBubble(juce::Component& c, int idx) { showTextBubble(c, ctl.label(idx) + "  " + ctl.fmt(idx)); }
+void Root::showTextBubble(juce::Component& c, const juce::String& text) {
     valBubble->L = &look();
-    valBubble->setVal(ctl.label(idx) + "  " + ctl.fmt(idx));
+    valBubble->setVal(text);
     auto r = getLocalArea(&c, c.getLocalBounds()).toFloat();
     const float nw = (float) valBubble->getWidth(), nh = (float) valBubble->getHeight(), H = (float) designHeight();
     float x = r.getX() + (r.getWidth() - nw) / 2.0f, y = r.getBottom() + 4.0f;
@@ -446,7 +472,18 @@ void Root::showValueBubble(juce::Component& c, int idx) {
 }
 
 bool Root::applyState(const juce::String& s) {
-    if (s == "reset") { dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
+    if (s.startsWith("kbd_")) {                          // test hook: kbd_<sound|chain|master>_n60_n64_b40_m90_dragb_focusm (notes held, wheel values, wheel states)
+        juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();
+        ctl.quiet(P_prev, 1); showPage(t[1] == "chain" ? kChain : t[1] == "master" ? kMaster : kSound);
+        int drag = -1, focus = -1;
+        for (int i = 2; i < t.size(); ++i) {
+            const auto& k = t[i]; const int v = k.substring(1).getIntValue();
+            if (k.startsWith("n")) strip->noteOn(v); else if (k.startsWith("b") && k.length() > 1) ctl.quiet(P_bend, v);
+            else if (k.startsWith("m") && k.length() > 1) ctl.quiet(P_mod, v);
+            else if (k == "dragb") drag = 0; else if (k == "dragm") drag = 1; else if (k == "focusb") focus = 0; else if (k == "focusm") focus = 1;
+        }
+        strip->snapshotState(drag, focus); return true; }
+    if (s == "reset") { strip->releaseAll(); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
     if (s.endsWith("_nokbd")) {                          // test hook: PREVIEW off, keyboard strip hidden (sound_nokbd chain_nokbd master_nokbd)
         ctl.quiet(P_prev, 0); const auto n = s.upToFirstOccurrenceOf("_nokbd", false, false);
         showPage(n == "chain" ? kChain : n == "master" ? kMaster : kSound); return true; }

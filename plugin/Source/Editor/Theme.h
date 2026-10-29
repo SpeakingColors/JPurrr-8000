@@ -30,7 +30,11 @@ void drawHeaderButton(juce::Graphics& g, juce::Rectangle<float> r, const juce::S
 juce::Path catPath();                                    // the cat head of the logo (viewBox 0 0 40 40)
 void drawCat(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour fill);
 void drawWood(juce::Graphics& g, juce::Rectangle<float> r, bool left);
-// v3.3 keyboard strip, static placeholder (no key presses, wheels at rest). y0 = Page::stripY. Replace with the live strip later.
-void drawKeyStripStatic(juce::Graphics& g, const Look& L, float y0);
+// v3.3 keyboard strip (#kbd), drawn in pieces so the live strip can paint keys and wheels in their own components.
+// y0 = Page::stripY; all x are window x. lit = 128 flags (pressed keys) or nullptr.
+void drawKeyStripBox(juce::Graphics& g, const Look& L, float y0);
+void drawKeyStripKeys(juce::Graphics& g, float y0, const bool* lit);
+void drawKeyStripWheel(juce::Graphics& g, const Look& L, float y0, int idx, float wn, float handleWn, bool dragging, bool focus);
+void drawKeyStripCaptions(juce::Graphics& g, const Look& L, float y0);
 
 } // namespace jp

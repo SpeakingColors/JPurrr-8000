@@ -381,13 +381,13 @@ struct Synth::Impl {
     }
 
     // ------------------------------------------------------------ events
-    void noteOn(int ch, int note, int vel) {
+    void noteOn(int ch, int note, int vel, bool anyChannel = false) {
         if (!prepared) return;
         ch &= 15; note = std::min(127, std::max(0, note)); vel = std::min(127, std::max(1, vel));
         bool use[2] = { false, false };
-        if (keyMode == 0) use[0] = partAccepts(0, ch);
-        else if (keyMode == 1) { use[0] = partAccepts(0, ch); use[1] = partAccepts(1, ch); }
-        else { const int p = note < splitPoint ? 1 : 0; use[p] = partAccepts(p, ch); }
+        if (keyMode == 0) use[0] = anyChannel || partAccepts(0, ch);
+        else if (keyMode == 1) { use[0] = anyChannel || partAccepts(0, ch); use[1] = anyChannel || partAccepts(1, ch); }
+        else { const int p = note < splitPoint ? 1 : 0; use[p] = anyChannel || partAccepts(p, ch); }
         if (!use[0] && !use[1]) return;
         if (!keyDown[ch][note]) { keyDown[ch][note] = true; ++keysDown; }
         if (live) {
@@ -531,6 +531,8 @@ void Synth::setPartParams(int part, const int* v) {
 }
 void Synth::noteOn(int ch, int note, int vel) { if (vel <= 0) impl_->noteOff(ch, note); else impl_->noteOn(ch, note, vel); }
 void Synth::noteOff(int ch, int note) { impl_->noteOff(ch, note); }
+void Synth::stripNoteOn(int note, int vel) { if (vel > 0) impl_->noteOn(15, note, vel, true); }
+void Synth::stripNoteOff(int note) { impl_->noteOff(15, note); }
 void Synth::allNotesOff() { impl_->releaseAll(false); }
 void Synth::pitchBend(int, int value14) {
     const int v = std::min(8191, std::max(-8192, value14));

@@ -69,6 +69,14 @@ void JPurrr8000AudioProcessor::setAll(const int* v) {
 }
 void JPurrr8000AudioProcessor::getAll(int* v) const { for (int i = 0; i < kNumParams; ++i) v[i] = getInt(i); }
 
+void JPurrr8000AudioProcessor::pushStrip(StripEvent e) {
+    int s1, n1, s2, n2; stripFifo.prepareToWrite(1, s1, n1, s2, n2);
+    if (n1 > 0) { stripData[(size_t) s1] = e; stripFifo.finishedWrite(1); }
+    else if (e.kind == 1) stripPanic.store(true);                     // a lost note off or all-off must never leave a note hanging
+}
+void JPurrr8000AudioProcessor::stripNoteOn(int note)  { pushStrip({ 0, (std::int8_t) juce::jlimit(0, 127, note) }); }
+void JPurrr8000AudioProcessor::stripNoteOff(int note) { pushStrip({ 1, (std::int8_t) juce::jlimit(0, 127, note) }); }
+
 void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce::MidiBuffer& midi) {
     juce::ScopedNoDenormals noDenormals;
     const int n = buf.getNumSamples();
@@ -93,6 +101,18 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
             done = end;
         }
     };
+    // notes from the editor's keyboard strip play first, at the start of the block
+    if (stripPanic.exchange(false)) synth.allNotesOff();
+    {
+        int s1, n1, s2, n2; stripFifo.prepareToRead(stripFifo.getNumReady(), s1, n1, s2, n2);
+        auto play = [&](const StripEvent& e) {
+            if (e.kind == 0) { if (synth.heldVoices() == 0) fx.restartGate(); synth.stripNoteOn(e.note, jpurrr::kKeyVelocity); }
+            else synth.stripNoteOff(e.note);
+        };
+        for (int i = 0; i < n1; ++i) play(stripData[(size_t) (s1 + i)]);
+        for (int i = 0; i < n2; ++i) play(stripData[(size_t) (s2 + i)]);
+        stripFifo.finishedRead(n1 + n2);
+    }
     bool wake = false;
     auto pushUpdate = [&](int param, int value) {
         int s1, n1, s2, n2; midiFifo.prepareToWrite(1, s1, n1, s2, n2);

@@ -8,6 +8,7 @@ namespace jp {
 class PnameW;
 class MenuPanel;
 class Bubble;
+class KeyboardStrip;
 
 class Root : public juce::Component, private juce::Timer {
 public:
@@ -19,6 +20,7 @@ public:
     int pageIndex() const { return page; }
     int designHeight() const;                          // page height, with the keyboard strip while PREVIEW is on
     bool stripShown() const;
+    void layoutStrip();                                // place the keyboard strip under the page, show or hide it with PREVIEW
     void syncHeight();                                 // follow a PREVIEW change: resize the content and tell the editor
     std::function<void()> onPageChanged;               // the editor resizes itself
     std::function<void()> onDefaultSize;               // double click on a wood cheek: back to 100%
@@ -36,7 +38,10 @@ public:
     void mouseDrag(const juce::MouseEvent&) override;
     void mouseDoubleClick(const juce::MouseEvent&) override;
     bool keyPressed(const juce::KeyPress&) override;
+    bool keyStateChanged(bool isDown) override;
     void showValueBubble(juce::Component& c, int idx);
+    void showTextBubble(juce::Component& c, const juce::String& text);   // the value bubble with a given text (keyboard wheels)
+    KeyboardStrip* keyStrip() { return strip.get(); }
     void hideValueBubble();
     void hideTip();
     void showMenu(bool show);
@@ -57,10 +62,12 @@ private:
     void showBlockMenu(int mp, juce::Rectangle<float> button);          // button in Root coordinates
     bool applyBlockState(const juce::String& name);
     std::unique_ptr<Bubble> tipBubble, valBubble;
+    std::unique_ptr<KeyboardStrip> strip;
     std::unique_ptr<DialogLayer> dialogs;
     juce::Image texture;
     juce::String lastInfo, lastMsg, lastTitle;
     const layout::Tip* hoverTip = nullptr; juce::Point<float> hoverPos; juce::uint32 hoverSince = 0;
+    mutable layout::Tip wheelTips[2];                  // tips of the keyboard wheels (position follows the page)
     const layout::Tip* tipDone = nullptr;              // tip dismissed by a press: not shown again until the pointer reaches another element
     void timerCallback() override;
     void updateTip();

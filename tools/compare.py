@@ -3,6 +3,9 @@
 # Writes <state>_diff.png (red = differing pixels over the dimmed mockup) and prints the share of differing pixels.
 import sys, os
 from PIL import Image, ImageChops
+# With --strip the share is also printed for the keyboard strip alone (166 px tall box, 196 px above the window bottom).
+strip = '--strip' in sys.argv
+if strip: sys.argv.remove('--strip')
 mock, plug, out = sys.argv[1:4]
 os.makedirs(out, exist_ok=True)
 states = sys.argv[4:] or sorted(f[:-4] for f in os.listdir(plug) if f.endswith('.png'))
@@ -17,4 +20,9 @@ for s in states:
     base = a.point(lambda v: v // 3)
     base.paste(Image.new('RGB', a.size, (255, 40, 40)), mask=d)
     base.save(os.path.join(out, s + '_diff.png'))
-    print('%-10s differing pixels %.2f%%' % (s, 100.0 * n / (a.width * a.height)))
+    print('%-10s differing pixels %.2f%%' % (s, 100.0 * n / (a.width * a.height)), end='')
+    if strip and 'nokbd' not in s:
+        y0 = a.height - 196; box = (0, y0, a.width, y0 + 166)
+        ds = d.crop(box); ns = sum(1 for v in ds.getdata() if v)
+        print('   strip only %.2f%%' % (100.0 * ns / (ds.width * ds.height)), end='')
+    print()
