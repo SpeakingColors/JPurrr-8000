@@ -10,6 +10,8 @@ What the plugin can read and write, how sure we are, and what is left out. Short
 
 Files from the mockup and files from the plugin are the same text: paste one into the other.
 
+**The piano strip sends no MIDI.** The keyboard strip in the editor (mouse and computer keys) plays the synth directly, on a channel that every part accepts, with a fixed velocity of 100. Nothing goes to the MIDI output, so a DAW cannot record it, and it is not a MIDI source for other plugins. Its BEND and MOD wheels write the lever values (the BEND and MOD parameters, the same ones the lever display and CC 1 move); they send no pitch bend or CC message. Block presets (the FX block preset menus) are stored in their own file and are not part of any `.json` or `.syx` preset.
+
 ## Status of the SysEx map
 
 **Verified (manual plus a real instrument dump)**

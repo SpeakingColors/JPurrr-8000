@@ -723,7 +723,7 @@ const Tip sound_tips[] = {
   {{973.97f,439.f,40.f,41.31f},"Hold: keep the arpeggio going after you let go.","ahold"},
   {{1021.97f,439.f,40.f,41.31f},"Record an RPS pattern (comes with the plugin).","arec"},
   {{1069.97f,439.f,67.47f,41.31f},"Play a built in RPS pattern (comes with the plugin).","arom"},
-  {{913.17f,484.31f,48.f,82.f},"Tempo in BPM. In the plugin it follows the host tempo.","atp"},
+  {{913.17f,484.31f,48.f,82.f},"Tempo in BPM for the standalone app. In a DAW the host tempo is used.","atp"},
   {{973.17f,484.31f,91.17f,145.31f},"Arpeggio mode, or RPS (realtime phrase sequencer).","amd"},
   {{1076.34f,484.31f,53.27f,120.31f},"Range in octaves.","arg"},
   {{1243.39f,484.f,68.34f,95.31f},"Single, dual (two layered patches) or split keyboard.","km"},

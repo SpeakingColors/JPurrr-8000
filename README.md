@@ -8,13 +8,16 @@ A free and open source VST3 synth and standalone app for Linux, Windows and macO
 
 ## Status
 
-First test release. The synth engine, the FX chain, the MASTER section, factory sounds (51), the MIDI map and JP-8000/JP-8080 SysEx patch import and export are in. The window is built from the approved design mockup ([docs/mockups/JPurrr-8000-mockup-v3.2.html](docs/mockups/JPurrr-8000-mockup-v3.2.html)). Not done yet: voice modulator, external input, RPS recording, Motion. See [ROADMAP.md](ROADMAP.md) for the full list.
+Version 0.2.0 (test release). The synth engine, the FX chain, the MASTER section, factory sounds (51), the MIDI map and JP-8000/JP-8080 SysEx patch import and export are in. New in 0.2.0: your own FX block presets, a playable keyboard strip with BEND and MOD wheels, and DUAL and SPLIT with a different sound in each part (EDIT PARTS). The window is built from the approved design mockup ([docs/mockups/JPurrr-8000-mockup-v3.5.html](docs/mockups/JPurrr-8000-mockup-v3.5.html)). Not done yet: voice modulator, external input, RPS recording, Motion. See [ROADMAP.md](ROADMAP.md) for the full list.
 
 ## The idea
 
 - **Sound page:** the JP-8000 front panel experience: Super Saw and the other oscillators, filter, LFOs, amp, arpeggiator, effects, key modes, patch select display.
 - **FX page:** our own twist. A mix ready chain (trance gate, drive stack, low end, M/S EQ, transient, tamer, glue, widener, auto pan) and a MASTER page (opto leveller, OTT style squeeze, a four band multiband compressor and limiter, clipper and limiter), so every sound comes out sounding finished. Every block has its own preset menu.
 - Live displays that react to the sound going through.
+- **Block presets:** every FX block has a preset menu with factory settings. SAVE keeps the knobs of a block as your own preset (it then shows under YOUR PRESETS); the ... button renames or deletes it.
+- **Keyboard strip:** a piano at the bottom of the window with BEND and MOD wheels. Play it with the mouse or the computer keys (`Z S X D C V G B H N J M` and `Q 2 W 3 E R 5 T 6 Y 7 U I`). BEND springs back, MOD stays where you leave it. The PREVIEW switch hides it. The strip plays the sound itself and sends no MIDI out.
+- **EDIT PARTS:** in DUAL and SPLIT the UPPER and LOWER parts each keep their own sound. EDIT PARTS opens a band with the two sounds and a keys map; in SPLIT the split point is a marker on the keyboard strip that you drag. The window height follows the page: the SOUND, CHAIN and MASTER pages have different heights, the strip and the PARTS band add to them.
 - Presets: load and save our own `.json` format, and import JP-8080 SysEx patches and banks (`.syx`); export JP-8080 and JP-8000 SysEx. MIDI CC and NRPN control is documented in [docs/midi-and-sysex.md](docs/midi-and-sysex.md).
 
 Works 100% offline.
@@ -51,7 +54,7 @@ cmake --build build --parallel 2
 
 On Linux install these packages first (Debian and Ubuntu names): `libasound2-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libfreetype-dev libfontconfig1-dev libgl1-mesa-dev libxext-dev`. On Windows use `-A x64` and `--config Release`. For a universal macOS build add `-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"`.
 
-Releases are built by GitHub Actions: pushing a tag like `v0.1.0` (it must match the version in `CMakeLists.txt`) builds all three systems, makes the installers and publishes the release. `scripts/` and `installer/` hold the packaging.
+Releases are built by GitHub Actions: pushing a tag like `v0.2.0` (it must match the version in `CMakeLists.txt`) builds all three systems, makes the installers and publishes the release. `scripts/` and `installer/` hold the packaging.
 
 ## Licence
 

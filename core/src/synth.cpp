@@ -3,6 +3,8 @@
 #include "jpurrr/synth.h"
 #include "dsp/synth_voice.h"
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 #if defined(__SSE__) || defined(_M_X64)
 #include <xmmintrin.h>
@@ -304,6 +306,7 @@ struct Synth::Impl {
         for (int i = 0; i < a.n; ++i) if (a.list[i].down) anyDown = true;
         if (arpHold && !anyDown) { a.n = 0; a.pos = 0; }
         for (int i = 0; i < a.n; ++i) if (a.list[i].note == note) { a.list[i].vel = vel; a.list[i].down = true; a.list[i].ch = ch; return; }
+        if (a.n == 0) a.pos = 0;                                       // a new chord starts at the beginning of the pattern
         if (a.n < kArpMax) a.list[a.n++] = { note, vel, ch, true };
         if (!playing && a.n == 1 && a.curNote < 0) stepNow = true, stepPhase = 0.0;   // free running: start at once
     }
@@ -340,6 +343,7 @@ struct Synth::Impl {
         const int oct = seqPos / n, idx = seqPos % n;
         const int note = std::min(127, a.list[sorted[idx]].note + 12 * oct);
         a.curNote = note; a.curCh = chs[idx];
+        if (std::getenv("ARP_DEBUG")) std::printf("ARPDBG note %d pos %d n %d range %d mode %d\n", note, a.pos - 1, a.n, arpRange, arpMode);   // TEMP
         partOn(p, chs[idx], note, vels[idx]);
         a.gateLeft = 0.6 * stepBeats() * 60.0 / bpm() * sr;
     }

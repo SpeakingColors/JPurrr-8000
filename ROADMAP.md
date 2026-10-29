@@ -10,14 +10,18 @@ Rough order. Nothing here is promised for a date.
 - MIDI: CC map (JP-8080 factory numbers), RPN, own NRPN scheme (see docs/midi-and-sysex.md).
 - Installers for Linux, Windows and macOS, PDF manual.
 
-## Done since 0.1.0
+## Done in 0.2.0
 - Dual and Split with a different sound per part: UPPER and LOWER cards (EDIT PARTS on the SOUND page), PANEL SELECT edits one part or both, both sounds are saved with the session.
+- Keyboard strip with BEND and MOD wheels (mouse and computer keys), PREVIEW switch, split marker and part tints on the keys.
+- Your own FX block presets: SAVE, rename and delete on every block, listed under YOUR PRESETS.
+- A window height for each page (with or without the keyboard strip and the PARTS band).
+- The arpeggiator is checked end to end through the plugin (button, strip and MIDI notes, host tempo, MODE, RANGE, HOLD); the TEMPO knob sets the speed when the host gives no tempo (Standalone).
 
 ## Next
-- The effects section (bass, treble, multi-FX, delay) is one effect for both parts and follows the UPPER sound.
-- Check the SysEx exports and the enum orders (OSC1 waveform, Multi-FX type, Delay type) on real hardware.
+- Check the three enum orders (OSC1 waveform, Multi-FX type, Delay type) and the SysEx exports on real hardware.
+- An export dialog that asks about the format, the device ID and the memory slot; Arturia export.
+- Check the engine against the JP-8000 manual: delay times, effects per part (the effects section is still one effect for both parts and follows the UPPER sound), arpeggiator beat patterns beyond the first six.
 - Voice modulator and external input processing.
 - RPS recording and ROM patterns, Motion recording.
-- Preview keyboard and PREVIEW switch in the standalone.
 - Measure the sound against hardware recordings; tune the chorus, phaser and flanger designs.
 - Other formats (CLAP, AU) and a Flatpak.

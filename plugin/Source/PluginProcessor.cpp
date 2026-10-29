@@ -147,10 +147,14 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
     }
     synth.setParams(lastPv[0]); synth.setPartParams(0, lastPv[0]); synth.setPartParams(1, lastPv[1]);
     soundFx.setParams(lastPv[0]); fx.setParams(vals);
-    if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) {
-        const double bpm = pos->getBpm().orFallback(120.0);
+    // Tempo: the host's when it gives one, else the ARPEGGIATOR TEMPO knob (Standalone has a play head without a tempo).
+    {
+        double bpm = juce::jlimit(20.0, 250.0, (double) vals[P_atp]); bool playing = false; double ppq = 0.0;
+        if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) {
+            bpm = pos->getBpm().orFallback(bpm);
+            playing = pos->getIsPlaying(); ppq = pos->getPpqPosition().orFallback(0.0);
+        }
         synth.setTempo(bpm); soundFx.setTempo(bpm); fx.setTempo(bpm);
-        const bool playing = pos->getIsPlaying(); const double ppq = pos->getPpqPosition().orFallback(0.0);
         synth.setTransport(playing, ppq); fx.setTransport(playing, ppq);
     }
     float* l = buf.getWritePointer(0); float* r = buf.getNumChannels() > 1 ? buf.getWritePointer(1) : l;

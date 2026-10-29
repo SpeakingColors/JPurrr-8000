@@ -2219,7 +2219,7 @@
    "opts": null,
    "nosave": false,
    "mom": false,
-   "tip": "Tempo in BPM. In the plugin it follows the host tempo."
+   "tip": "Tempo in BPM for the standalone app. In a DAW the host tempo is used."
   },
   {
    "id": "amd",

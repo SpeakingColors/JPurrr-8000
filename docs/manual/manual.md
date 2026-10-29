@@ -12,12 +12,12 @@ The screenshots in img/ are taken from the real editor with the jpurrr_snapshot 
 JPurrr-8000 is a free and open source synthesizer plugin (VST3) and standalone app for Linux, Windows and macOS. It follows the sound and the front panel of the late 90s JP-8000 and JP-8080: Super Saw oscillator, filter, LFOs, amp, arpeggiator, effects and the patch select display. On top of that it has its own FX page, a mix ready processing chain, so a sound comes out ready for a track.
 
 - Works 100% offline. No account, no update check, nothing is locked.
-- Stereo output, MIDI input. Use it as an instrument in your DAW.
+- Stereo output, MIDI input. Use it as an instrument in your DAW. The piano strip at the bottom of the window plays it without a MIDI keyboard.
 - Free software under AGPL-3.0-or-later.
 
 JPurrr-8000 is not a copy of a Roland product. It contains no Roland code, ROM or samples. It is not affiliated with or endorsed by Roland or Arturia. All names belong to their owners.
 
-![The JPurrr-8000 window, Sound page](img/sound.png)
+![The JPurrr-8000 window, Sound page, with the piano strip](img/sound.png)
 
 # Install
 
@@ -54,7 +54,8 @@ The plugin goes to `/Library/Audio/Plug-Ins/VST3`, the app to `/Applications`, a
 2. Play a note.
 3. Click the preset name at the top to open the preset browser. The START HERE list has a few good first sounds. The arrows next to the name step through presets.
 4. Turn the knobs. Hover a control for one second to see what it does.
-5. Open the FX tab. MIX READY is on by default, so the sound already runs through the chain. Pick a SOUND TYPE (LEAD, PAD, BASS, PLUCK, CHORD or FX) and press APPLY TYPE to set every module for that kind of sound.
+5. No MIDI keyboard? Play the piano at the bottom of the window with the mouse, or with the computer keys (see The piano strip).
+6. Open the FX tab. MIX READY is on by default, so the sound already runs through the chain. Pick a SOUND TYPE (LEAD, PAD, BASS, PLUCK, CHORD or FX) and press APPLY TYPE to set every module for that kind of sound.
 
 # The window
 
@@ -62,8 +63,30 @@ The top bar has the preset name with the arrows and the preset menu, the SOUND a
 
 - **Knobs and sliders:** drag up and down. Hold Shift for fine steps. The mouse wheel and the arrow keys work too. Double click (or press Enter) to reset to the default.
 - **Bubbles:** hover a control for about one second to see its help bubble. Turn them off in Settings.
-- **Size:** drag any edge or corner. The shape stays the same and everything scales. Double click a wooden cheek to return to 100%.
+- **Size:** drag any edge or corner. The shape stays the same and everything scales. Double click a wooden cheek to return to 100%. The window keeps its width when you change page, and the height follows the page (see Window sizes below).
 - **Value display:** while you turn a control, its name and value show in the patch display.
+
+## Window sizes
+
+Every page has its own height at the same width, so nothing is cut off and nothing is empty. The numbers are at 100% size (2920 px wide):
+
+| Page | Without the piano | With the piano (PREVIEW on) |
+|---|---|---|
+| SOUND | 931 px | 1105 px |
+| FX, CHAIN | 961 px | 1135 px |
+| FX, MASTER | 1099 px | 1273 px |
+
+EDIT PARTS (SOUND page only) adds the PARTS band, 175 px more. When you drag the window bigger or smaller, the shape of the current page stays the same.
+
+## The piano strip
+
+The piano at the bottom of the window (see the picture at the start of this manual) plays the sound itself, so you can try a sound without a MIDI keyboard. It plays through the same key mode, arpeggiator and effects as a MIDI note. It sends no MIDI out: your DAW does not record it.
+
+- **Mouse:** press a key to play it, drag across the keys to glide (glissando). Where a black key overlaps a white one, the black key wins.
+- **Computer keys:** the lower row plays from C3: `Z S X D C V G B H N J M` are C, C#, D, D#, E, F, F#, G, G#, A, A# and B, and `,` is the C above. The upper row plays from C4: `Q 2 W 3 E R 5 T 6 Y 7 U` and `I` is the C above. Typing in a text field never plays a note, and keys with Ctrl or Cmd are left to the DAW.
+- **BEND wheel (left):** drag up or down, or use the arrow keys while it has focus. It springs back to the middle when you let go. The range is BEND UP and BEND DOWN.
+- **MOD wheel:** moves the mod lever (what the CC 1 message moves too, so LFO 2 depth). It stays where you leave it. Double click or Home resets it to 0. The wheels write the same lever values as the BEND / MOD lever display in the lower left of the SOUND page, so both always agree.
+- **PREVIEW** (in the VOLUME box) hides or shows the strip. Hiding it lets go of any held key and makes the window shorter.
 
 # The Sound page
 
@@ -111,11 +134,22 @@ LFO 1: WAVEFORM (TRI, SAW, SQR, S/H), RATE, FADE (time to reach full depth after
 
 ## Arpeggiator and RPS
 
-ON / OFF, HOLD (keep playing after you let go), MODE (UP, DOWN, UP & DOWN, RANDOM, RPS), RANGE (1 to 4 octaves) and TEMPO. In the plugin the tempo follows the host. The beat pattern list (on the parameter pages) has 90 entries from 1/4 to 1/32 and the PORTA, SEQUENCE, ECHO, MUTE, STRUMMING, REFRAIN, PERCUSSION, WALKING BASS, HARP and RANDOM groups. REC and ROM PLAY are for the RPS (see Known limits). The two MOTION buttons are on the panel but do nothing yet (planned).
+ON / OFF, HOLD (keep playing after you let go), MODE (UP, DOWN, UP & DOWN, RANDOM, RPS), RANGE (1 to 4 octaves) and TEMPO. Hold a chord (on a MIDI keyboard or on the piano strip) and the arpeggiator plays its notes one after the other, a step every 1/16 note by default. In a DAW the speed follows the host tempo, and the TEMPO knob is not used. The standalone app has no host tempo, so there the TEMPO knob (20 to 250 BPM) sets the speed of the arpeggiator and of the tempo synced effects. A new chord always starts at the beginning of the pattern. The beat pattern list (on the parameter pages) has 90 entries from 1/4 to 1/32 and the PORTA, SEQUENCE, ECHO, MUTE, STRUMMING, REFRAIN, PERCUSSION, WALKING BASS, HARP and RANDOM groups. REC and ROM PLAY are for the RPS (see Known limits). The two MOTION buttons are on the panel but do nothing yet (planned).
 
 ## Key mode and panel select
 
-KEY MODE: SINGLE, DUAL (two patches layered) or SPLIT (a split point, one patch per side). PANEL SELECT chooses which part the panel edits: LOWER, UPPER, BOTH (edits the two parts together) or VOICE MOD. VOICE ASSIGN shares the voices between the two parts (8-2 down to 2-8). OUTPUT ASSIGN mixes both parts, or sends lower left and upper right.
+KEY MODE: SINGLE, DUAL (two sounds layered) or SPLIT (a split point, one sound per side). In DUAL and SPLIT the sound has two parts, UPPER and LOWER, and each part keeps its own sound. PANEL SELECT chooses which part the panel edits: LOWER, UPPER, BOTH (edits the two parts together) or VOICE MOD. The knobs always show the part you are editing; both sounds are saved with your DAW project. VOICE ASSIGN shares the voices between the two parts (8-2 down to 2-8). OUTPUT ASSIGN mixes both parts, or sends lower left and upper right.
+
+## EDIT PARTS
+
+![The SOUND page with the PARTS band open, KEY MODE SPLIT](img/sound-parts.png)
+
+The EDIT PARTS button on the SOUND page opens the PARTS band between the panel and the piano strip: the UPPER and LOWER cards at the sides and a map of the keys between them. Press it again to close the band and get the window height back.
+
+- **The cards** show the sound of each part with its name and genre tags. The arrows step through the presets for that part and BROWSE opens the preset browser for it; what you pick goes to that part only. A click on a card puts that part's sound on the panel for editing (this is PANEL SELECT). In KEY MODE SINGLE the LOWER card is greyed out: there is only one part.
+- **The keys map and the split point:** in SPLIT the keys below the split point play LOWER and the keys from the split point up play UPPER. The piano strip shows the split as a marker; drag it, or focus it and use the arrow keys (one key) or Page Up and Page Down or Shift with the arrows (one octave). The split point stops at C7. In DUAL both parts play every key, and the keys carry both tints. Without the band the strip is plain.
+- **Loading a sound** from the browser goes to the part you are editing. The effects section (bass, treble, multi-FX and delay) is one effect for both parts and follows the UPPER sound; the voices, the arpeggiator, the MIX READY chain and the setup follow the panel and are shared.
+- **Old sessions** made with version 0.1.0 load as before: both parts get the one saved sound.
 
 ## Effects
 
@@ -173,6 +207,20 @@ The whole chain runs in this order: gate (BEFORE FX position), DRIVE STACK, LOW 
 
 ![The preset browser](img/browser.png)
 
+## Block presets
+
+Every block of the FX page (the trance gate, DRIVE STACK, LOW END, M/S EQ, TRANSIENT, TAMER, GLUE, WIDENER, AUTO PAN, and on the MASTER page the opto leveller, OTT SQUEEZE, output stage and the multiband compressor and limiter) has a small preset menu of its own. It holds factory settings for that one block, for example the nine trance gate presets (Classic 16th, Soft Pulse, Ducked Between, Pluck Decay, Swell Into Note, Hard Chop, Offbeat Pump, Rolling Triplets and Stutter Fast). Pick one and only the knobs of that block change.
+
+![The preset menu of the DRIVE STACK block with YOUR PRESETS](img/block-popup.png)
+
+- **Your own block presets:** turn the knobs until it sounds right and press SAVE on the block. The preset shows up under YOUR PRESETS in the block's menu, below the factory ones. A block shows Custom in its menu when its knobs match no preset.
+- **Save:** type a name (up to 40 letters). If you use the name of one of your own presets the plugin asks before it replaces it. A factory name cannot be used: pick another.
+
+![The Save block preset dialog](img/block-save.png)
+
+- **Rename and delete:** the ... button on the block. It works on your own presets only; factory presets cannot be changed.
+- **Where they live:** one file, `block_presets.json`, in the `Studio 87/JPurrr-8000` folder of your user data (on Linux `~/.config/Studio 87/JPurrr-8000`). It is shared by every instance of the plugin and is never removed by an uninstall. The settings of a block are also stored in the sound and in your DAW project, so a song keeps its knobs even if you later delete the preset.
+
 # Import and export
 
 - **Own format (text):** Export shows the preset as plain JSON text that you can copy. Import checks it first: unknown keys are ignored, values that are the wrong type or out of range are skipped and counted, and a file that is not a JPurrr-8000 preset is refused. Banks use the same format.
@@ -207,7 +255,9 @@ The Guide button shows a short list of the shortcuts. About & Support shows the 
 - The trance gate POSITION decides if delay tails ring between steps (BEFORE FX) or get chopped too (AFTER FX).
 - Use MUTE and SOLO on the multiband bands to hear what each band does. They are not saved with the sound.
 - A higher VOICES count uses more CPU. 10 voices are like the hardware.
-- Use a MIDI keyboard or your DAW's piano roll. The standalone app needs a MIDI device.
+- Use a MIDI keyboard, your DAW's piano roll or the piano strip. The standalone app does not need a MIDI device for the strip.
+- Press PREVIEW to hide the strip when you do not need it: the window gets shorter.
+- Save the settings of a block you like (trance gate, drive, glue) as your own block preset and reuse it in the next song.
 
 # Known limits
 
@@ -216,10 +266,11 @@ This is an early version. Written down plainly so nothing surprises you:
 - JPurrr-8000 follows the sound and the front panel of the JP-8000 and JP-8080. It is not a sample or ROM copy and it will not sound identical to the hardware.
 - SysEx export is checked against the JP-8000 and JP-8080 manuals but not yet on real hardware. The CC mapping follows the JP-8080 manual; the Roland NRPN numbers are not used.
 - The sound engine follows the hardware by ear and by the manual, not by measurement against a real unit. Chorus, phaser and flanger designs and the Super Saw high pass are our own interpretation.
-- DUAL and SPLIT work, but both parts play the current sound; a different patch per part is not available in this version.
+- DUAL and SPLIT give each part its own sound, but the effects section (bass, treble, multi-FX and delay) is one effect for both parts and follows the UPPER sound.
+- The arpeggiator plays the first six entries of the beat pattern list (steps of 1/4, 1/6, 1/8, 1/12, 1/16 and 1/32); the other entries play as 1/16 for now. REC and ROM PLAY are not working yet.
 - There is no audio input yet, so the EXTERNAL INPUT section and the EXT oscillator source have no sound to work on. The controls are on the panel and are saved with the sound. The same is planned for the VOICE MODULATOR processing.
 - RPS recording and ROM patterns, MOTION recording, INDIVIDUAL TRIGGER and EXTERNAL TRIGGER are planned.
-- An on-screen preview keyboard is part of the design mockup but not part of the plugin; play it with a MIDI keyboard.
+- The piano strip has no velocity (every key plays at the same strength, 100) and no aftertouch. It sends no MIDI out.
 - Only the VST3 format is built. There is no AU, CLAP or AAX version.
 - The installers are not signed (see Install), so Windows and macOS show a warning once.
 - A plugin can behave differently in a host that was not tested. Please report problems, with the name of your host, on the issues page of the project.

@@ -127,7 +127,7 @@ const ParamDef kParams[kNumParams] = {
     {"ahold", PType::Switch, "HOLD", 0, 1, 0, 0, 0, 0, "Hold: keep the arpeggio going after you let go."},
     {"arec", PType::Switch, "REC", 0, 1, 0, 3, 0, 0, "Record an RPS pattern (comes with the plugin)."},
     {"arom", PType::Switch, "ROM PLAY", 0, 1, 0, 3, 0, 0, "Play a built in RPS pattern (comes with the plugin)."},
-    {"atp", PType::Knob, "TEMPO", 20, 250, 128, 0, 0, 0, "Tempo in BPM. In the plugin it follows the host tempo."},
+    {"atp", PType::Knob, "TEMPO", 20, 250, 128, 0, 0, 0, "Tempo in BPM for the standalone app. In a DAW the host tempo is used."},
     {"amd", PType::Option, "MODE", 0, 4, 0, 0, 675, 5, "Arpeggio mode, or RPS (realtime phrase sequencer)."},
     {"arg", PType::Option, "RANGE", 0, 3, 0, 0, 680, 4, "Range in octaves."},
     {"mc1", PType::Switch, "1", 0, 1, 0, 0, 0, 0, "Motion control 1: play back recorded knob and slider movements."},

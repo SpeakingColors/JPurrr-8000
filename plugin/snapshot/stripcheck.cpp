@@ -6,8 +6,10 @@
 #include "Editor/Widgets.h"
 #include "jpurrr/patch.h"
 #include <juce_events/juce_events.h>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <set>
 #include <vector>
@@ -66,15 +68,18 @@ static double pitchOf(const std::vector<float>& x, int from, int n) {           
 }
 // notes of the arpeggio: stretches of sound separated by silence (the arpeggiator gates each step at 60 percent), with their pitch
 static std::vector<Seg> segments(const std::vector<float>& x) {
-    const int B = 32; std::vector<double> env; double top = 0;
+    const int B = 192; std::vector<double> env; double top = 0;
     for (size_t i = 0; i + B <= x.size(); i += B) { double s = 0; for (int k = 0; k < B; ++k) s += std::fabs(x[i + (size_t) k]); env.push_back(s / B); top = std::max(top, env.back()); }
+    std::vector<double> sorted(env); std::sort(sorted.begin(), sorted.end());
+    if (!sorted.empty()) top = sorted[(size_t) (sorted.size() * 0.8)];                        // the level of the sounding parts, whatever the attack did
     std::vector<Seg> segs; bool on = false; Seg cur;
     for (size_t k = 0; k < env.size(); ++k) {
-        const bool o = env[k] > 0.15 * top;
+        const bool o = env[k] > 0.3 * top;
         if (o && !on) { cur = {}; cur.start = (int) k * B; on = true; }
         if (!o && on) { cur.len = (int) k * B - cur.start; segs.push_back(cur); on = false; }
     }
-    for (auto& s : segs) if (s.len > 1500) s.f0 = pitchOf(x, s.start + 600, juce::jmin(1200, s.len - 900));
+    if (on) { cur.len = (int) env.size() * B - cur.start; segs.push_back(cur); }
+    for (auto& s : segs) if (s.len > 1500) s.f0 = pitchOf(x, s.start + 400, juce::jmin(1200, s.len - 900));
     return segs;
 }
 static double hz(int note) { return 440.0 * std::pow(2.0, (note - 69) / 12.0); }
@@ -83,6 +88,15 @@ static bool sequenceIs(const std::vector<Seg>& s, int from, const std::vector<in
     if ((int) s.size() < from + count) return false;
     for (int i = 0; i < count; ++i) { const double w = hz(want[(size_t) i % want.size()]); if (std::fabs(s[(size_t) (from + i)].f0 / w - 1.0) > 0.04) return false; }
     return true;
+}
+// the same, for a cycle that may be entered at any note (from the second note on: the first one of a capture can be cut)
+static bool cycleIs(const std::vector<Seg>& s, const std::vector<int>& cyc, int count) {
+    for (size_t rot = 0; rot < cyc.size(); ++rot) {
+        std::vector<int> w; for (size_t i = 0; i < cyc.size(); ++i) w.push_back(cyc[(rot + i) % cyc.size()]);
+        if (sequenceIs(s, 1, w, count)) return true;
+    }
+    std::printf("     pitches seen:"); for (size_t i = 0; i < s.size() && i < 14; ++i) std::printf(" %.0f(%d,%d)", s[i].f0, s[i].start, s[i].len); std::printf("\n");
+    return false;
 }
 static double meanGap(const std::vector<Seg>& s) { if (s.size() < 3) return 0; return (double) (s.back().start - s.front().start) / (double) (s.size() - 1); }
 
@@ -198,6 +212,7 @@ int main() {
         { Patch init; init.reset(); proc.setAll(init.v); }
         proc.setInt(P_pch, 5); proc.setInt(P_km, 0); proc.setInt(P_prev, 1); root.tick(0.5);
         // a plain sound whose notes are easy to tell apart: no effects section, fast attack and release, full sustain
+        proc.setInt(P_xl, 0); proc.setInt(P_dl, 0); proc.setInt(P_qon, 0);          // no multi-FX, no delay, MIX READY off: nothing rings on between the notes
         proc.setInt(P_aea, 0); proc.setInt(P_aer, 8); proc.setInt(P_aed, 127); proc.setInt(P_aes, 127);
         proc.setInt(P_apt, 4); proc.setInt(P_amd, 0); proc.setInt(P_arg, 0); proc.setInt(P_ahold, 0); proc.setInt(P_adst, 0);
         FakeHost host; host.bpm = 120.0; proc.setPlayHead(&host);
@@ -229,6 +244,11 @@ int main() {
         std::printf("     strip chord, UP, 120 bpm: %d notes, mean step %.0f samples; pitches", (int) sg.size(), meanGap(sg));
         for (size_t i = 0; i < sg.size() && i < 8; ++i) std::printf(" %.0f", sg[i].f0);
         std::printf("\n");
+        if (std::getenv("STRIP_DEBUG")) {
+            double top = 0; std::vector<double> env; for (size_t i = 0; i + 192 <= x.size() && i < 96000; i += 192) { double a = 0; for (int k = 0; k < 192; ++k) a += std::fabs(x[i + (size_t) k]); env.push_back(a / 192); top = std::max(top, env.back()); }
+            for (size_t k = 0; k < env.size(); ++k) { std::printf("%d", (int) std::min(9.0, 9.0 * env[k] / top)); if ((k + 1) % 31 == 0) std::printf("\n"); }   // 31 blocks = 5952 samples per row
+            std::printf("\n");
+        }
         check(sg.size() >= 14 && sg.size() <= 17, "arp: a held strip chord is retriggered 8 times per second at 120 bpm");
         check(std::fabs(meanGap(sg) - 6000.0) < 120.0, "arp: one step is a 1/16 note (6000 samples at 120 bpm)");
         check(sequenceIs(sg, 0, { 60, 64, 67 }, 9), "arp: UP plays C, E, G, C, E, G ... (the strip notes go through the arpeggiator)");
@@ -243,15 +263,15 @@ int main() {
         // MODE
         auto pitches = [&](int sec256) { return segments(capture(proc, sec256, nullptr, &host)); };
         proc.setInt(P_amd, 1); capture(proc, 40, nullptr, &host); sg = pitches(48000 / 256);
-        check(sequenceIs(sg, 1, { 67, 64, 60 }, 6) || sequenceIs(sg, 0, { 67, 64, 60 }, 6) || sequenceIs(sg, 2, { 67, 64, 60 }, 5), "arp: MODE DOWN plays G, E, C");
-        proc.setInt(P_amd, 2); capture(proc, 40, nullptr, &host); sg = pitches(48000 / 256);
-        { bool ok = false; for (int f = 0; f < 4 && !ok; ++f) ok = sequenceIs(sg, f, { 60, 64, 67, 64 }, 6); check(ok, "arp: MODE UP & DOWN plays C, E, G, E, C, E ..."); }
+        check(cycleIs(sg, { 67, 64, 60 }, 6), "arp: MODE DOWN plays G, E, C");
+        proc.setInt(P_amd, 2); capture(proc, 40, nullptr, &host); sg = pitches(48000 * 3 / 2 / 256);
+        check(cycleIs(sg, { 60, 64, 67, 64 }, 7), "arp: MODE UP & DOWN plays C, E, G, E, C, E ...");
         proc.setInt(P_amd, 3); capture(proc, 40, nullptr, &host); sg = pitches(48000 * 2 / 256);
         { std::set<int> seen; bool allInChord = true; for (auto& s : sg) { int best = -1; for (int n : { 60, 64, 67 }) if (std::fabs(s.f0 / hz(n) - 1.0) < 0.04) best = n; if (best < 0) allInChord = false; else seen.insert(best); }
           check(allInChord && seen.size() == 3 && sg.size() > 10, "arp: MODE RANDOM plays the notes of the chord in no fixed order"); }
         // RANGE 2 octaves
         proc.setInt(P_amd, 0); proc.setInt(P_arg, 1); capture(proc, 40, nullptr, &host); sg = pitches(48000 * 2 / 256);
-        { bool ok = false; for (int f = 0; f < 4 && !ok; ++f) ok = sequenceIs(sg, f, { 60, 64, 67, 72, 76, 79 }, 8); check(ok, "arp: RANGE 2 climbs through two octaves (C E G C E G)"); }
+        check(cycleIs(sg, { 60, 64, 67, 72, 76, 79 }, 8), "arp: RANGE 2 climbs through two octaves (C E G C E G)");
         proc.setInt(P_arg, 0);
         // HOLD: keys up, the arpeggio goes on; HOLD off drops it
         proc.setInt(P_ahold, 1); capture(proc, 20, nullptr, &host);
