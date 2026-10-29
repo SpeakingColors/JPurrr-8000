@@ -21,6 +21,8 @@ public:
     int pageIndex() const { return page; }
     int designHeight() const;                          // page height, with the keyboard strip while PREVIEW is on and the PARTS band while it is shown
     bool stripShown() const;
+    bool exportWarnApplied = false; int exportWarnOld[4] = {};                    // snapshot test hook: export_warn_* changes four values and reset puts them back
+    static constexpr const char* kExportWarnIds[4] = { "o1w", "xt", "dty", "o2wide" };
     bool partsOpen() const { return partsOpenFlag; }   // EDIT PARTS (v3.5): kept while you visit FX and MASTER, not saved with the plugin state
     bool partsShown() const;                           // the band is on screen: EDIT PARTS on and the SOUND page
     void setPartsOpen(bool open);

@@ -3,7 +3,9 @@
 const fs = require('fs'), path = require('path'), os = require('os');
 let chromium; try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = require('/opt/npm-tools/node_modules/playwright')); }
 const ROOT = path.resolve(__dirname, '..');
-const MOCK = path.join(ROOT, 'docs/mockups/JPurrr-8000-mockup-v3.5.html');
+// JP_MOCKUP=<file or v3.6> loads another mockup (default stays v3.5); a bare version like v3.6 means docs/mockups/JPurrr-8000-mockup-<version>.html
+const envMock = process.env.JP_MOCKUP;
+const MOCK = envMock ? (/^v\d+\.\d+$/.test(envMock) ? path.join(ROOT, 'docs/mockups/JPurrr-8000-mockup-' + envMock + '.html') : path.resolve(envMock)) : path.join(ROOT, 'docs/mockups/JPurrr-8000-mockup-v3.5.html');
 const FONTS = path.join(ROOT, 'plugin/Resources/fonts');
 
 function fontCss() {

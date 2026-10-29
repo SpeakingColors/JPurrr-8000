@@ -2,6 +2,7 @@
 #include "Root.h"
 #include "BlockPresets.h"
 #include "../BlockPresetFile.h"
+#include "jpurrr/sysex.h"
 #include <cmath>
 using namespace jp;
 using namespace jpurrr;
@@ -247,7 +248,7 @@ private:
 // Paragraphs with <b> and boxed key names (span.kb2); wraps like the browser, line-height 1.45.
 class Para : public juce::Component {
 public:
-    enum Kind { N, B, K };
+    enum Kind { N, B, K, BR, Acc };           // BR: a line break (<br>), Acc: bold in the accent colour
     struct Run { String t; Kind k; };
     Para(Root& r, std::vector<Run> rs, bool hintStyle = false) : root(r), runs(std::move(rs)), hint(hintStyle) {}
     void setRuns(std::vector<Run> rs) { runs = std::move(rs); }
@@ -258,6 +259,7 @@ public:
         const float spw = jp::textWidth(fN, "a a") - jp::textWidth(fN, "aa");
         struct Tok { String t; Kind k; bool sp; }; std::vector<Tok> toks; bool pending = false;
         for (auto& r : runs) {
+            if (r.k == BR) { toks.push_back({ String(), BR, false }); pending = false; continue; }
             if (r.k == K) { toks.push_back({ r.t, K, pending }); pending = false; continue; }
             const String& s = r.t; int i = 0;
             while (i < s.length()) {
@@ -268,14 +270,15 @@ public:
         }
         float x = 0; int line = 0;
         for (auto& t : toks) {
-            const juce::Font& f = t.k == K ? fK : t.k == B ? fB : fN;
+            if (t.k == BR) { ++line; x = 0; continue; }
+            const juce::Font& f = t.k == K ? fK : (t.k == B || t.k == Acc) ? fB : fN;
             const float tw = jp::textWidth(f, t.t) + (t.k == K ? 2 * 5 * Z + 2.0f : 0.0f);
             float sp = (t.sp && x > 0) ? spw : 0;
             if (x > 0 && x + sp + tw > w + 0.01f) { ++line; x = 0; sp = 0; }
             items.push_back({ t.t, t.k, x + sp, line, tw });
             x += sp + tw;
         }
-        nLines = items.empty() ? 0 : line + 1;
+        nLines = toks.empty() ? 0 : line + 1;
         const float h = lh * (float) nLines;
         setSize(juce::roundToInt(w), juce::roundToInt(h)); return h;
     }
@@ -291,7 +294,7 @@ public:
                 g.setColour(lk[layout::btnbd]); g.drawRoundedRectangle(b.reduced(0.5f), 3 * Z, 1.0f);
                 g.setFont(fK); g.setColour(lk[layout::lbl]); drawTextAt(g, it.t, it.x + 1 + 5 * Z, base, 'l');
             } else {
-                g.setFont(it.k == B ? fB : fN); g.setColour(hint ? lk[layout::lbl2] : lk[layout::lbl]); drawTextAt(g, it.t, it.x, base, 'l');
+                g.setFont(it.k == B || it.k == Acc ? fB : fN); g.setColour(it.k == Acc ? lk[layout::acc] : hint ? lk[layout::lbl2] : lk[layout::lbl]); drawTextAt(g, it.t, it.x, base, 'l');
             }
         }
     }
@@ -396,6 +399,7 @@ public:
         // footer buttons: right aligned, gap 8, padding 10 x 16
         float xr = W - 1.0f - kPadX; const float fy = bodyTop + viewH + 1.0f + 10 * Z;
         for (int i = (int) buttons.size() - 1; i >= 0; --i) {
+            if (!buttons[(size_t) i]->isVisible()) continue;                // display:none (the Copy text button of the Export dialog)
             const float bw = buttons[(size_t) i]->prefWidth();
             buttons[(size_t) i]->setBounds(Fl(xr - bw, fy, bw, 30 * Z).toNearestInt()); xr -= bw + 8 * Z;
         }
@@ -732,24 +736,114 @@ void DialogLayer::openBlockDelete(int mp, const String& presetName) {
 }
 
 // ------------------------------------------------------------------------------------------------ Export / import
-void DialogLayer::openExport() {
-    auto& c = root.controller();
-    auto& f = begin("Export preset", 640);
-    auto* p = f.add<Para>(root, std::vector<PR>{ n("This is the preset as text. Save file writes .json, or .syx as a JP-8080 patch dump. Put 8000 in the file name (for example Lead-JP8000.syx) for a JP-8000 patch dump. Copy it to keep it.") });
-    auto* ta = f.add<DField>(root, Controller::exportText(c.snapshot(c.pm.cur.name)), String(), true, true);
-    f.layoutBody = [=](float w) { float y = 0; p->setTopLeftPosition(0, 0); y += p->layoutFor(w) + kGap; ta->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), juce::roundToInt(170 * Z)); y += 170 * Z; return y; };
-    auto* copy = f.button("Copy", true, [=] { juce::SystemClipboard::copyTextToClipboard(ta->ed.getText()); root.controller().say("Copied"); });
-    // File export: plumbing for the SysEx helper (Controller::exportPatch)
+void DialogLayer::openExport(bool wholeBank) {
+    using EC = Controller::ExportChoice;
+    auto& c = root.controller(); auto& S = Settings::get();
+    auto& f = begin("Export", 640);
+    const int nb = c.bankSoundCount(); const String bank = c.bankLetter();
+    const juce::StringArray fmtNames { "JPurrr-8000 preset (JSON text)", "SysEx for JP-8080", "SysEx for JP-8000" };
+    const juce::StringArray fmtHints { "Keeps every value of the sound. For backups, sharing, and Import in this plugin.", "For a Roland JP-8080. JPurrr extras like the FX page and arpeggiator stay out.", "For a Roland JP-8000: 12 multi-FX types, so DISTORTION is replaced (see Warnings)." };
+    const int fmt0 = S.exportFormat == "8080" ? 1 : S.exportFormat == "8000" ? 2 : 0;
+    juce::StringArray devs; for (int i = 17; i <= 32; ++i) devs.add(String(i));
+    juce::StringArray slotNames; for (int i = 0; i < jpurrr::kUserPatchCount; ++i) slotNames.add(String(jpurrr::userPatchName(i)));
+    auto* capF = f.add<DCap>(root, "Format"); auto* selF = f.add<DSel>(root, fmtNames, fmt0); auto* hintF = f.add<Para>(root, std::vector<PR>{}, true);
+    auto* capW = f.add<DCap>(root, "What");
+    auto* selW = f.add<DSel>(root, juce::StringArray { "This sound", "The whole bank (bank " + bank + ")" }, wholeBank && nb > 0 ? 1 : 0);
+    auto* hintW = f.add<Para>(root, std::vector<PR>{}, true);
+    auto* capD = f.add<DCap>(root, "Device ID"); auto* selD = f.add<DSel>(root, devs, juce::jlimit(17, 32, S.exportDevice) - 17); auto* hintD = f.add<Para>(root, std::vector<PR>{}, true);
+    auto* capS = f.add<DCap>(root, "Destination"); auto* selS = f.add<DSel>(root, juce::StringArray { "Edit buffer" }, 0); auto* hintS = f.add<Para>(root, std::vector<PR>{}, true);
+    auto* ta = f.add<DField>(root, String(), String(), true, true);
+    auto* sum = f.add<Para>(root, std::vector<PR>{}, true); auto* wn = f.add<Para>(root, std::vector<PR>{}, true);
+    if (nb < 1) { selW->selected = 0; selW->setEnabled(false); selW->setInterceptsMouseClicks(false, false); }
+    auto destKey = std::make_shared<String>(S.exportDestination);                // "edit" or "B27", as the mockup's S.xdest
+    auto mode = std::make_shared<int>(-1);                                       // 0 one sound (slot list), 1 whole bank with SysEx (A11 onward)
+    auto plural = [](int n, const char* one, const char* many) { return String(n) + " " + (n == 1 ? one : many); };
+    auto dim = [](bool on, std::initializer_list<juce::Component*> cs) { for (auto* x : cs) x->setAlpha(on ? 1.0f : 0.45f); };
+    auto copyBtn = std::make_shared<DBtn*>(nullptr);
+    auto upd = std::make_shared<std::function<void()>>();
+    *upd = [=, &f] {
+        auto& S2 = Settings::get();
+        const int fm = selF->selected; const bool all = selW->selected == 1, sx = fm != 0; const int dev = 17 + selD->selected;
+        const int md = all && sx ? 1 : 0;
+        if (md != *mode) {
+            *mode = md;
+            if (md == 1) { selS->items = juce::StringArray { "A11 onward" }; selS->selected = 0; }
+            else { selS->items = juce::StringArray { "Edit buffer" }; for (auto& sn : slotNames) selS->items.add("User " + sn); selS->selected = *destKey == "edit" ? 0 : std::max(0, slotNames.indexOf(*destKey)) + 1; }
+            selS->repaint();
+        }
+        const bool destOn = sx && !all;
+        selS->setEnabled(destOn); selS->setInterceptsMouseClicks(destOn, destOn); selS->setWantsKeyboardFocus(destOn);
+        selD->setEnabled(sx); selD->setInterceptsMouseClicks(sx, sx); selD->setWantsKeyboardFocus(sx);
+        dim(sx, { capD, selD, hintD, capS, selS, hintS });
+        if (sx) S2.exportDevice = dev;
+        if (destOn) *destKey = selS->selected == 0 ? String("edit") : slotNames[selS->selected - 1];
+        if (destOn) S2.exportDestination = *destKey;
+        S2.exportFormat = fm == 1 ? "8080" : fm == 2 ? "8000" : "json"; S2.save();
+        hintF->setRuns({ n(fmtHints[fm]) });
+        hintW->setRuns({ n(all ? (sx ? "All " + plural(nb, "sound", "sounds") + " of bank " + bank + ", in slot order." : "All " + plural(nb, "sound", "sounds") + " of bank " + bank + " in one bank file.") + (c.pm.cur.dirty && nb ? String(" Unsaved changes in the window are not in it.") : String())
+                                : c.pm.cur.name + ", as in the window now.") });
+        hintD->setRuns({ n(sx ? "As on the synth, 17 to 32. Factory: 17." : "Only used for SysEx.") });
+        const String d = *mode == 1 ? String() : (selS->selected == 0 ? String("edit") : slotNames[selS->selected - 1]);
+        hintS->setRuns({ n(!sx ? "Only used for SysEx." : all ? "Sound 1 goes to A11, then A12 and so on up to B88. Replaces what is there."
+                            : d == "edit" ? "Plays at once on the synth's upper part. Nothing in memory is overwritten." : "Writes into the synth's memory at " + d + " and replaces the sound there.") });
+        EC ch; ch.format = fm == 1 ? EC::SysexJP8080 : fm == 2 ? EC::SysexJP8000 : EC::Json; ch.wholeBank = all; ch.device = dev;
+        ch.destination = (sx && !all && selS->selected > 0) ? selS->selected - 1 : -1;
+        const auto plan = c.planExport(ch);
+        const bool showTxt = !sx && !all;
+        ta->setVisible(showTxt);
+        if (showTxt) ta->ed.setText(Controller::exportText(c.snapshot(c.pm.cur.name)), false);
+        if (*copyBtn != nullptr) (*copyBtn)->setVisible(showTxt);
+        String line = sx ? plural(plan.sounds, "sound", "sounds") + ": " + plural(plan.messages, "message", "messages") + ", " + String((int) plan.data.getSize()) + " bytes." : (all ? plural(plan.sounds, "sound", "sounds") + " in one .json bank file." : String());
+        if (!plan.ok) line = plan.error;
+        sum->setRuns(line.isEmpty() ? std::vector<PR>{} : std::vector<PR>{ n(line) }); sum->setVisible(line.isNotEmpty());
+        std::vector<PR> w;
+        if (!sx) w = { b("Warnings"), { String(), Para::BR }, n("None. The text keeps every value.") };
+        else if (plan.warnings.empty()) w = { b("Warnings"), { String(), Para::BR }, n("None.") };
+        else { w.push_back({ "Warnings", Para::Acc }); for (auto& t : plan.warnings) { w.push_back({ String(), Para::BR }); w.push_back(n(String::fromUTF8(t.c_str()))); } }
+        wn->setRuns(w);
+        f.fit(getLocalBounds());
+    };
+    f.layoutBody = [=](float w) {
+        const float cg = 3 * Z, hg = 4 * Z; float y = 0;
+        auto block = [&](DCap* cap, DSel* sel, Para* hint, float x, float cw, float top) {
+            cap->setBounds(juce::roundToInt(x), juce::roundToInt(top), juce::roundToInt(cw), 26);
+            sel->setBounds(juce::roundToInt(x), juce::roundToInt(top + 26 + cg), juce::roundToInt(cw), 47);
+            hint->setTopLeftPosition(juce::roundToInt(x), juce::roundToInt(top + 26 + cg + 47 + hg));
+            return 26 + cg + 47 + hg + hint->layoutFor(cw);
+        };
+        y += block(capF, selF, hintF, 0, w, y) + kGap;
+        const float colW = (w - kGap) / 2.0f;
+        const float h1 = block(capW, selW, hintW, 0, colW, y), h2 = block(capD, selD, hintD, colW + kGap, colW, y);
+        y += std::max(h1, h2) + kGap;
+        y += block(capS, selS, hintS, 0, w, y);
+        if (ta->isVisible()) { y += kGap; ta->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), juce::roundToInt(170 * Z)); y += 170 * Z; }
+        if (sum->isVisible()) { y += kGap; sum->setTopLeftPosition(0, juce::roundToInt(y)); y += sum->layoutFor(w); }
+        y += kGap; wn->setTopLeftPosition(0, juce::roundToInt(y)); y += wn->layoutFor(w);
+        return y;
+    };
+    selF->onChange = [upd](int) { (*upd)(); }; selW->onChange = [upd](int) { (*upd)(); }; selD->onChange = [upd](int) { (*upd)(); }; selS->onChange = [upd](int) { (*upd)(); };
     auto* fr = &f;
-    f.button("Save file", false, [this, fr] {
-        fr->chooser = std::make_unique<juce::FileChooser>("Export preset", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(root.controller().pm.cur.name + ".json"), "*.json;*.syx");
-        fr->chooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::warnAboutOverwriting, [this](const juce::FileChooser& fc) {
+    auto choiceNow = [=] {
+        EC ch; const int fm = selF->selected; ch.format = fm == 1 ? EC::SysexJP8080 : fm == 2 ? EC::SysexJP8000 : EC::Json;
+        ch.wholeBank = selW->selected == 1; ch.device = 17 + selD->selected; ch.destination = (fm != 0 && !ch.wholeBank && selS->selected > 0) ? selS->selected - 1 : -1;
+        return ch;
+    };
+    f.button("Save file...", true, [this, fr, choiceNow] {
+        const auto ch = choiceNow(); auto& ctl = root.controller();
+        const auto plan = ctl.planExport(ch);
+        if (!plan.ok) { ctl.say(plan.error); return; }
+        const char* pat = ch.format == EC::Json ? "*.json" : "*.syx";
+        fr->chooser = std::make_unique<juce::FileChooser>("Export", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(plan.fileName), pat);
+        fr->chooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::warnAboutOverwriting, [this, ch](const juce::FileChooser& fc) {
             auto file = fc.getResult(); if (file == juce::File()) return;
-            String err; if (root.controller().exportPatch(file, err)) root.controller().say("Exported"); else root.controller().say(err);
+            String err; auto& cc = root.controller();
+            if (cc.exportTo(file, ch, err)) { this->close(); cc.say("Exported " + file.getFileName()); } else cc.say(err);
         });
     });
-    f.button("Close", false, [this] { this->close(); });
-    ta->ring = true; finish(f); focusIf(&ta->ed); (void) copy;
+    *copyBtn = f.button("Copy text", false, [=] { juce::SystemClipboard::copyTextToClipboard(ta->ed.getText()); root.controller().say("Copied"); });
+    f.button("Cancel", false, [this] { this->close(); });
+    selF->ring = true; finish(f); focusIf(selF);
+    (*upd)();
 }
 
 void DialogLayer::openImport() {

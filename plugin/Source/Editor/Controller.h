@@ -13,6 +13,10 @@ namespace jp {
 struct Settings {                       // saved with the plugin settings, not with each preset
     bool bubbles = true, power = true;
     juce::String look { "jp" };
+    // Export dialog: the last choices. exportFormat "json" | "8080" | "8000"; exportDestination "edit" (edit buffer) or a user slot "A11".."B88"
+    juce::String exportFormat { "json" }, exportDestination { "edit" };
+    int exportDevice = 17;                                          // Device ID as the synth shows it, 17 to 32
+    static inline bool noSave = false;                              // test tools: never write settings.json
     static Settings& get();
     void load(); void save() const;
 };
@@ -69,7 +73,24 @@ public:
     bool importText(const juce::String& text, juce::String& err);
     // Isolated hooks for the SysEx / file formats (to be wired to core/include/jpurrr/sysex.h and preset_io.h).
     bool importFile(const juce::File& f, juce::String& err);       // .json now; .syx later
-    bool exportPatch(const juce::File& f, juce::String& err);      // .json now; .syx later
+    // Export dialog (mockup v3.6): what the file will hold for the choices made, and writing it
+    struct ExportChoice {
+        enum Format { Json, SysexJP8080, SysexJP8000 } format = Json;
+        bool wholeBank = false;                                     // false: the sound in the window; true: every sound of the bank it is in (slot order)
+        int device = 17;                                            // 17..32
+        int destination = -1;                                       // SysEx, one sound: -1 edit buffer (upper part), else user slot 0..127 (A11..B88). A whole bank always starts at A11.
+    };
+    struct ExportPlan {
+        bool ok = false; juce::String error;
+        juce::MemoryBlock data;                                     // the file content
+        juce::String fileName;                                      // suggested name, "<sound> (JP-8000).syx"
+        std::vector<std::string> warnings;                          // from the core exporter, as they are
+        int sounds = 0, messages = 0;                               // messages: SysEx messages
+    };
+    ExportPlan planExport(const ExportChoice& c) const;
+    bool exportTo(const juce::File& f, const ExportChoice& c, juce::String& err);
+    int bankSoundCount() const;                                     // sounds saved in the bank of the current sound
+    juce::String bankLetter() const { return pm.cur.bank; }
     static juce::String exportText(const PresetEntry& e);
 
     // ---- hooks set by the editor

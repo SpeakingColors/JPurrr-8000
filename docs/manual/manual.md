@@ -223,9 +223,19 @@ Every block of the FX page (the trance gate, DRIVE STACK, LOW END, M/S EQ, TRANS
 
 # Import and export
 
-- **Own format (text):** Export shows the preset as plain JSON text that you can copy. Import checks it first: unknown keys are ignored, values that are the wrong type or out of range are skipped and counted, and a file that is not a JPurrr-8000 preset is refused. Banks use the same format.
-- **JP-8080 SysEx (.syx):** Import opens a `.syx` file (one patch, a bank or a full memory dump from a JP-8000 or JP-8080) or a `.mid` file that holds such a dump. Export has Save file, which writes `.syx` as a JP-8080 patch dump (two messages, with checksum) or `.json` by the file name you choose. Only what the Roland patch carries is sent: the FX page, trance gate, arpeggiator, key mode and voices are not part of a Roland patch. The import shows a short message with anything that was approximated or skipped.
-- **JP-8000 export:** put 8000 in the file name (for example `Lead-JP8000.syx`) and Save file writes a JP-8000 patch dump (one 239 byte message, the JP-8000 layout from its manual). Any other `.syx` name is a JP-8080 dump. The JP-8080 only values (unison, patch gain, envelope type, external trigger) are not part of a JP-8000 patch, and the JP-8080 DISTORTION effect is replaced by SUPER CHORUS SLW. Both exports are checked against the manuals, not yet on real hardware: three value orders (OSC1 waveform, Multi-FX type, Delay type) follow the manual's parameter list; see `docs/midi-and-sysex.md` in the repository.
+- **Export asks what you want.** The EXPORT button opens a dialog with the questions below. Your last choices (format, device ID, destination) are remembered. Save file... opens the file chooser with a name that includes the format, for example `Lead (JP-8000).syx`.
+
+  - **Format:** JPurrr-8000 preset (JSON text), SysEx for JP-8080, or SysEx for JP-8000. The JSON text keeps every value and can be copied or imported again; a SysEx file keeps only what the Roland patch carries (the FX page, trance gate, arpeggiator, key mode and voices are not part of a Roland patch).
+  - **What:** This sound (the sound in the window, with unsaved changes), or The whole bank (every sound saved in the bank of the current sound, in slot order, up to 128 as the synth's user memory holds).
+  - **Device ID (SysEx only):** the number the synth shows as DEVICE ID, 17 to 32, factory setting 17. It must be the same on the synth, or the synth ignores the message.
+  - **Destination (SysEx only):** Edit buffer plays the sound at once on the upper part and overwrites nothing in the synth's memory. A user slot (User A11 to User B88) writes into the synth's memory and replaces the sound stored there. A whole bank always starts at A11 and fills A11, A12 and so on, one slot per sound.
+  - **Warnings:** the dialog lists everything that cannot be kept exactly in the chosen format, in the words of the exporter, and shows how many messages and bytes the file has.
+
+![The Export dialog](img/export.png)
+
+- **JP-8000 or JP-8080:** the JP-8000 patch is one 239 byte message, the JP-8080 patch two messages (248 bytes). The JP-8000 has 12 multi-FX types, so the JP-8080 DISTORTION effect is replaced by SUPER CHORUS SLW (a warning says so), and the JP-8080 only values (unison, patch gain, envelope type, external trigger) are left out. Both exports are checked against the manuals, not yet on real hardware: three value orders (OSC1 waveform, Multi-FX type, Delay type) follow the manual's parameter list; see `docs/midi-and-sysex.md` in the repository.
+- **Sending the file to the synth:** play the `.syx` file from a SysEx librarian or your DAW to the synth's MIDI IN. The synth must have its DEVICE ID set to the number you chose and its Exclusive Receive switch (MIDI SW: Rx Exclusive SW) on.
+- **Import:** Import opens a `.json` or `.jpurrr` preset or bank (checked first: unknown keys are ignored, values that are the wrong type or out of range are skipped and counted, and a file that is not a JPurrr-8000 preset is refused), a `.syx` file (one patch, a bank or a full memory dump from a JP-8000 or JP-8080) or a `.mid` file that holds such a dump. You can also paste text. The import shows a short message with anything that was approximated or skipped.
 
 # MIDI
 

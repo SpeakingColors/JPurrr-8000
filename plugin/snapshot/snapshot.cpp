@@ -7,6 +7,7 @@
 #include "Editor/Widgets.h"
 #include <juce_events/juce_events.h>
 #include "jpurrr/params_gen.h"
+#include "jpurrr/preset_io.h"
 #include <cstdlib>
 
 // The popup of a block preset select drawn with the plugin's own menu look (a real popup needs a native window, which a headless run has not).
@@ -143,6 +144,43 @@ static int selftest() {
         check(ctl.get(jp::Controller::idx("gpat")) == 0x1234 && ctl.get(jp::Controller::idx("gpt")) == 0, "block presets: gate pattern comes back");
     }
 
+    // ---- the Export dialog (mockup v3.6): what the file holds for each choice, files written, the last choices in settings.json
+    {
+        using jp::Controller; using EC = Controller::ExportChoice;
+        JPurrr8000AudioProcessor a; a.prepareToPlay(44100.0, 512);
+        Controller ctl(a);
+        const int nb = ctl.bankSoundCount();
+        check(nb == 51 && ctl.bankLetter() == "A", "export: the bank of the first sound is bank A with 51 sounds");
+        auto plan = [&](EC::Format f, bool bank, int dev, int dest) { EC c; c.format = f; c.wholeBank = bank; c.device = dev; c.destination = dest; return ctl.planExport(c); };
+        auto at = [](const Controller::ExportPlan& p, size_t o) { return std::vector<uint8_t>((const uint8_t*) p.data.getData() + o, (const uint8_t*) p.data.getData() + o + 4); };
+        auto j = plan(EC::Json, false, 17, -1); check(j.ok && j.fileName == "Anthem Cat.json" && juce::String::fromUTF8((const char*) j.data.getData(), (int) j.data.getSize()).contains("\"app\""), "export: JSON text of this sound");
+        auto jb = plan(EC::Json, true, 17, -1); check(jb.ok && jb.sounds == 51 && jb.fileName == "Bank A.json" && jpurrr::loadPresetFile((const uint8_t*) jb.data.getData(), jb.data.getSize()).patches.size() == 51, "export: JSON bank file holds 51 sounds and loads again");
+        auto e80 = plan(EC::SysexJP8080, false, 17, -1);
+        check(e80.ok && e80.messages == 2 && e80.data.getSize() == 272 && at(e80, 6) == std::vector<uint8_t>({ 1, 0, 0x40, 0 }) && e80.fileName == "Anthem Cat (JP-8080).syx", "export: JP-8080 edit buffer (01 00 40 00, 2 messages, 272 bytes)");
+        auto e00 = plan(EC::SysexJP8000, false, 17, -1);
+        check(e00.ok && e00.messages == 1 && e00.data.getSize() == 251 && at(e00, 6) == std::vector<uint8_t>({ 1, 0, 0x40, 0 }) && e00.fileName == "Anthem Cat (JP-8000).syx", "export: JP-8000 edit buffer (1 message, 251 bytes)");
+        auto s = plan(EC::SysexJP8080, false, 20, 64 + 26);   // B27
+        check(s.ok && at(s, 6) == std::vector<uint8_t>({ 2, 1, 52, 0 }) && ((const uint8_t*) s.data.getData())[2] == 0x13, "export: slot B27 is 02 01 34 00 and device ID 20 is 13h on the wire");
+        auto bk = plan(EC::SysexJP8000, true, 17, -1);
+        check(bk.ok && bk.sounds == 51 && bk.messages == 51 && bk.data.getSize() == 51 * 251 && bk.fileName == "Bank A (JP-8000).syx", "export: a bank of 51 sounds is 51 messages");
+        auto back = jpurrr::sysexToPatches((const uint8_t*) bk.data.getData(), bk.data.getSize());
+        check(back.ok && back.patches.size() == 51 && back.info[0].slotName == "A11" && back.info[50].slotName == "B15", "export: the bank starts at A11 and fills the slots in order");
+        check(!plan(EC::SysexJP8080, false, 16, -1).ok && !plan(EC::SysexJP8080, false, 33, 0).ok && !plan(EC::SysexJP8080, true, 40, -1).ok, "export: a device ID outside 17 to 32 is refused");
+        a.presets.cur.bank = "F"; a.presets.cur.factory = false;
+        check(!plan(EC::SysexJP8080, true, 17, -1).ok && !plan(EC::SysexJP8080, true, 17, -1).error.isEmpty(), "export: an empty bank gives a message");
+        a.presets.cur.bank = "A"; a.presets.cur.factory = true;
+        auto f = tmp.getChildFile("exp.syx"); juce::String err;
+        EC c; c.format = EC::SysexJP8000; c.device = 17; c.destination = 5;
+        check(ctl.exportTo(f, c, err) && f.getSize() == 251, "export: the file is written");
+        auto& S = jp::Settings::get(); S.exportFormat = "8000"; S.exportDevice = 22; S.exportDestination = "B27"; S.save();
+        S.exportFormat = "json"; S.exportDevice = 17; S.exportDestination = "edit"; S.load();
+        check(S.exportFormat == "8000" && S.exportDevice == 22 && S.exportDestination == "B27", "export: format, device ID and destination are remembered in settings.json");
+        juce::File sf = PresetManager::presetsDir().getParentDirectory().getChildFile("settings.json");
+        sf.replaceWithText("{\"exportFormat\":\"x\",\"exportDevice\":99,\"exportDestination\":\"Z9\"}"); S.load();
+        check(S.exportFormat == "json" && S.exportDevice == 17 && S.exportDestination == "edit", "export: bad remembered values fall back to the defaults");
+        sf.deleteFile();
+    }
+
     // ---- the two parts (mockup v3.5): own sound per part, loading rules, plugin state with both sounds, old sessions
     {
         using jp::Controller;
@@ -252,6 +290,7 @@ int main(int argc, char** argv) {
     juce::ScopedJuceInitialiser_GUI init;
     juce::StringArray wanted; for (int i = 2; i < argc; ++i) wanted.add(argv[i]);
     bool bp = false; for (auto& w : wanted) bp |= w.startsWith("bp_");
+    jp::Settings::noSave = true;                                        // the Export dialog remembers its choices: not in the real settings.json
     if (bp) {                                                           // block preset states: own empty user data folder, two presets of the drive stack
         auto home = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("jpurrr_snap_home");
         home.deleteRecursively(); home.createDirectory();
@@ -263,7 +302,7 @@ int main(int argc, char** argv) {
     juce::File out(argc > 1 ? argv[1] : "snap-plugin"); out.createDirectory();
     juce::StringArray states;
     for (int i = 2; i < argc; ++i) states.add(argv[i]);
-    if (states.isEmpty()) states = { "sound", "chain", "master", "sound_nokbd", "chain_nokbd", "master_nokbd", "guide", "settings", "about", "save", "browser", "export", "import", "page1", "page2", "page4", "page6", "page7", "page8", "menu", "look_navy", "look_soda", "look_purr",
+    if (states.isEmpty()) states = { "sound", "chain", "master", "sound_nokbd", "chain_nokbd", "master_nokbd", "guide", "settings", "about", "save", "browser", "export", "export_8080", "export_8000", "export_slot_8080", "export_bank_8080", "export_bank_8000", "export_bank_json", "export_warn_8000", "import", "page1", "page2", "page4", "page6", "page7", "page8", "menu", "look_navy", "look_soda", "look_purr",
         "sound_parts_split", "sound_parts_dual", "sound_parts_single", "sound_parts_split_nokbd", "sound_parts_dual_nokbd", "sound_parts_single_nokbd", "sound_parts_split_ps0", "sound_parts_split_ps2", "sound_parts_split_ps3" };
 
     JPurrr8000AudioProcessor proc;

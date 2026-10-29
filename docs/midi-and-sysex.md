@@ -5,7 +5,7 @@ What the plugin can read and write, how sure we are, and what is left out. Short
 ## What you can do
 
 - **Open** `.json` / `.jpurrr` presets and banks (our own format), `.syx` dumps from a JP-8000 or JP-8080 (one patch, a bank, or a full-memory dump) and `.mid` files that hold such a dump.
-- **Save** a preset or a bank as `.json` (lossless, same text the design mockup exports) or as `.syx` (Roland JP-8080 patch data, only what the Roland map carries).
+- **Save** a preset or a bank as `.json` (lossless, same text the design mockup exports) or as `.syx` (Roland JP-8080 or JP-8000 patch data, only what the Roland map carries). The Export dialog asks for the format, one sound or the whole bank, the device ID and the destination, see "The Export dialog" below.
 - **Control** the sound from a MIDI keyboard or controller: the factory CC numbers of the JP-8080 knobs, modulation lever, volume, sustain, portamento, pitch bend range (RPN), plus our own NRPN numbers for every other control.
 
 Files from the mockup and files from the plugin are the same text: paste one into the other.
@@ -36,11 +36,25 @@ Files from the mockup and files from the plugin are the same text: paste one int
 
 **Left out on purpose**
 
-- **JP-8000 export** follows the JP-8000 Owner's Manual (pp. 119 to 125): model ID 00 06 (the same as the JP-8080), the same framing, checksum, device ID range and addresses, and a patch of 01 6F (239) bytes, which is the first 239 bytes of the JP-8080 patch. The export sends one DT1 message of 239 bytes per patch (what the instrument answers to an RQ1 of that size) and leaves out the JP-8080 only bytes 01 6F to 01 77. The JP-8000 has 12 multi-FX (chorus) types, 0 to 0Bh; DISTORTION is JP-8080 only and is written as SUPER CHORUS SLW with a warning. Not tested on a real JP-8000. In the plugin, put 8000 in the file name (for example `Lead-JP8000.syx`) to get this layout; any other `.syx` is a JP-8080 dump.
+- **JP-8000 export** follows the JP-8000 Owner's Manual (pp. 119 to 125): model ID 00 06 (the same as the JP-8080), the same framing, checksum, device ID range and addresses, and a patch of 01 6F (239) bytes, which is the first 239 bytes of the JP-8080 patch. The export sends one DT1 message of 239 bytes per patch (what the instrument answers to an RQ1 of that size) and leaves out the JP-8080 only bytes 01 6F to 01 77. The JP-8000 has 12 multi-FX (chorus) types, 0 to 0Bh; DISTORTION is JP-8080 only and is written as SUPER CHORUS SLW with a warning. Not tested on a real JP-8000.
 - Performances (key mode, split, part detune, voice modulator settings), system settings, motion control data and Tx/Rx settings: read as "not a patch" and skipped (counted in the result). The patches inside user performances are imported.
 - Roland NRPN numbers. See below.
 - RPN 0,1 master fine tuning (the instrument adds it per part to the master tune; no matching control here).
 - Program change and bank select (50h/51h/52h) are the host's job.
+
+## The Export dialog
+
+Mockup v3.6 and the plugin ask four questions (JSON text needs only the first two); the last choices of format, device ID and destination are kept in `settings.json` (`exportFormat` `json` / `8080` / `8000`, `exportDevice` 17 to 32, `exportDestination` `edit` or a slot name such as `B27`).
+
+| Question | Choices | What the core writes |
+|---|---|---|
+| Format | JPurrr-8000 preset (JSON text), SysEx for JP-8080, SysEx for JP-8000 | `savePatchAsJson` / `saveBankAsJson`; SysEx with `SysexModel::JP8080` (two DT1 messages of 242 and 6 bytes, 272 bytes in all) or `SysexModel::JP8000` (one DT1 of 239 bytes, 251 bytes) |
+| What | This sound (the sound in the window, with unsaved changes) or The whole bank (the bank of the current sound, saved sounds in slot order) | One patch, or `saveBankAsSysex` for up to 128 patches |
+| Device ID | 17 to 32 as the instrument shows it (JP-8000 manual p. 89, JP-8080 MIDI settings), default 17 | wire value 10h to 1Fh (`sysexDeviceFromParam`: number minus 1); anything else is refused |
+| Destination (one sound) | Edit buffer, or User A11 to User B88 | Edit buffer: `savePatchAsSysexEditBuffer`, address `01 00 40 00` (the temporary patch of the upper part: the synth plays it, nothing in its memory is overwritten). Slot: `savePatchAsSysex(p, dev, index, model)`, address `02 <bank> <2 x n> 00`, A11 = `02 00 00 00`, A88 = `02 00 7E 00`, B11 = `02 01 00 00`, B88 = `02 01 7E 00` |
+| Destination (whole bank) | fixed: A11 onward | `saveBankAsSysex(patches, dev, model, 0)`: sound 1 to A11, sound 2 to A12 and so on; the user memory holds 128 (A11 to B88), a bank of the plugin has 128 slots too; fewer sounds stop early, more than 128 are refused |
+
+The dialog shows the warnings of the exporter unchanged (`SysexExportResult::warnings`): the name shortened to 16 characters, OSC2 WIDE approximated, the three enumeration orders taken from the panel list (OSC1 NOISE and FEEDBACK OSC, Multi-FX types 1 to 11, Delay types 1 to 3) and, for the JP-8000, DISTORTION replaced by SUPER CHORUS SLW. For a bank each warning is listed once. To load a file into the instrument its DEVICE ID must match the chosen number and the Exclusive Receive switch (MIDI SW: Rx Exclusive SW) must be on (JP-8000 manual p. 98).
 
 ## The parameter table (JP-8080 manual p. 203, "4-3. Patch")
 
@@ -199,6 +213,8 @@ std::string json = savePatchAsJson(patch);                       // .json
 std::string bank = saveBankAsJson(patches, "My bank");
 SysexExportResult s = savePatchAsSysex(patch, sysexDeviceFromParam(did), slotIndex /*0 = A11*/);
 SysexExportResult b = saveBankAsSysex(patches, 0x10);            // s.ok, s.bytes (the .syx file), s.error, s.warnings
+SysexExportResult e = savePatchAsSysexEditBuffer(patch, 0x10, SysexModel::JP8000);   // plays at once, nothing stored
+SysexExportResult b8 = saveBankAsSysex(patches, 0x10, SysexModel::JP8000, 0 /*first slot*/);
 std::string fileName = safeFileName(patch.name, "json");
 
 // MIDI input (message thread: midiMapInit() once; audio thread: one MidiMapper per channel, or one for omni)

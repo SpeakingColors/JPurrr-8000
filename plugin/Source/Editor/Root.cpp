@@ -508,7 +508,8 @@ bool Root::applyState(const juce::String& s) {
             else if (k == "dragb") drag = 0; else if (k == "dragm") drag = 1; else if (k == "focusb") focus = 0; else if (k == "focusm") focus = 1;
         }
         strip->snapshotState(drag, focus); return true; }
-    if (s == "reset") { setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
+    if (s == "reset") { if (exportWarnApplied) { for (int i = 0; i < 4; ++i) ctl.quiet(Controller::idx(kExportWarnIds[i]), exportWarnOld[i]); ctl.pm.cur.dirty = false; exportWarnApplied = false; }
+        setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
     if (s.startsWith("sound_parts_")) {                  // test hook: sound_parts_<split|dual|single>[_ps0|_ps2|_ps3][_nokbd]: the PARTS band open on the SOUND page
         juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();
         ctl.quiet(P_prev, t.contains("nokbd") ? 0 : 1); ctl.quiet(P_ps, 1);
@@ -524,6 +525,18 @@ bool Root::applyState(const juce::String& s) {
     if (s.startsWith("look_")) { showPage(kSound); applyLook(s.fromFirstOccurrenceOf("look_", false, false)); return true; }
     if (s.startsWith("bp_")) return applyBlockState(s);
     showPage(kSound);
+    if (s.startsWith("export")) {                          // test hook: export[_slot|_bank|_warn][_json|_8080|_8000]; the choices are set as a user would, the others at their defaults (JSON, edit buffer, device 17)
+        juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();
+        auto& S = Settings::get();
+        S.exportFormat = t.contains("8080") ? "8080" : t.contains("8000") ? "8000" : "json";
+        S.exportDevice = t.contains("slot") ? 20 : 17; S.exportDestination = t.contains("slot") ? "B27" : "edit";
+        if (t.contains("warn")) {                          // a sound with what the SysEx formats cannot keep: FEEDBACK OSC, DISTORTION, delay type, OSC2 WIDE
+            const int vals[4] = { 3, 12, 2, 1 };
+            for (int i = 0; i < 4; ++i) { const int ix = Controller::idx(kExportWarnIds[i]); exportWarnOld[i] = ctl.get(ix); ctl.user(ix, vals[i]); }
+            exportWarnApplied = true; ctl.msgUntil = 0;
+        }
+        dialogs->openExport(t.contains("bank")); return true;
+    }
     if (s == "guide") dialogs->openGuide();
     else if (s == "settings") dialogs->openSettings();
     else if (s == "about") dialogs->openAbout();

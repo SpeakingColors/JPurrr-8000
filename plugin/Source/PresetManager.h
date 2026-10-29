@@ -52,7 +52,7 @@ public:
     void pushHistory(const PresetEntry& e);
     std::array<int, jpurrr::kNumParams> defaults() const;
 
-    // Hook for the SysEx / file formats (filled by the import/export helper): see Controller::importFile / exportPatch.
+    // Hook for the SysEx / file formats (filled by the import/export helper): see Controller::importFile / planExport.
 private:
     std::vector<PresetEntry> list;
     int nFactory = 0;

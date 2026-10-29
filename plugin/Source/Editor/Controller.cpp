@@ -1,6 +1,7 @@
 #include "jpurrr/preset_io.h"
 #include "Controller.h"
 #include "Layout.h"
+#include <algorithm>
 #include <map>
 using namespace jpurrr;
 using namespace jp;
@@ -14,9 +15,17 @@ void Settings::load() {
     bubbles = (bool) j.getProperty("bubbles", true); power = (bool) j.getProperty("power", true);
     look = j.getProperty("look", "jp").toString();
     if (look != "jp" && look != "navy" && look != "soda" && look != "purr") look = "jp";
+    exportFormat = j.getProperty("exportFormat", "json").toString();
+    if (exportFormat != "json" && exportFormat != "8080" && exportFormat != "8000") exportFormat = "json";
+    exportDevice = (int) j.getProperty("exportDevice", 17);
+    if (!jpurrr::sysexDeviceNumberValid(exportDevice)) exportDevice = jpurrr::kSysexDeviceNumberDefault;
+    exportDestination = j.getProperty("exportDestination", "edit").toString();
+    int slot = 0; if (exportDestination != "edit" && !jpurrr::parseUserPatchName(exportDestination.toStdString(), slot)) exportDestination = "edit";
 }
 void Settings::save() const {
+    if (noSave) return;
     auto* o = new juce::DynamicObject(); o->setProperty("bubbles", bubbles); o->setProperty("power", power); o->setProperty("look", look);
+    o->setProperty("exportFormat", exportFormat); o->setProperty("exportDevice", exportDevice); o->setProperty("exportDestination", exportDestination);
     auto f = settingsFile(); f.getParentDirectory().createDirectory(); f.replaceWithText(juce::JSON::toString(juce::var(o)));
 }
 
@@ -311,18 +320,46 @@ bool Controller::importFile(const juce::File& f, juce::String& err) {
     say(msg);
     return true;
 }
-bool Controller::exportPatch(const juce::File& f, juce::String& err) {
-    auto e = snapshot(pm.cur.name);
-    if (f.hasFileExtension("syx")) {
-        // JP-8080 patch dump by default; a file name with 8000 in it (for example "Lead-JP8000.syx") gives the JP-8000 layout
-        const auto model = f.getFileName().containsIgnoreCase("8000") ? jpurrr::SysexModel::JP8000 : jpurrr::SysexModel::JP8080;
-        const auto res = jpurrr::savePatchAsSysex(patchFromEntry(e, nullptr), jpurrr::sysexDeviceFromParam(proc.getInt(P_did)), 0, model);
-        if (!res.ok) { err = juce::String(res.error); return false; }
-        if (!f.replaceWithData(res.bytes.data(), res.bytes.size())) { err = "Could not write the file."; return false; }
-        if (!res.warnings.empty()) say("Exported .syx. " + juce::String(res.warnings.front()));
-        return true;
+int Controller::bankSoundCount() const {
+    int n = 0; for (int i = 0; i < pm.size(); ++i) if (pm.at(i).bank == pm.cur.bank) ++n;
+    return n;
+}
+
+Controller::ExportPlan Controller::planExport(const ExportChoice& c) const {
+    ExportPlan r;
+    std::vector<Patch> patches; std::vector<const PresetEntry*> bank;
+    if (c.wholeBank) {
+        for (int i = 0; i < pm.size(); ++i) if (pm.at(i).bank == pm.cur.bank) bank.push_back(&pm.at(i));
+        std::stable_sort(bank.begin(), bank.end(), [](const PresetEntry* a, const PresetEntry* b) { return a->slot < b->slot; });
+        for (auto* e : bank) patches.push_back(patchFromEntry(*e, nullptr));
+        if (patches.empty()) { r.error = "There are no sounds saved in this bank."; return r; }
     }
-    if (!f.replaceWithText(exportText(e))) { err = "Could not write the file."; return false; }
+    const auto e = snapshot(pm.cur.name);
+    if (!c.wholeBank) patches.push_back(patchFromEntry(e, nullptr));
+    r.sounds = (int) patches.size();
+    const juce::String base = c.wholeBank ? "Bank " + pm.cur.bank : pm.cur.name;
+    if (c.format == ExportChoice::Json) {
+        const juce::String text = c.wholeBank ? juce::String(jpurrr::saveBankAsJson(patches, base.toStdString())) : exportText(e);
+        r.data.append(text.toRawUTF8(), text.getNumBytesAsUTF8());
+        r.fileName = juce::String(jpurrr::safeFileName(base.toStdString(), "json"));
+        r.ok = true; return r;
+    }
+    const auto model = c.format == ExportChoice::SysexJP8000 ? jpurrr::SysexModel::JP8000 : jpurrr::SysexModel::JP8080;
+    const int dev = jpurrr::sysexDeviceFromParam(c.device);
+    jpurrr::SysexExportResult x;
+    if (c.wholeBank) x = jpurrr::saveBankAsSysex(patches, dev, model, 0);
+    else if (c.destination < 0) x = jpurrr::savePatchAsSysexEditBuffer(patches[0], dev, model);
+    else x = jpurrr::savePatchAsSysex(patches[0], dev, c.destination, model);
+    if (!x.ok) { r.error = juce::String(x.error); return r; }
+    r.data.append(x.bytes.data(), x.bytes.size()); r.warnings = x.warnings; r.messages = (int) x.messages.size();
+    r.fileName = juce::String(jpurrr::safeFileName((base + (model == jpurrr::SysexModel::JP8000 ? " (JP-8000)" : " (JP-8080)")).toStdString(), "syx"));
+    r.ok = true; return r;
+}
+
+bool Controller::exportTo(const juce::File& f, const ExportChoice& c, juce::String& err) {
+    const auto plan = planExport(c);
+    if (!plan.ok) { err = plan.error; return false; }
+    if (!f.replaceWithData(plan.data.getData(), plan.data.getSize())) { err = "Could not write the file."; return false; }
     return true;
 }
 
