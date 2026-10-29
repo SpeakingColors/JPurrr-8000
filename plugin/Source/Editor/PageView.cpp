@@ -1,4 +1,5 @@
 #include "PageView.h"
+#include "BlockPresets.h"
 using namespace jp;
 using namespace jp::layout;
 using namespace jpurrr;
@@ -77,9 +78,11 @@ PageView::PageView(Ctx& ctx, int pi, DisplayEnv& e) : page(kPages[pi]), index(pi
         w->onClick = [this, id] { if (x.gotoPage) x.gotoPage(id == "tfx1" ? kChain : kMaster); };
         ctrls.add(w); place(w, hb.r);
     }
-    for (auto& bb : page.bbtns) {                           // v3.3: SAVE and "..." of the block presets (no action yet)
+    for (auto& bb : page.bbtns) {                           // v3.3: SAVE and "..." of the block presets
         for (int ti = 0; ti < page.texts.n; ++ti) if (juce::String(page.texts[ti].id) == bb.b.id) skipText[(size_t) ti] = 1;
         auto* w = new HBtnW(x, bb.b, findText(bb.b.id), 0.0f);
+        const int mp = mpIndexOf(bb.mp); const bool more = bb.more;
+        w->onClick = [this, w, mp, more] { if (mp < 0) return; if (more) { if (x.c.blockMore) x.c.blockMore(mp, *w); } else if (x.c.blockSave) x.c.blockSave(mp); };
         ctrls.add(w); place(w, bb.b.r);
     }
     if (page.hasLcd) { auto* w = new LcdW(x, page.lcd, findText("l1"), findText("l2")); ctrls.add(w); place(w, page.lcd.r); }

@@ -51,7 +51,11 @@ private:
     juce::OwnedArray<PageView> pages;
     juce::OwnedArray<HBtnW> header;
     std::unique_ptr<PnameW> pname;
-    std::unique_ptr<MenuPanel> menu;
+    std::unique_ptr<MenuPanel> menu, mpMenu;           // the preset menu and the block preset menu ("...")
+    layout::Tip mpTips[2];                             // tooltips of the two block menu items (design coordinates, set when it opens)
+    void hideBlockMenu();
+    void showBlockMenu(int mp, juce::Rectangle<float> button);          // button in Root coordinates
+    bool applyBlockState(const juce::String& name);
     std::unique_ptr<Bubble> tipBubble, valBubble;
     std::unique_ptr<DialogLayer> dialogs;
     juce::Image texture;

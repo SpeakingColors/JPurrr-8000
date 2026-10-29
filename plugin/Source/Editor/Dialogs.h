@@ -22,6 +22,12 @@ public:
     void close();
     void openGuide(); void openSettings(); void openAbout(); void openSave(); void openBrowser();
     void openExport(); void openImport(); void openDelete(); void openPage(int bank);
+    // FX block presets (mp = kMp index): SAVE, the replace question, rename and delete of one of your presets
+    void openBlockSave(int mp, const juce::String* preName = nullptr);
+    void openBlockReplace(int mp, const juce::String& existing, const juce::String& typed);
+    void pressFirstButton();                           // test hook: the first footer button (Save, Overwrite, Delete)
+    void openBlockRename(int mp, const juce::String& presetName);
+    void openBlockDelete(int mp, const juce::String& presetName);
     void refresh();                                    // 30 Hz: live values on the pages, frees closed dialogs
     void lookChanged();
     void relayout();                                   // after the content of the open dialog changed size

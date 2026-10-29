@@ -1,5 +1,6 @@
 #include "Root.h"
 #include "../PluginProcessor.h"
+#include "BlockPresets.h"
 using namespace jp;
 using namespace jp::layout;
 using namespace jpurrr;
@@ -113,14 +114,24 @@ private:
 // ------------------------------------------------------------------------------ preset menu (#pmenu)
 class MenuPanel : public juce::Component {
 public:
-    explicit MenuPanel(Ctx& c) : x(c) { setVisible(false); setPaintingIsUnclipped(true); }
-    static constexpr float Z = 1.25f;
-    juce::StringArray items { "Save", "Rename", "Delete", "Export", "Import" };
+    // The preset menu (#pmenu, zoom 1.25, 5 items) and the block preset menu (#mpmenu, no zoom, 2 items, min width 170).
+    explicit MenuPanel(Ctx& c, juce::StringArray its = { "Save", "Rename", "Delete", "Export", "Import" }, float zoom = 1.25f, float minW = 150.0f)
+        : Z(zoom), minWidth(minW), items(std::move(its)), x(c) { setVisible(false); setPaintingIsUnclipped(true); }
+    const float Z; const float minWidth;
+    juce::StringArray items;
     std::function<void(int)> onPick;
+    int mp = -1;                                        // the block this menu belongs to (block preset menu)
+    juce::Rectangle<float> itemRect(int i) const { return btn(i); }
+    // #mpmenu: absolute inside #center, right edge on the button, 4 px under it
+    void popupUnder(juce::Rectangle<float> button, float centerLeft, float centerW) {
+        const float w = (minWidth + 12 + 2) * Z, h = (6 * 2 + 32 * (float) items.size() + 3 * (float) (items.size() - 1) + 2) * Z;
+        const float left = centerLeft + juce::jlimit(4.0f, centerW - w - 4, button.getRight() - centerLeft - w);
+        setBounds(juce::Rectangle<float>(left, button.getBottom() + 4.0f, w, h).toNearestInt()); setVisible(true); toFront(false);
+    }
     // The mockup positions #pmenu in unzoomed header coordinates and then applies `zoom: 1.25` to the whole element, so the
     // menu lands at 1.25 times the position of its anchor. Same here (relX, relY are relative to the centre panel).
     void popup(float relX, float relY) {
-        const float w = (150 + 12 + 2) * Z, h = (6 * 2 + 32 * 5 + 3 * 4 + 2) * Z;
+        const float w = (minWidth + 12 + 2) * Z, h = (6 * 2 + 32 * (float) items.size() + 3 * (float) (items.size() - 1) + 2) * Z;
         const float left = kCheekL.w + Z * juce::jmax(4.0f, juce::jmin(relX, (float) kDesignW - 34 - 170)), top = Z * relY;
         setBounds(juce::Rectangle<float>(left, top, w, h).toNearestInt()); setVisible(true); toFront(false);
     }
@@ -196,12 +207,26 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
         if (i == 0) ctl.openSave(); else if (i == 1) pname->startEdit(); else if (i == 2) ctl.openDelete();
         else if (i == 3) dialogs->openExport(); else dialogs->openImport();
     };
+    mpMenu = std::make_unique<MenuPanel>(ctx, juce::StringArray { "Rename", "Delete" }, 1.0f, 170.0f); addChildComponent(*mpMenu);
+    mpMenu->onPick = [this](int i) {
+        const int mp = mpMenu->mp; if (mp < 0) return;
+        const juce::String nm = mpOwnSelected(ctl, mp);                 // says why when the selection is a factory preset or Custom
+        if (nm.isEmpty()) return;
+        if (i == 0) dialogs->openBlockRename(mp, nm); else dialogs->openBlockDelete(mp, nm);
+    };
+    mpTips[0] = { { 0, 0, 0, 0 }, "Rename your preset of this block.", "" };
+    mpTips[1] = { { 0, 0, 0, 0 }, "Delete your preset of this block. Asks first.", "" };
     dialogs = std::make_unique<DialogLayer>(*this); addChildComponent(*dialogs);
     dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, designHeight()));
     tipBubble = std::make_unique<Bubble>(true); valBubble = std::make_unique<Bubble>(false);
     addChildComponent(*tipBubble); addChildComponent(*valBubble);
     tipBubble->L = valBubble->L = &look();
 
+    ctl.blockSave = [this](int mp) { hideBlockMenu(); dialogs->openBlockSave(mp); };
+    ctl.blockMore = [this](int mp, juce::Component& btn) {
+        if (mpMenu->isVisible() && mpMenu->mp == mp) { hideBlockMenu(); return; }
+        showBlockMenu(mp, getLocalArea(&btn, btn.getLocalBounds()).toFloat());
+    };
     ctl.openSave = [this] { dialogs->openSave(); };
     ctl.openBrowser = [this] { dialogs->openBrowser(); };
     ctl.openDelete = [this] { dialogs->openDelete(); };
@@ -228,7 +253,16 @@ void Root::applyLook(const juce::String& id) {
     dialogs->lookChanged(); repaint();
 }
 
+void Root::hideBlockMenu() { if (mpMenu) mpMenu->setVisible(false); }
+void Root::showBlockMenu(int mp, juce::Rectangle<float> button) {
+    mpMenu->mp = mp;
+    mpMenu->popupUnder(button, kCheekL.w, (float) kDesignW - kCheekL.w - kCheekR.w);
+    for (int i = 0; i < 2; ++i) { auto r = mpMenu->itemRect(i).translated((float) mpMenu->getX(), (float) mpMenu->getY()); mpTips[i].r = { r.getX(), r.getY(), r.getWidth(), r.getHeight() }; }
+    hideTip();
+}
+
 void Root::showPage(int p) {
+    hideBlockMenu();
     page = juce::jlimit(0, kNumPages - 1, p); if (page != kSound) lastFx = page;
     ctx.page = page;
     for (int i = 0; i < pages.size(); ++i) pages[i]->setVisible(i == page);
@@ -315,7 +349,7 @@ void Root::paint(juce::Graphics& g) {
         const auto m = ctl.message();
         if (m.isNotEmpty()) {
             g.setColour(L[acc]); const auto f = fontOf(kCond, 18.4f, 500); g.setFont(f);
-            const juce::Rectangle<float> r(kMsg.x, kMsg.y, kMsg.w, kMsg.h);
+            const juce::Rectangle<float> r(kMsg.x, kMsg.y - 14.0f, kMsg.w, 28.0f);      // the layout dump has the empty #msg as a 0 px high line at its centre
             const float base = r.getY() + (r.getHeight() - (f.getAscent() + f.getDescent())) / 2 + f.getAscent();
             g.saveState(); g.reduceClipRegion(r.toNearestInt()); drawTextAt(g, m, r.getX(), base, 'l'); g.restoreState();
         }
@@ -324,6 +358,7 @@ void Root::paint(juce::Graphics& g) {
 
 // ------------------------------------------------------------------------------ tips and bubbles
 const Tip* Root::tipAtPoint(juce::Point<float> p, juce::Rectangle<float>&) const {
+    if (mpMenu->isVisible()) for (auto& t : mpTips) if (p.x >= t.r.x && p.x <= t.r.x + t.r.w && p.y >= t.r.y && p.y <= t.r.y + t.r.h) return &t;
     const Tip* best = nullptr; float ba = 1e12f;
     for (auto& t : kChrome.tips) if (p.x >= t.r.x && p.x <= t.r.x + t.r.w && p.y >= t.r.y && p.y <= t.r.y + t.r.h) { const float a = t.r.w * t.r.h; if (a <= ba) { best = &t; ba = a; } }
     if (best) return best;
@@ -346,6 +381,10 @@ void Root::mouseDown(const juce::MouseEvent& e) {
         auto p = e.getEventRelativeTo(this).position;
         if (!menu->getBounds().toFloat().contains(p) && e.eventComponent != header[2]) menu->setVisible(false);
     }
+    if (mpMenu->isVisible() && !mpMenu->getBounds().toFloat().contains(e.getEventRelativeTo(this).position)) {
+        auto* hb = dynamic_cast<HBtnW*>(e.eventComponent);
+        if (!(hb != nullptr && juce::String(hb->b.id).startsWith("mpmore_"))) hideBlockMenu();       // a press anywhere else closes it; the "..." button toggles it
+    }
     if (e.mods.isPopupMenu()) {
         auto p = e.getEventRelativeTo(this).position;
         if (p.y < kHdr.h && !dialogs->isOpen()) showMenu(false), menu->popup(p.x - kCheekL.w, p.y + 6);
@@ -354,6 +393,7 @@ void Root::mouseDown(const juce::MouseEvent& e) {
 void Root::mouseUp(const juce::MouseEvent&) {}
 void Root::mouseDrag(const juce::MouseEvent&) { hideTip(); }
 bool Root::keyPressed(const juce::KeyPress& k) {
+    if (k == juce::KeyPress::escapeKey && mpMenu->isVisible()) { hideBlockMenu(); return true; }
     if (k == juce::KeyPress::escapeKey && menu->isVisible()) { menu->setVisible(false); return true; }
     if (dialogs->isOpen() && dialogs->keyPressed(k)) return true;
     return false;
@@ -406,7 +446,7 @@ void Root::showValueBubble(juce::Component& c, int idx) {
 }
 
 bool Root::applyState(const juce::String& s) {
-    if (s == "reset") { dialogs->close(); menu->setVisible(false); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
+    if (s == "reset") { dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
     if (s.endsWith("_nokbd")) {                          // test hook: PREVIEW off, keyboard strip hidden (sound_nokbd chain_nokbd master_nokbd)
         ctl.quiet(P_prev, 0); const auto n = s.upToFirstOccurrenceOf("_nokbd", false, false);
         showPage(n == "chain" ? kChain : n == "master" ? kMaster : kSound); return true; }
@@ -414,6 +454,7 @@ bool Root::applyState(const juce::String& s) {
     if (s == "chain") { showPage(kChain); return true; }
     if (s == "master") { showPage(kMaster); return true; }
     if (s.startsWith("look_")) { showPage(kSound); applyLook(s.fromFirstOccurrenceOf("look_", false, false)); return true; }
+    if (s.startsWith("bp_")) return applyBlockState(s);
     showPage(kSound);
     if (s == "guide") dialogs->openGuide();
     else if (s == "settings") dialogs->openSettings();
@@ -426,4 +467,23 @@ bool Root::applyState(const juce::String& s) {
     else if (s.startsWith("page")) { ctl.editOn = true; dialogs->openPage(s.substring(4).getIntValue()); }
     else return false;
     return true;
+}
+
+// Test hook for the block preset states (needs your presets "Warm Drive" and "Crunchy" of the drive stack in the store).
+bool Root::applyBlockState(const juce::String& s) {
+    showPage(kChain);
+    const int mp = mpIndexOf("drive");
+    const int u = mpUserIndex(mp, "Warm Drive");
+    if (mp < 0 || u < 0) return false;
+    mpApplyUser(ctl, mp, u); ctl.msgUntil = 0;                          // the select shows Warm Drive
+    const juce::String a = "Warm Drive";
+    if (s == "bp_chain" || s == "bp_popup") return true;
+    if (s == "bp_menu") { for (auto& bb : kPages[kChain].bbtns) if (bb.more && juce::String(bb.mp) == "drive") showBlockMenu(mp, { bb.b.r.x, bb.b.r.y, bb.b.r.w, bb.b.r.h }); return true; }
+    if (s == "bp_save") { dialogs->openBlockSave(mp); return true; }
+    if (s == "bp_replace") { dialogs->openBlockSave(mp, &a); dialogs->pressFirstButton(); return true; }
+    if (s == "bp_hint") { const juce::String d = "Default"; dialogs->openBlockSave(mp, &d); dialogs->pressFirstButton(); return true; }
+    if (s == "bp_rename") { dialogs->openBlockRename(mp, a); return true; }
+    if (s == "bp_delete") { dialogs->openBlockDelete(mp, a); return true; }
+    if (s == "bp_msg") { mpApply(ctl, mp, 2); ctl.msgUntil = 0; mpMenu->mp = mp; mpMenu->onPick(0); ctl.msgUntil += 60000; return true; }   // factory "Warm Push", then Rename
+    return false;
 }
