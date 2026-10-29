@@ -23,6 +23,9 @@ inline double superSawCents(int i, int knob127) { return 1200.0 * std::log2(supe
 inline double superSawCentreGain(double m) { return -0.55366 * m + 0.99785; }
 inline double superSawSideGain(double m) { return -0.73764 * m * m + 1.2841 * m + 0.044372; }
 
+// LFO 2 (the modulation lever) is a triangle wave (JP-8000 manual p.73). ph 0..1, starts at 0 going up: 0, 1, 0, -1.
+inline double lfo2Wave(double ph) { double t = ph + 0.25; t -= std::floor(t); return t < 0.5 ? 4.0 * t - 1.0 : 3.0 - 4.0 * t; }
+
 // ---- Knob mappings (same as the mockup displays and its WebAudio preview) ----
 inline double knobCutoffHz(int v) { return 20.0 * std::pow(1000.0, v / 127.0); }            // 20 Hz .. 20 kHz, log
 inline double knobTime(int v, double lo, double hi) { return lo * std::pow(hi / lo, v / 127.0); }

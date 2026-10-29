@@ -29,7 +29,8 @@ void PatchParams::derive(const int* v, float partDetuneCents) {
     s[S_res] = v[P_fr] / 127.f;
     s[S_fenv] = v[P_fe] / 64.f * 5.f;
     s[S_flfo] = v[P_fl] / 64.f * 4.f;
-    s[S_fkey] = v[P_fk] / 32.f;
+    // KEY FOLLOW (manual p.61): +32 = +100 percent (one octave of cutoff per octave of key), +64 = +200 percent, -64 = -100 percent.
+    s[S_fkey] = v[P_fk] >= 0 ? v[P_fk] / 32.f : v[P_fk] / 64.f;
     pgSel = std::min(2, std::max(0, v[P_pg]));
     s[S_level] = v[P_av] / 127.f * (pgSel == 0 ? 1.f : pgSel == 1 ? 2.f : 4.f);
     const float b = (v[P_ob] + 64) / 127.f;
@@ -287,7 +288,7 @@ void Voice::control(const PatchParams& P, const BlockCtl& C, bool snap) {
             trem *= 1.f - std::fabs(d) * (1.f - (d >= 0.f ? x : -x)) * 0.5f;
         }
         float pan = 0.f;
-        if (P.ap == 1) pan = clampf(P.s[PatchParams::S_al] * l1, -1.f, 1.f);
+        if (P.ap == 1) pan = clampf(P.s[PatchParams::S_al] * lfoRaw, -1.f, 1.f);   // LFO 1 FADE has no effect on Auto Pan (manual p.62)
         else if (P.ap == 2) pan = clampf(P.s[PatchParams::S_al], -1.f, 1.f);
         if (C.parallelOut) pan = part == 1 ? -1.f : 1.f;
         const float velG = std::pow(vel / 127.f, 0.6f);

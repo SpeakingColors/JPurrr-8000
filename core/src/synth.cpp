@@ -294,6 +294,7 @@ struct Synth::Impl {
     bool arpActiveFor(int p) const {
         if (!arpOn) return false;
         if (keyMode == 0) return p == 0;
+        if (keyMode == 2) return p == 1;                       // SPLIT: only the Lower part is arpeggiated, ARP DEST is for DUAL (manual p.75, p.76)
         return arpDest == 0 || (arpDest == 1 && p == 1) || (arpDest == 2 && p == 0);
     }
     double bpm() const { return hostBpm > 0.0 ? hostBpm : std::min(250.0, std::max(20.0, paramBpm)); }
@@ -443,7 +444,7 @@ struct Synth::Impl {
             parts[p].cur.smoothToward(parts[p].tgt, smoothA, false);
             parts[p].lfo2Ph += kControlBlock / sr * parts[p].cur.l2Hz;
             parts[p].lfo2Ph -= std::floor(parts[p].lfo2Ph);
-            ctl.l2[p] = (float) std::sin(kTwoPi * parts[p].lfo2Ph);
+            ctl.l2[p] = (float) lfo2Wave(parts[p].lfo2Ph);
         }
         const float bt = std::min(1.f, std::max(-1.f, midiBend + uiBend));
         bendCur += (bt - bendCur) * bendA;
