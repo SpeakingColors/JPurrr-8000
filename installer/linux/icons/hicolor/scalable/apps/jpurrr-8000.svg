@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>JPurrr-8000</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2468"/>
+      <stop offset="1" stop-color="#0d1236"/>
+    </linearGradient>
+    <clipPath id="head"><path d="M5 5l10 8c3-1 7-1 10 0l10-8 1 19c0 8-7 13-16 13S4 32 4 24z"/></clipPath>
+  </defs>
+  <rect x="5.12" y="5.12" width="245.76" height="245.76" rx="46.08" fill="url(#bg)"/>
+  <rect x="7.037" y="7.037" width="241.926" height="241.926" rx="44.163" fill="none" stroke="#3b4a8e" stroke-width="3.834"/>
+  <g transform="translate(35.84 32.256) scale(4.608)">
+    <path fill="#f2a43a" d="M5 5l10 8c3-1 7-1 10 0l10-8 1 19c0 8-7 13-16 13S4 32 4 24z"/>
+    <circle cx="14.5" cy="23" r="2.6" fill="#121843"/>
+    <circle cx="25.5" cy="23" r="2.6" fill="#121843"/>
+    <path d="M18.3 27h3.4L20 29.2z" fill="#121843"/>
+    <path d="M3 26L12 25M3 30L12 28M37 26L28 25M37 30L28 28" stroke="#121843" stroke-width="1" fill="none" stroke-linecap="round" clip-path="url(#head)"/>
+  </g>
+</svg>
