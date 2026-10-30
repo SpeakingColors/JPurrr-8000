@@ -243,6 +243,39 @@ def icns_bytes(images_by_size):
     return b"icns" + struct.pack(">I", 8 + len(body)) + body
 
 
+# ---- comparing (for --check) -------------------------------------------------------------------------
+# PNG compression differs between Pillow / zlib versions, so files are compared by their pixels, not their bytes.
+def decoded(rel, data):
+    """List of Pillow images inside a generated file (None for text files)."""
+    if rel.endswith(".png"):
+        return [Image.open(io.BytesIO(data)).convert("RGBA")]
+    if rel.endswith(".icns"):
+        out, i = [], 8
+        while i < len(data):
+            n = struct.unpack(">I", data[i + 4:i + 8])[0]
+            out.append(Image.open(io.BytesIO(data[i + 8:i + n])).convert("RGBA"))
+            i += n
+        return out
+    if rel.endswith(".ico"):
+        ico = Image.open(io.BytesIO(data))
+        return [ico.ico.getimage(sz).convert("RGBA") for sz in sorted(ico.info["sizes"])]
+    return None
+
+
+def same(rel, old, new):
+    if old is None:
+        return False
+    if old == new:
+        return True
+    a, b = decoded(rel, old), decoded(rel, new)
+    if a is None or b is None or len(a) != len(b):
+        return False
+    for x, y in zip(a, b):
+        if x.size != y.size or max(hi for _, hi in ImageChops.difference(x, y).getextrema()) > 3:
+            return False
+    return True
+
+
 # ---- writing -------------------------------------------------------------------------------------
 def main():
     check = "--check" in sys.argv
@@ -272,7 +305,7 @@ def main():
         path = os.path.join(ROOT, rel)
         old = open(path, "rb").read() if os.path.exists(path) else None
         if check:
-            if old != data:
+            if not same(rel, old, data):
                 print("out of date:", rel)
                 stale += 1
             continue
