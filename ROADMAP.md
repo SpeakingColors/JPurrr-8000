@@ -17,8 +17,11 @@ Rough order. Nothing here is promised for a date.
 - A window height for each page (with or without the keyboard strip and the PARTS band).
 - Arpeggiator: checked end to end through the plugin (button, strip and MIDI notes, host tempo, MODE, RANGE, HOLD). Fixed: a step could fire three times in a row and skip notes of the pattern; a new chord starts at the beginning of the pattern; the TEMPO knob sets the speed when the host gives no tempo (Standalone).
 
-## Done since 0.2.0
+## Done in 0.2.1
 - An Export dialog that asks about the format (JSON text, JP-8080 or JP-8000 SysEx), one sound or the whole bank, the device ID (17 to 32) and the destination (edit buffer or a user slot A11 to B88), and lists the warnings. It replaces the old rule of putting 8000 in the file name.
+- Engine fixes from the check against the JP-8000 manual (docs/engine-check-jp8000.md): delay sync past the limits, key follow at -64, mod lever LFO is a triangle, Auto Pan ignores LFO 1 Fade, only the lower part arpeggiates in Split.
+- Arpeggiator steps no longer skip notes; the TEMPO knob works in the Standalone app.
+- Chopper Cat plays at a normal level across the keyboard.
 
 ## Next
 - Check the three enum orders (OSC1 waveform, Multi-FX type, Delay type) and the SysEx exports on real hardware.

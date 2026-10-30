@@ -4,7 +4,7 @@
 #   cmake --build /home/claude/build-displays -j2 --target jpurrr_displays
 cmake_minimum_required(VERSION 3.22)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_LIST_DIR)
-  project(jpurrr_displays_harness VERSION 0.2.0 LANGUAGES C CXX)
+  project(jpurrr_displays_harness VERSION 0.2.1 LANGUAGES C CXX)
   set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
