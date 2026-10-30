@@ -289,6 +289,6 @@ This is an early version. Written down plainly so nothing surprises you:
 
 # Credits and license
 
-JPurrr-8000 is by Studio 87. It is free and open source under the GNU Affero General Public License, version 3 or later (AGPL-3.0-or-later). The source code, the issue tracker and the releases are at github.com/SpeakingColors/JPurrr-8000. The plugin is built with the JUCE framework. The fonts Barlow, Barlow Condensed and JetBrains Mono are used under the SIL Open Font License.
+JPurrr-8000 is by Studio 87. It is free and open source under the GNU Affero General Public License, version 3 or later (AGPL-3.0-or-later). The source code, the issue tracker and the releases are at github.com/SpeakingColors/JPurrr-8000. The plugin is built with the JUCE framework. The app icon (the orange cat on indigo) is in `assets/icon` in the source code, in every size for Linux, Windows and macOS. The fonts Barlow, Barlow Condensed and JetBrains Mono are used under the SIL Open Font License.
 
 If you like it, you can leave a tip on Ko-fi (ko-fi.com/studio87). Not affiliated with or endorsed by Roland or Arturia. All names belong to their owners.

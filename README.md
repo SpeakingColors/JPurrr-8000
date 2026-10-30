@@ -38,6 +38,10 @@ Download the files from the [latest release](https://github.com/SpeakingColors/J
 
 The user manual is [docs/manual/JPurrr-8000-manual.pdf](https://github.com/SpeakingColors/JPurrr-8000/blob/main/docs/manual/JPurrr-8000-manual.pdf) (source: [docs/manual/manual.md](docs/manual/manual.md)). Rebuild it with `python3 scripts/build_manual.py` (needs the Python packages `markdown`, `playwright` and `pypdf`, and `playwright install chromium`). The screenshots in `docs/manual/img/` are taken from the real plugin editor with the `jpurrr_snapshot` tool.
 
+## App icon
+
+The icon (orange cat on indigo) lives in [assets/icon](assets/icon). `python3 tools/make_icons.py` makes every file the installers use (Windows .ico, macOS .icns, Linux PNG sizes and SVG). The steps for other apps are in [docs/app-icons-checklist.md](docs/app-icons-checklist.md).
+
 ## Build from source
 
 Needs CMake 3.22 or newer and a C++17 compiler. The plugin build fetches JUCE by itself (pinned in `plugin/CMakeLists.txt`).
