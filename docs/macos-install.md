@@ -8,19 +8,23 @@ JPurrr-8000 and the other Studio 87 tools are free and open source. Our macOS do
 - Our projects are free, with no income. We chose not to pay a yearly fee to Apple to give away free software. Windows works the same way (SmartScreen), and on Linux there is no such step.
 - The warning does not mean the file is infected. It means Apple has not checked it. You can check it yourself (see "Is it safe?" below).
 
-## What to do (macOS 15 and newer)
+## What to do
 
-**Method A, in System Settings**
+**Method 1, download with Terminal (easiest, no warning)**
+Your browser marks every download as "from the internet", and that mark triggers the block. The `curl` command in Terminal does not add the mark. We tested this on a Mac: the installer opened with no warning.
+1. Open Terminal (Applications, Utilities).
+2. Run this (replace the version in both places if there is a newer one on the release page):
+   `curl -L -o ~/Downloads/JPurrr-8000.pkg https://github.com/SpeakingColors/JPurrr-8000/releases/download/v0.2.1/JPurrr-8000-0.2.1-macOS.pkg`
+3. Run `open ~/Downloads/JPurrr-8000.pkg`. The installer opens.
+
+**Method 2, in System Settings (if you downloaded with the browser)**
 1. Double click the .pkg. macOS blocks it. Close the message.
 2. Open System Settings, Privacy & Security, scroll down to Security.
 3. Click Open Anyway next to the blocked file (the button stays for about an hour after the blocked attempt).
-4. Confirm with your password. The installer opens.
+4. Confirm with your password. On some Macs the same message comes back; then use Method 1 or 3.
 
-**Method B, in Terminal (use this if Method A only shows the same message again)**
-1. Open Terminal (Applications, Utilities).
-2. Remove the "downloaded from the internet" mark from the file, for example:
-   `xattr -d com.apple.quarantine ~/Downloads/JPurrr-8000-0.2.1-macOS.pkg`
-3. Double click the .pkg again. It opens the installer normally.
+**Method 3, remove the mark from a file you already downloaded**
+`xattr -d com.apple.quarantine ~/Downloads/JPurrr-8000-0.2.1-macOS.pkg` then double click the .pkg again.
 
 macOS 14 and older: right click the .pkg, choose Open, then Open again.
 

@@ -14,6 +14,14 @@ EXE="$ART/Standalone/JPurrr-8000.exe"
 [ -f "$VST3/Contents/x86_64-win/JPurrr-8000.vst3" ] || { echo "Error: no x86_64-win binary inside the VST3 bundle" >&2; exit 1; }
 [ -f "$EXE" ] || { echo "Error: $EXE not found" >&2; exit 1; }
 
+# The VST3 folder icon (VST3 spec, "Bundle"): Plugin.ico + desktop.ini in the bundle root. JUCE writes both when the
+# build has an icon; if either is missing, make it here so the installer always ships them. The folder's System
+# attribute is set by the installer itself.
+[ -f "$VST3/Plugin.ico" ] || cp "$ROOT/installer/windows/jpurrr-8000.ico" "$VST3/Plugin.ico"
+if [ ! -f "$VST3/desktop.ini" ]; then
+    printf '[.ShellClassInfo]\r\nIconResource=Plugin.ico,0\r\nIconFile=Plugin.ico\r\nIconIndex=0\r\n' > "$VST3/desktop.ini"
+fi
+
 ISCC=""
 for c in "$(command -v iscc || true)" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/c/Program Files/Inno Setup 6/ISCC.exe"; do
     if [ -n "$c" ] && [ -f "$c" ]; then ISCC=$c; break; fi

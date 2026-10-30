@@ -49,7 +49,7 @@ LicenseFile={#RepoRoot}\LICENSE
 OutputDir={#OutputDir}
 OutputBaseFilename=JPurrr-8000-{#AppVersion}-Windows-x64-Setup
 SetupIconFile={#RepoRoot}\installer\windows\jpurrr-8000.ico
-UninstallDisplayIcon={app}\JPurrr-8000.exe
+UninstallDisplayIcon={app}\JPurrr-8000.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -66,12 +66,23 @@ Name: "full"; Description: "Plugin and standalone app"
 Name: "plugin"; Description: "Plugin only"
 Name: "custom"; Description: "Custom"; Flags: iscustom
 
+[Tasks]
+Name: "desktopicon"; Description: "Put an icon on the desktop"; Flags: unchecked; Components: standalone
+
 [Components]
 Name: "vst3"; Description: "VST3 plugin (for your DAW)"; Types: full plugin custom; Flags: fixed
 Name: "standalone"; Description: "Standalone app and manual"; Types: full custom
 
+[Dirs]
+; The VST3 folder shows the JPurrr-8000 icon in Explorer: Plugin.ico and desktop.ini sit in it (VST3 spec, Plug-in Format,
+; "Bundle"), and the folder itself needs the System attribute for Windows to read desktop.ini.
+Name: "{commoncf64}\VST3\JPurrr-8000.vst3"; Attribs: system; Components: vst3
+
 [Files]
-Source: "{#SourceVst3}\*"; DestDir: "{commoncf64}\VST3\JPurrr-8000.vst3"; Components: vst3; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "{#SourceVst3}\*"; DestDir: "{commoncf64}\VST3\JPurrr-8000.vst3"; Excludes: "desktop.ini"; Components: vst3; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "{#SourceVst3}\desktop.ini"; DestDir: "{commoncf64}\VST3\JPurrr-8000.vst3"; Attribs: hidden system; Components: vst3; Flags: ignoreversion
+; The icon for the shortcuts and the uninstall entry. Always installed, so it also works when only the plugin is chosen.
+Source: "{#RepoRoot}\installer\windows\jpurrr-8000.ico"; DestDir: "{app}"; DestName: "JPurrr-8000.ico"; Flags: ignoreversion
 Source: "{#SourceExe}"; DestDir: "{app}"; Components: standalone; Flags: ignoreversion
 Source: "{#RepoRoot}\LICENSE"; DestDir: "{app}"; Components: standalone; Flags: ignoreversion
 #ifdef ManualPdf
@@ -79,11 +90,12 @@ Source: "{#ManualPdf}"; DestDir: "{app}"; DestName: "JPurrr-8000-manual.pdf"; Co
 #endif
 
 [Icons]
-Name: "{group}\JPurrr-8000"; Filename: "{app}\JPurrr-8000.exe"; Components: standalone
+Name: "{group}\JPurrr-8000"; Filename: "{app}\JPurrr-8000.exe"; IconFilename: "{app}\JPurrr-8000.ico"; Components: standalone
+Name: "{autodesktop}\JPurrr-8000"; Filename: "{app}\JPurrr-8000.exe"; IconFilename: "{app}\JPurrr-8000.ico"; Tasks: desktopicon; Components: standalone
 #ifdef ManualPdf
 Name: "{group}\JPurrr-8000 manual"; Filename: "{app}\JPurrr-8000-manual.pdf"; Components: standalone
 #endif
-Name: "{group}\Uninstall JPurrr-8000"; Filename: "{uninstallexe}"
+Name: "{group}\Uninstall JPurrr-8000"; Filename: "{uninstallexe}"; IconFilename: "{app}\JPurrr-8000.ico"
 
 [Run]
 Filename: "{app}\JPurrr-8000.exe"; Description: "Start the standalone app"; Flags: nowait postinstall skipifsilent unchecked; Components: standalone

@@ -39,6 +39,22 @@ chmod 755 "$SUP/uninstall.command"
 cp "$ROOT/LICENSE" "$SUP/LICENSE"
 cp "$ROOT/installer/macos/README.txt" "$SUP/README.txt"
 [ -z "$MANUAL" ] || cp "$MANUAL" "$SUP/JPurrr-8000-manual.pdf"
+# Icons. The finished .icns (16 px to 1024 px with @2x, tools/make_icons.py) goes into both bundles, before signing,
+# because signing seals the Resources folder. JUCE already points the app's Info.plist at Icon.icns; the VST3 bundle
+# gets the same file and the CFBundleIconFile key here if it has none.
+add_icon() { # bundle folder
+    local b=$1 plist="$1/Contents/Info.plist" name
+    name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" "$plist" 2>/dev/null || true)
+    if [ -z "$name" ]; then
+        name=JPurrr-8000
+        /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string $name" "$plist"
+    fi
+    case "$name" in *.icns) ;; *) name=$name.icns ;; esac
+    mkdir -p "$b/Contents/Resources"
+    cp "$ROOT/installer/macos/jpurrr-8000.icns" "$b/Contents/Resources/$name"
+}
+add_icon "$WORK/vst3root/JPurrr-8000.vst3"
+add_icon "$WORK/approot/Applications/JPurrr-8000.app"
 codesign --force --deep --sign - "$WORK/vst3root/JPurrr-8000.vst3"
 codesign --force --deep --sign - "$WORK/approot/Applications/JPurrr-8000.app"
 codesign --verify --deep --strict "$WORK/vst3root/JPurrr-8000.vst3"
