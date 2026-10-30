@@ -8,7 +8,7 @@ A free and open source VST3 synth and standalone app for Linux, Windows and macO
 
 ## Status
 
-Version 0.2.1 (test release). The synth engine, the FX chain, the MASTER section, factory sounds (51), the MIDI map and JP-8000/JP-8080 SysEx patch import and export are in. New in 0.2.0: your own FX block presets, a playable keyboard strip with BEND and MOD wheels, and DUAL and SPLIT with a different sound in each part (EDIT PARTS). The window is built from the approved design mockup ([docs/mockups/JPurrr-8000-mockup-v3.6.html](docs/mockups/JPurrr-8000-mockup-v3.6.html)). Not done yet: voice modulator, external input, RPS recording, Motion. See [ROADMAP.md](ROADMAP.md) for the full list.
+Version 0.2.2 (test release). The synth engine, the FX chain, the MASTER section, factory sounds (51), the MIDI map and JP-8000/JP-8080 SysEx patch import and export are in. New in 0.2.0: your own FX block presets, a playable keyboard strip with BEND and MOD wheels, and DUAL and SPLIT with a different sound in each part (EDIT PARTS). The window is built from the approved design mockup ([docs/mockups/JPurrr-8000-mockup-v3.6.html](docs/mockups/JPurrr-8000-mockup-v3.6.html)). Not done yet: voice modulator, external input, RPS recording, Motion. See [ROADMAP.md](ROADMAP.md) for the full list.
 
 ## The idea
 

@@ -23,6 +23,11 @@ Rough order. Nothing here is promised for a date.
 - Arpeggiator steps no longer skip notes; the TEMPO knob works in the Standalone app.
 - Chopper Cat plays at a normal level across the keyboard.
 
+## Done in 0.2.2
+- App icon on macOS, Windows and Linux (app, installers, shortcuts, VST3 bundle where the system shows one).
+- Computer keys play like Ableton Live: A to ' for white keys, W E T Y U O P for black keys, Z and X octave down and up, C and V velocity.
+- macOS install page (docs/macos-install.md): a download in Terminal with curl adds no warning.
+
 ## Next
 - Check the three enum orders (OSC1 waveform, Multi-FX type, Delay type) and the SysEx exports on real hardware.
 - Arturia export.

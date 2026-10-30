@@ -14,7 +14,7 @@ JPurrr-8000 and the other Studio 87 tools are free and open source. Our macOS do
 Your browser marks every download as "from the internet", and that mark triggers the block. The `curl` command in Terminal does not add the mark. We tested this on a Mac: the installer opened with no warning.
 1. Open Terminal (Applications, Utilities).
 2. Run this (replace the version in both places if there is a newer one on the release page):
-   `curl -L -o ~/Downloads/JPurrr-8000.pkg https://github.com/SpeakingColors/JPurrr-8000/releases/download/v0.2.1/JPurrr-8000-0.2.1-macOS.pkg`
+   `curl -L -o ~/Downloads/JPurrr-8000.pkg https://github.com/SpeakingColors/JPurrr-8000/releases/download/v0.2.2/JPurrr-8000-0.2.2-macOS.pkg`
 3. Run `open ~/Downloads/JPurrr-8000.pkg`. The installer opens.
 
 **Method 2, in System Settings (if you downloaded with the browser)**
@@ -24,7 +24,7 @@ Your browser marks every download as "from the internet", and that mark triggers
 4. Confirm with your password. On some Macs the same message comes back; then use Method 1 or 3.
 
 **Method 3, remove the mark from a file you already downloaded**
-`xattr -d com.apple.quarantine ~/Downloads/JPurrr-8000-0.2.1-macOS.pkg` then double click the .pkg again.
+`xattr -d com.apple.quarantine ~/Downloads/JPurrr-8000-0.2.2-macOS.pkg` then double click the .pkg again.
 
 macOS 14 and older: right click the .pkg, choose Open, then Open again.
 
