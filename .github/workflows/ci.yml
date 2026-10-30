@@ -47,6 +47,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Icons are up to date (tools/make_icons.py)
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 tools/make_icons.py --check
       - name: shellcheck
         run: |
           shellcheck -s sh installer/linux/install.sh installer/macos/uninstall.command scripts/check_version.sh scripts/package_linux.sh scripts/release_notes.sh
@@ -58,13 +62,21 @@ jobs:
           mkdir -p "$tmp/art/VST3/JPurrr-8000.vst3/Contents/x86_64-linux" "$tmp/art/Standalone"
           : > "$tmp/art/VST3/JPurrr-8000.vst3/Contents/x86_64-linux/JPurrr-8000.so"
           printf '#!/bin/sh\n' > "$tmp/art/Standalone/JPurrr-8000"
+          cp -R installer/linux/icons "$tmp/art/icons"
           export HOME="$tmp/home"; mkdir -p "$HOME"
           sh installer/linux/install.sh --from "$tmp/art"
           test -f "$HOME/.vst3/JPurrr-8000.vst3/Contents/x86_64-linux/JPurrr-8000.so"
           test -x "$HOME/.local/bin/JPurrr-8000"
           test -f "$HOME/.local/share/applications/jpurrr-8000.desktop"
+          grep -q '^Icon=jpurrr-8000$' "$HOME/.local/share/applications/jpurrr-8000.desktop"
+          for sz in 16 22 24 32 48 64 128 256 512; do
+            test -f "$HOME/.local/share/icons/hicolor/${sz}x${sz}/apps/jpurrr-8000.png"
+          done
+          test -f "$HOME/.local/share/icons/hicolor/scalable/apps/jpurrr-8000.svg"
           sh installer/linux/install.sh --from "$tmp/art"
           sh installer/linux/install.sh --uninstall
+          test ! -e "$HOME/.local/share/icons/hicolor/256x256/apps/jpurrr-8000.png"
+          test ! -e "$HOME/.local/share/applications/jpurrr-8000.desktop"
           test ! -e "$HOME/.vst3/JPurrr-8000.vst3"
           test ! -e "$HOME/.local/bin/JPurrr-8000"
 

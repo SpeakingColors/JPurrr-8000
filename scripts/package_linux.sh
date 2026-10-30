@@ -24,7 +24,7 @@ cp "$ART/Standalone/JPurrr-8000" "$D/JPurrr-8000"
 chmod 755 "$D/JPurrr-8000"
 cp "$ROOT/installer/linux/install.sh" "$D/install.sh"
 chmod 755 "$D/install.sh"
-cp "$ROOT/installer/linux/jpurrr-8000.png" "$ROOT/installer/linux/jpurrr-8000.svg" "$D/"
+cp -R "$ROOT/installer/linux/icons" "$D/icons"
 cp "$ROOT/LICENSE" "$D/"
 [ -z "$MANUAL" ] || cp "$MANUAL" "$D/JPurrr-8000-manual.pdf"
 cat > "$D/README.txt" <<EOF
@@ -32,7 +32,7 @@ JPurrr-8000 $VER for Linux (x86_64)
 
 Easy way (no root, nothing outside your home folder):
   ./install.sh
-It copies the plugin to ~/.vst3, the standalone app to ~/.local/bin and adds a menu entry.
+It copies the plugin to ~/.vst3, the standalone app to ~/.local/bin and adds a menu entry with the icon.
 Rescan plugins in your DAW afterwards.
 
 All users:    sudo ./install.sh --system     (not for Bazzite and other immutable systems)

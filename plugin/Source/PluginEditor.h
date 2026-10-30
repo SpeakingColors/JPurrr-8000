@@ -12,6 +12,7 @@ public:
     jp::Root& content() { return root; }
     void setPageHeightAspect();                       // after a page change
     void setScaleWidth(int width);
+    void parentHierarchyChanged() override;           // Linux standalone: give the window its icon
 private:
     JPurrr8000AudioProcessor& proc;
     jp::Root root;

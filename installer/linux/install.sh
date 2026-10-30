@@ -11,7 +11,7 @@
 #   ~/.vst3/JPurrr-8000.vst3
 #   ~/.local/bin/JPurrr-8000                                  (standalone app)
 #   ~/.local/share/applications/jpurrr-8000.desktop
-#   ~/.local/share/icons/hicolor/256x256/apps/jpurrr-8000.png
+#   ~/.local/share/icons/hicolor/<size>x<size>/apps/jpurrr-8000.png   (16 to 512) and hicolor/scalable/apps/jpurrr-8000.svg
 # System install (--system, as root):
 #   /usr/lib/vst3/JPurrr-8000.vst3, /usr/local/bin/JPurrr-8000,
 #   /usr/share/applications/..., /usr/share/icons/hicolor/...
@@ -25,6 +25,8 @@ NAME="JPurrr-8000"
 VST3_DIR_NAME="$NAME.vst3"
 DESKTOP_NAME="jpurrr-8000.desktop"
 ICON_NAME="jpurrr-8000.png"
+SVG_NAME="jpurrr-8000.svg"
+ICON_SIZES="16x16 22x22 24x24 32x32 48x48 64x64 128x128 256x256 512x512"
 
 MODE=user
 ACTION=install
@@ -64,7 +66,7 @@ if [ "$MODE" = system ]; then
     VST3_DEST="$ROOT/usr/lib/vst3"
     BIN_DEST="$ROOT/usr/local/bin"
     APP_DEST="$ROOT/usr/share/applications"
-    ICON_DEST="$ROOT/usr/share/icons/hicolor/256x256/apps"
+    ICON_BASE="$ROOT/usr/share/icons/hicolor"
     BIN_REAL="/usr/local/bin/$NAME"
 else
     [ -n "${HOME:-}" ] || die "HOME is not set"
@@ -72,7 +74,7 @@ else
     VST3_DEST="$HOME/.vst3"
     BIN_DEST="$HOME/.local/bin"
     APP_DEST="$DATA/applications"
-    ICON_DEST="$DATA/icons/hicolor/256x256/apps"
+    ICON_BASE="$DATA/icons/hicolor"
     BIN_REAL="$BIN_DEST/$NAME"
 fi
 
@@ -96,6 +98,12 @@ refresh_caches() {
     return 0
 }
 
+# Icon files this script installs: "<theme folder>/<file name>" pairs, one per line.
+icon_list() {
+    for sz in $ICON_SIZES; do printf '%s\n' "$sz/apps/$ICON_NAME"; done
+    printf '%s\n' "scalable/apps/$SVG_NAME"
+}
+
 # Find a file in the source folder, either flat (release tarball) or in a build tree.
 find_src() {
     for cand in "$@"; do
@@ -107,7 +115,9 @@ find_src() {
 if [ "$ACTION" = uninstall ]; then
     say "Removing $NAME ($MODE install)"
     removed=0
-    for p in "$VST3_DEST/$VST3_DIR_NAME" "$BIN_DEST/$NAME" "$APP_DEST/$DESKTOP_NAME" "$ICON_DEST/$ICON_NAME"; do
+    set -- "$VST3_DEST/$VST3_DIR_NAME" "$BIN_DEST/$NAME" "$APP_DEST/$DESKTOP_NAME"
+    for rel in $(icon_list); do set -- "$@" "$ICON_BASE/$rel"; done
+    for p in "$@"; do
         if [ -e "$p" ] || [ -L "$p" ]; then
             say "  remove $p"
             run rm -rf -- "$p"
@@ -127,7 +137,7 @@ VST3_SRC=$(find_src "$FROM/$VST3_DIR_NAME" "$FROM/VST3/$VST3_DIR_NAME") || die "
 [ -d "$VST3_SRC" ] || die "$VST3_SRC is not a folder"
 BIN_SRC=$(find_src "$FROM/$NAME" "$FROM/Standalone/$NAME") || BIN_SRC=""
 if [ -n "$BIN_SRC" ] && [ ! -f "$BIN_SRC" ]; then BIN_SRC=""; fi
-ICON_SRC=$(find_src "$FROM/$ICON_NAME" "$SCRIPT_DIR/$ICON_NAME") || ICON_SRC=""
+ICON_SRC=$(find_src "$FROM/icons/hicolor" "$SCRIPT_DIR/icons/hicolor") || ICON_SRC=""
 
 say "Installing $NAME ($MODE install)"
 [ "$DRY" -eq 1 ] && say "(dry run: nothing is changed)"
@@ -149,12 +159,15 @@ if [ -n "$BIN_SRC" ]; then
     run mv -f "$BIN_DEST/.$NAME.new" "$BIN_DEST/$NAME"
 
     if [ -n "$ICON_SRC" ]; then
-        say "  Icon          -> $ICON_DEST/$ICON_NAME"
-        run mkdir -p "$ICON_DEST"
-        run cp "$ICON_SRC" "$ICON_DEST/$ICON_NAME"
-        run chmod 644 "$ICON_DEST/$ICON_NAME"
+        say "  Icons         -> $ICON_BASE/<size>/apps/$ICON_NAME (and scalable)"
+        for rel in $(icon_list); do
+            [ -f "$ICON_SRC/$rel" ] || continue
+            run mkdir -p "$ICON_BASE/$(dirname -- "$rel")"
+            run cp "$ICON_SRC/$rel" "$ICON_BASE/$rel"
+            run chmod 644 "$ICON_BASE/$rel"
+        done
     else
-        say "  (no icon file found, the menu entry will use a generic icon)"
+        say "  (no icon files found, the menu entry will use a generic icon)"
     fi
 
     say "  Menu entry    -> $APP_DEST/$DESKTOP_NAME"

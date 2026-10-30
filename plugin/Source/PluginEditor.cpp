@@ -1,6 +1,7 @@
 #include "PluginEditor.h"
 #include "Editor/EditorFactory.h"
 #include "Editor/Layout.h"
+#include <IconData.h>
 using namespace jp;
 
 namespace {
@@ -27,6 +28,18 @@ JPurrrEditor::JPurrrEditor(JPurrr8000AudioProcessor& p) : juce::AudioProcessorEd
         juce::Timer::callAfterDelay(400, [sp = juce::Component::SafePointer<juce::Component>(&root)] { if (sp != nullptr && sp->isShowing()) sp->grabKeyboardFocus(); });
 }
 JPurrrEditor::~JPurrrEditor() { stopTimer(); }
+
+// JUCE gives the standalone window no icon on Linux (the menu entry has one from the .desktop file, but a window
+// started from a terminal or a launcher without it would show the generic one). Windows and macOS take the icon from the app file.
+void JPurrrEditor::parentHierarchyChanged() {
+#if JUCE_LINUX
+    if (! juce::JUCEApplicationBase::isStandaloneApp()) return;
+    if (auto* win = dynamic_cast<juce::DocumentWindow*>(getTopLevelComponent())) {
+        auto icon = juce::ImageFileFormat::loadFrom(IconData::jpurrr8000256_png, (size_t) IconData::jpurrr8000256_pngSize);
+        if (icon.isValid()) win->setIcon(icon);
+    }
+#endif
+}
 
 void JPurrrEditor::setPageHeightAspect() {
     const double aspect = (double) layout::kDesignW / (double) root.designHeight();
