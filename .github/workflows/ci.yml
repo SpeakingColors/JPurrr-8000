@@ -54,7 +54,7 @@ jobs:
       - name: shellcheck
         run: |
           shellcheck -s sh installer/linux/install.sh installer/macos/uninstall.command scripts/check_version.sh scripts/package_linux.sh scripts/release_notes.sh
-          shellcheck -s bash scripts/package_macos.sh scripts/package_windows.sh
+          shellcheck -s bash scripts/package_macos.sh scripts/package_windows.sh scripts/check_icons.sh
       - name: Installer round trip (fake build tree)
         run: |
           set -eu
@@ -162,6 +162,24 @@ jobs:
             Windows) test -f "$art/VST3/JPurrr-8000.vst3/Contents/x86_64-win/JPurrr-8000.vst3"; test -f "$art/Standalone/JPurrr-8000.exe" ;;
             macOS)   test -f "$art/VST3/JPurrr-8000.vst3/Contents/MacOS/JPurrr-8000"; test -d "$art/Standalone/JPurrr-8000.app"
                      lipo -archs "$art/VST3/JPurrr-8000.vst3/Contents/MacOS/JPurrr-8000" ;;
+          esac
+
+      - name: Check the icon is in the build
+        run: |
+          art=build/plugin/JPurrr8000_artefacts/$BUILD_TYPE
+          case "$RUNNER_OS" in
+            Linux)
+              bash scripts/check_icons.sh linux-exe "$art/Standalone/JPurrr-8000" ;;
+            macOS)
+              bash scripts/check_icons.sh mac-bundle "$art/Standalone/JPurrr-8000.app"
+              ls -l "$art/Standalone/JPurrr-8000.app/Contents/Resources" "$art/VST3/JPurrr-8000.vst3/Contents/Resources" || true
+              # The VST3 icon is added by scripts/package_macos.sh when JUCE did not put one in; only report here.
+              bash scripts/check_icons.sh mac-bundle "$art/VST3/JPurrr-8000.vst3" || echo "::notice title=VST3 icon::the VST3 bundle has no icon in the build, package_macos.sh adds it"
+              cmp "$art/Standalone/JPurrr-8000.app/Contents/Resources/Icon.icns" installer/macos/jpurrr-8000.icns || echo "::warning title=app icon::the app does not use the committed .icns (JUCE generated its own)" ;;
+            Windows)
+              pwsh -NoProfile -File scripts/check_icons.ps1 \
+                -Files "$art/Standalone/JPurrr-8000.exe;$art/VST3/JPurrr-8000.vst3/Contents/x86_64-win/JPurrr-8000.vst3" \
+                -Vst3Folder "$art/VST3/JPurrr-8000.vst3" ;;
           esac
 
       # Informational: pluginval is downloaded from its latest release and does not fail the build.

@@ -1,13 +1,13 @@
 # Check that Windows files carry the app icon (used by the CI and release workflows). Run with pwsh or powershell.
-#   check_icons.ps1 -Files a.exe,b.vst3 [-Vst3Folder C:\...\JPurrr-8000.vst3]
-# Every file must have at least one icon resource; the VST3 folder must hold Plugin.ico and desktop.ini.
+#   check_icons.ps1 -Files "a.exe;b.vst3" [-Vst3Folder C:\...\JPurrr-8000.vst3]
+# Files are separated by semicolons. Every file must have at least one icon resource; the VST3 folder must hold Plugin.ico and desktop.ini.
 param(
-    [Parameter(Mandatory = $true)][string[]]$Files,
+    [Parameter(Mandatory = $true)][string]$Files,
     [string]$Vst3Folder = ''
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -Namespace JP -Name Native -MemberDefinition '[DllImport("shell32.dll", CharSet = CharSet.Unicode)] public static extern uint ExtractIconEx(string file, int index, IntPtr[] large, IntPtr[] small, uint count);'
-foreach ($f in $Files) {
+foreach ($f in ($Files -split ';')) {
     $path = (Resolve-Path $f).Path
     $n = [JP.Native]::ExtractIconEx($path, -1, $null, $null, 0)
     if ($n -lt 1) { throw "no icon resource in $path" }

@@ -122,8 +122,17 @@ jobs:
           test -x "$HOME/.local/bin/JPurrr-8000"
           if ldd "$HOME/.vst3/JPurrr-8000.vst3/Contents/x86_64-linux/JPurrr-8000.so" | grep 'not found'; then echo "missing libraries in the VST3" >&2; exit 1; fi
           if ldd "$HOME/.local/bin/JPurrr-8000" | grep 'not found'; then echo "missing libraries in the standalone" >&2; exit 1; fi
+          # icon: menu entry, every hicolor size, scalable svg, and the window icon inside the program
+          grep -q '^Icon=jpurrr-8000$' "$HOME/.local/share/applications/jpurrr-8000.desktop"
+          for sz in 16 22 24 32 48 64 128 256 512; do
+            test -f "$HOME/.local/share/icons/hicolor/${sz}x${sz}/apps/jpurrr-8000.png"
+          done
+          test -f "$HOME/.local/share/icons/hicolor/scalable/apps/jpurrr-8000.svg"
+          bash scripts/check_icons.sh linux-exe "$HOME/.local/bin/JPurrr-8000"
           sh "$d/install.sh" --uninstall
           test ! -e "$HOME/.vst3/JPurrr-8000.vst3"
+          test ! -e "$HOME/.local/share/icons/hicolor/256x256/apps/jpurrr-8000.png"
+          test ! -e "$HOME/.local/share/applications/jpurrr-8000.desktop"
       - uses: actions/upload-artifact@v4
         with:
           name: pkg-linux
@@ -177,6 +186,11 @@ jobs:
           if (-not (Test-Path $app)) { throw "missing $app" }
           $unins = Join-Path $env:ProgramFiles 'Studio 87\JPurrr-8000\unins000.exe'
           if (-not (Test-Path $unins)) { throw "missing uninstaller" }
+          # icon: the program, the plugin, the setup program, the .ico for shortcuts, and the VST3 folder icon files
+          $ico = Join-Path $env:ProgramFiles 'Studio 87\JPurrr-8000\JPurrr-8000.ico'
+          if (-not (Test-Path $ico)) { throw "missing $ico" }
+          $vst3dir = Join-Path $env:CommonProgramFiles 'VST3\JPurrr-8000.vst3'
+          & "$env:GITHUB_WORKSPACE\scripts\check_icons.ps1" -Files "$app;$vst3;$setup" -Vst3Folder $vst3dir
           Start-Process -FilePath $unins -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           for ($i = 0; $i -lt 30 -and (Test-Path $vst3); $i++) { Start-Sleep -Seconds 1 }
           if (Test-Path $vst3) { throw "uninstall left $vst3" }
@@ -221,6 +235,10 @@ jobs:
           test -x "/Library/Application Support/Studio 87/JPurrr-8000/uninstall.command"
           lipo -archs /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3/Contents/MacOS/JPurrr-8000
           codesign --verify --deep --strict /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3
+          codesign --verify --deep --strict /Applications/JPurrr-8000.app
+          # icon: both bundles must carry the .icns that CFBundleIconFile names (a missing one shows the blank app icon)
+          bash scripts/check_icons.sh mac-bundle /Applications/JPurrr-8000.app
+          bash scripts/check_icons.sh mac-bundle /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3
           sh "/Library/Application Support/Studio 87/JPurrr-8000/uninstall.command"
           test ! -e /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3
           test ! -e /Applications/JPurrr-8000.app
