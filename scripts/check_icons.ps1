@@ -18,7 +18,7 @@ foreach ($f in ($Files -split ';')) {
 if ($Vst3Folder -ne '') {
     foreach ($name in 'Plugin.ico', 'desktop.ini') {
         $p = Join-Path $Vst3Folder $name
-        if (-not (Test-Path -LiteralPath $p -Force)) { throw "missing $p" }
+        if (-not (Test-Path -LiteralPath $p)) { throw "missing $p" }
     }
     $attr = (Get-Item -LiteralPath $Vst3Folder -Force).Attributes
     if (($attr -band [IO.FileAttributes]::System) -eq 0 -and ($attr -band [IO.FileAttributes]::ReadOnly) -eq 0) {
