@@ -1,5 +1,5 @@
 // Logic of the on-screen keyboard strip (BEND and MOD wheels, 61 keys, computer keys). Pure C++17, no JUCE, no allocation.
-// Everything here is a port of the mockup's strip code (docs/mockups/JPurrr-8000-mockup-v3.3.html: KMAP, bendNorm, bendCents,
+// Everything here is a port of the mockup's strip code (docs/mockups/JPurrr-8000-mockup-v3.7.html: CKEY, CKCMD, ckDown, ckUp, bendNorm, bendCents,
 // setN, springBack, wheel and key handlers) so the plugin behaves like the mockup.
 #pragma once
 #include <cstdint>
@@ -7,12 +7,78 @@
 namespace jpurrr {
 
 constexpr int kKeyFirstNote = 36, kKeyLastNote = 96;      // C2..C7, 61 keys
-constexpr int kKeyVelocity = 100;                         // the mockup has no velocity; 100 is the neutral point of the velocity morph
+constexpr int kKeyVelocity = 100;                         // velocity of notes played with the mouse, and the start value of the computer keys
 constexpr int kKeyChannel = 15;                           // channel index the synth uses for strip notes (they play whatever the part channels are)
 
-// Computer key to MIDI note (mockup KMAP): Z S X D C V G B H N J M , = C3..B3, Q 2 W 3 E R 5 T 6 Y 7 U I = C4..C5. -1 when unmapped.
-// c is the typed character; upper case counts as lower case (the mockup lowercases e.key).
-int keyboardNoteForChar(uint32_t c);
+// ---- computer keys, like Ableton Live's Computer MIDI Keyboard (mockup v3.7: CKEY, CKCMD, ckDown, ckUp).
+// A S D F G H J K L ; ' are the white keys, W E T Y U O P the black keys: 18 notes from the base note (A = base).
+// Z / X move the octave down / up, C / V lower / raise the velocity in steps of 20 (Live: "intervals of twenty").
+// The base note starts at 48 = C3 (the name the strip prints on its keys, C4 = 60) and moves in whole octaves from 0 (C-1) to 108 (C8),
+// so the 18 notes always stay inside MIDI 0..127.
+constexpr int kCkSpan = 18, kCkBaseDefault = 48, kCkBaseMin = 0, kCkBaseMax = 108;
+enum class CkCmd { None, Note, OctaveDown, OctaveUp, VelocityDown, VelocityUp };
+struct CkAction { CkCmd cmd = CkCmd::None; int offset = 0; };      // offset: 0..17 above the base for a note
+// What a typed character means; upper case counts as lower case. Letters are matched as typed (QWERTY positions, see ComputerKeys).
+CkAction computerKeyAction(uint32_t c);
+int ckStepOctave(int base, int dir);                               // base moved one octave up (+1) or down (-1), clamped to kCkBaseMin..kCkBaseMax
+int ckStepVelocity(int vel, int dir);                              // next step of 20, 40, 60, 80, 100, 120, 127 (clamped); any other value moves to the nearest step first
+int ckNoteName(int note, char* out, int cap);                      // "C3", "C#4", "C-1": 60 = C4 (as the strip prints it)
+// "C3 - F4": text of the KEYS readout for a base note.
+int ckKeysText(int base, char* out, int cap);
+
+// The computer keys that are down. A key plays the note it had when it went down; Z / X first release every note of the old octave (the keys stay
+// down but silent until they are let go), so no note sticks. Auto repeat of a key that is already down does nothing. Calls f(...) for the synth.
+class ComputerKeys {
+public:
+    int base() const { return base_; }
+    int velocity() const { return vel_; }
+    int lowNote() const { return base_; }
+    int highNote() const { return base_ + kCkSpan - 1; }
+    int keysDown() const { return n_; }
+    bool isDown(int code) const { return find(code) >= 0; }
+    bool plays(int note) const { for (int i = 0; i < n_; ++i) if (slot_[i].note == note) return true; return false; }   // a key down that has this note
+    void reset() { n_ = 0; base_ = kCkBaseDefault; vel_ = kKeyVelocity; }
+    void setBase(int b) { base_ = b < kCkBaseMin ? kCkBaseMin : b > kCkBaseMax ? kCkBaseMax : b; }
+    void setVelocity(int v) { vel_ = v < 1 ? 1 : v > 127 ? 127 : v; }
+    // A key goes down. code identifies the physical key (anything unique), ch is the character it typed. Returns true when the key is one of ours
+    // (also for auto repeat). on(note, velocity) starts a note, off(note) ends one.
+    template <class On, class Off> bool press(int code, uint32_t ch, On on, Off off) {
+        const CkAction a = computerKeyAction(ch);
+        if (a.cmd == CkCmd::None) return false;
+        if (find(code) >= 0 || n_ >= kMax) return true;
+        if (a.cmd == CkCmd::Note) { const int note = base_ + a.offset; slot_[n_++] = { code, note }; on(note, vel_); return true; }
+        slot_[n_++] = { code, -1 };
+        if (a.cmd == CkCmd::OctaveDown || a.cmd == CkCmd::OctaveUp) {
+            const int b = ckStepOctave(base_, a.cmd == CkCmd::OctaveUp ? 1 : -1);
+            if (b != base_) { silence(off); base_ = b; }
+        } else vel_ = ckStepVelocity(vel_, a.cmd == CkCmd::VelocityUp ? 1 : -1);
+        return true;
+    }
+    // A key came up (or is gone). off(note) ends its note if it still has one.
+    template <class Off> void release(int code, Off off) {
+        const int i = find(code); if (i < 0) return;
+        const int note = slot_[i].note; slot_[i] = slot_[--n_];
+        if (note >= 0) off(note);
+    }
+    // Releases every key for which isUp(code) is true.
+    template <class Up, class Off> void releaseIf(Up isUp, Off off) {
+        for (int i = 0; i < n_;) {
+            if (!isUp(slot_[i].code)) { ++i; continue; }
+            const int note = slot_[i].note; slot_[i] = slot_[--n_];
+            if (note >= 0) off(note);
+        }
+    }
+    template <class Off> void releaseAll(Off off) { silence(off); n_ = 0; }
+    // Calls f(code) for every key that is down.
+    template <class F> void forEachKey(F f) const { for (int i = 0; i < n_; ++i) f(slot_[i].code); }
+private:
+    static constexpr int kMax = 32;
+    struct Slot { int code; int note; };
+    Slot slot_[kMax] = {};
+    int n_ = 0, base_ = kCkBaseDefault, vel_ = kKeyVelocity;
+    int find(int code) const { for (int i = 0; i < n_; ++i) if (slot_[i].code == code) return i; return -1; }
+    template <class Off> void silence(Off off) { for (int i = 0; i < n_; ++i) if (slot_[i].note >= 0) { const int n = slot_[i].note; slot_[i].note = -1; off(n); } }
+};
 
 // ---- wheels. Positions are 0..1 (1 = top). BEND rests at 0.5, MOD at 0.
 float bendWheelNorm(int bend);                            // bend -64..63 (the P_bend lever value) to wheel position

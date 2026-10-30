@@ -1,19 +1,44 @@
 #include "jpurrr/keyboard.h"
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 
 namespace jpurrr {
 
-int keyboardNoteForChar(uint32_t c) {
+CkAction computerKeyAction(uint32_t c) {
     if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+    auto note = [](int o) { return CkAction { CkCmd::Note, o }; };
     switch (c) {
-    case 'z': return 48; case 's': return 49; case 'x': return 50; case 'd': return 51; case 'c': return 52; case 'v': return 53;
-    case 'g': return 54; case 'b': return 55; case 'h': return 56; case 'n': return 57; case 'j': return 58; case 'm': return 59;
-    case ',': return 60; case 'q': return 60; case '2': return 61; case 'w': return 62; case '3': return 63; case 'e': return 64;
-    case 'r': return 65; case '5': return 66; case 't': return 67; case '6': return 68; case 'y': return 69; case '7': return 70;
-    case 'u': return 71; case 'i': return 72;
-    default: return -1;
+    case 'a': return note(0);  case 'w': return note(1);  case 's': return note(2);  case 'e': return note(3);
+    case 'd': return note(4);  case 'f': return note(5);  case 't': return note(6);  case 'g': return note(7);
+    case 'y': return note(8);  case 'h': return note(9);  case 'u': return note(10); case 'j': return note(11);
+    case 'k': return note(12); case 'o': return note(13); case 'l': return note(14); case 'p': return note(15);
+    case ';': return note(16); case '\'': return note(17);
+    case 'z': return { CkCmd::OctaveDown, 0 };  case 'x': return { CkCmd::OctaveUp, 0 };
+    case 'c': return { CkCmd::VelocityDown, 0 }; case 'v': return { CkCmd::VelocityUp, 0 };
+    default: return {};
     }
+}
+
+int ckStepOctave(int base, int dir) {
+    const int b = base + (dir > 0 ? 12 : dir < 0 ? -12 : 0);
+    return b < kCkBaseMin ? kCkBaseMin : b > kCkBaseMax ? kCkBaseMax : b;
+}
+static const int kCkVel[7] = { 20, 40, 60, 80, 100, 120, 127 };
+int ckStepVelocity(int vel, int dir) {
+    int best = 0;
+    for (int i = 1; i < 7; ++i) if (std::abs(kCkVel[i] - vel) < std::abs(kCkVel[best] - vel)) best = i;
+    best += dir > 0 ? 1 : dir < 0 ? -1 : 0;
+    return kCkVel[best < 0 ? 0 : best > 6 ? 6 : best];
+}
+int ckNoteName(int note, char* out, int cap) {
+    static const char* const nm[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    const int m = ((note % 12) + 12) % 12;
+    return std::snprintf(out, (size_t) cap, "%s%d", nm[m], (int) std::floor(note / 12.0) - 1);
+}
+int ckKeysText(int base, char* out, int cap) {
+    char a[16], b[16]; ckNoteName(base, a, 16); ckNoteName(base + kCkSpan - 1, b, 16);
+    return std::snprintf(out, (size_t) cap, "%s - %s", a, b);
 }
 
 float clamp01(float n) { return n < 0.f ? 0.f : n > 1.f ? 1.f : n; }

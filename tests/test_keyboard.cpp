@@ -4,21 +4,124 @@
 #include "jpurrr/patch.h"
 #include "jpurrr/synth.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <string>
 #include <vector>
 using namespace jpurrr;
 
-TEST(kb_computer_keys_like_the_mockup) {
-    const char* lower = "zsxdcvgbhnjm";
-    for (int i = 0; i < 12; ++i) CHECK(keyboardNoteForChar((uint32_t) lower[i]) == 48 + i);
-    CHECK(keyboardNoteForChar(',') == 60 && keyboardNoteForChar('q') == 60);
-    const char* upper = "q2w3er5t6y7ui";
-    for (int i = 0; i < 13; ++i) CHECK(keyboardNoteForChar((uint32_t) upper[i]) == 60 + i);
-    CHECK(keyboardNoteForChar('Z') == 48 && keyboardNoteForChar('Q') == 60);   // upper case counts
-    CHECK(keyboardNoteForChar('a') == -1 && keyboardNoteForChar(' ') == -1 && keyboardNoteForChar('4') == -1 && keyboardNoteForChar('@') == -1);
-    CHECK(keyboardNoteForChar(0x00e9) == -1);
+// Every computer key like Ableton Live's Computer MIDI Keyboard (and mockup v3.7).
+TEST(kb_computer_keys_like_ableton) {
+    const char* keys = "awsedftgyhujkolp;'";                 // A W S E D F T G Y H U J K O L P ; ' = C C# D D# E F F# G G# A A# B C C# D D# E F
+    for (int i = 0; i < 18; ++i) {
+        const CkAction a = computerKeyAction((uint32_t) keys[i]);
+        CHECK(a.cmd == CkCmd::Note && a.offset == i);
+        const CkAction u = computerKeyAction((uint32_t) std::toupper(keys[i]));
+        CHECK(u.cmd == CkCmd::Note && u.offset == i);          // upper case (Shift, Caps Lock) counts
+    }
+    CHECK(computerKeyAction('z').cmd == CkCmd::OctaveDown && computerKeyAction('x').cmd == CkCmd::OctaveUp);
+    CHECK(computerKeyAction('c').cmd == CkCmd::VelocityDown && computerKeyAction('v').cmd == CkCmd::VelocityUp);
+    CHECK(computerKeyAction('Z').cmd == CkCmd::OctaveDown && computerKeyAction('V').cmd == CkCmd::VelocityUp);
+    for (char ch : std::string("bnmqir,.-/[]\\1234567890 =`@")) CHECK(computerKeyAction((uint32_t) ch).cmd == CkCmd::None);   // the old keys are gone
+    CHECK(computerKeyAction(0x00e9).cmd == CkCmd::None && computerKeyAction(0).cmd == CkCmd::None);
+    // the white keys of the middle row are the white keys of a piano, the upper row the black keys
+    const int whites[11] = { 0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17 }, blacks[7] = { 1, 3, 6, 8, 10, 13, 15 };
+    const char* wk = "asdfghjkl;'"; const char* bk = "wetyuop";
+    for (int i = 0; i < 11; ++i) CHECK(computerKeyAction((uint32_t) wk[i]).offset == whites[i]);
+    for (int i = 0; i < 7; ++i) CHECK(computerKeyAction((uint32_t) bk[i]).offset == blacks[i]);
+}
+
+TEST(kb_computer_keys_octave_and_velocity_steps) {
+    CHECK(kCkBaseDefault == 48 && kCkBaseMin == 0 && kCkBaseMax == 108);
+    CHECK(ckStepOctave(48, 1) == 60 && ckStepOctave(48, -1) == 36 && ckStepOctave(48, 0) == 48);
+    CHECK(ckStepOctave(0, -1) == 0 && ckStepOctave(108, 1) == 108);                     // bounds
+    for (int b = kCkBaseMin; b <= kCkBaseMax; b += 12) CHECK(b + kCkSpan - 1 <= 127 && b >= 0);   // the 18 notes always fit MIDI 0..127
+    CHECK(kCkBaseMax + 12 + kCkSpan - 1 > 127);                                         // and one more octave would not
+    CHECK(ckStepVelocity(100, 1) == 120 && ckStepVelocity(100, -1) == 80);
+    CHECK(ckStepVelocity(120, 1) == 127 && ckStepVelocity(127, 1) == 127 && ckStepVelocity(127, -1) == 120);
+    CHECK(ckStepVelocity(20, -1) == 20 && ckStepVelocity(40, -1) == 20);
+    int v = 100; for (int i = 0; i < 9; ++i) v = ckStepVelocity(v, -1); CHECK(v == 20);
+    for (int i = 0; i < 9; ++i) v = ckStepVelocity(v, 1); CHECK(v == 127);
+    CHECK(ckStepVelocity(85, 1) == 100 && ckStepVelocity(85, -1) == 60);                  // an odd value joins the nearest step first
+    char b[32];
+    ckKeysText(48, b, 32); CHECK(std::string(b) == "C3 - F4");
+    ckKeysText(60, b, 32); CHECK(std::string(b) == "C4 - F5");
+    ckKeysText(0, b, 32);  CHECK(std::string(b) == "C-1 - F0");
+    ckKeysText(108, b, 32); CHECK(std::string(b) == "C8 - F9");
+    ckNoteName(61, b, 32); CHECK(std::string(b) == "C#4");
+}
+
+namespace {
+struct Log {
+    std::vector<std::pair<int, int>> on; std::vector<int> off; int sounding = 0;
+    bool hasOn(int n) const { for (auto& o : on) if (o.first == n) return true; return false; }
+    int countOn(int n) const { int c = 0; for (auto& o : on) if (o.first == n) ++c; return c; }
+};
+}
+TEST(kb_computer_keys_play_every_key_in_every_octave) {
+    for (int base = kCkBaseMin; base <= kCkBaseMax; base += 12) {
+        ComputerKeys ck; ck.setBase(base); Log lg; const char* keys = "awsedftgyhujkolp;'";
+        auto on = [&](int n, int v) { lg.on.push_back({ n, v }); ++lg.sounding; };
+        auto off = [&](int) { --lg.sounding; };
+        for (int i = 0; i < 18; ++i) CHECK(ck.press(1000 + i, (uint32_t) keys[i], on, off));
+        CHECK(lg.on.size() == 18 && lg.sounding == 18);
+        for (int i = 0; i < 18; ++i) CHECK(lg.on[(size_t) i].first == base + i && lg.on[(size_t) i].second == kKeyVelocity);
+        CHECK(ck.lowNote() == base && ck.highNote() == base + 17 && ck.highNote() <= 127);
+        for (int i = 0; i < 18; ++i) ck.release(1000 + i, off);
+        CHECK(lg.sounding == 0 && ck.keysDown() == 0);
+    }
+}
+
+TEST(kb_computer_keys_octave_change_hands_off_the_held_notes) {
+    ComputerKeys ck; Log lg; std::vector<int> sounding;
+    auto on = [&](int n, int v) { lg.on.push_back({ n, v }); sounding.push_back(n); };
+    auto off = [&](int n) { auto it = std::find(sounding.begin(), sounding.end(), n); CHECK(it != sounding.end()); if (it != sounding.end()) sounding.erase(it); lg.off.push_back(n); };
+    ck.press('a', 'a', on, off); ck.press('d', 'd', on, off);                      // C3 and E3 held
+    CHECK(sounding.size() == 2);
+    CHECK(ck.press('x', 'x', on, off));                                            // octave up: the old notes end first
+    CHECK(ck.base() == 60 && sounding.empty() && lg.off.size() == 2);
+    ck.press('s', 's', on, off);                                                    // new octave: D4
+    CHECK(sounding.size() == 1 && sounding[0] == 62);
+    ck.release('a', off); ck.release('d', off);                                     // the old keys come up: nothing more to end
+    CHECK(sounding.size() == 1 && lg.off.size() == 2);
+    ck.press('a', 'a', on, off);                                                    // pressed again: C4 plays
+    CHECK(sounding.size() == 2 && sounding[1] == 60);
+    ck.release('s', off); ck.release('a', off); ck.release('x', off);
+    CHECK(sounding.empty() && ck.keysDown() == 0);
+    // octave down twice: 60 -> 48 -> 36
+    ck.press('q', 'z', on, off); ck.release('q', off); ck.press('q', 'z', on, off); ck.release('q', off);
+    CHECK(ck.base() == 36);
+}
+
+TEST(kb_computer_keys_auto_repeat_and_bounds) {
+    ComputerKeys ck; int ons = 0, offs = 0, base0 = ck.base();
+    auto on = [&](int, int) { ++ons; }; auto off = [&](int) { ++offs; };
+    CHECK(ck.press(1, 'a', on, off) && ons == 1);
+    for (int i = 0; i < 10; ++i) CHECK(ck.press(1, 'a', on, off));                 // key repeat: handled, nothing retriggers
+    CHECK(ons == 1 && offs == 0);
+    ck.press(2, 'x', on, off); for (int i = 0; i < 5; ++i) ck.press(2, 'x', on, off);   // a held octave key does not repeat the shift
+    CHECK(ck.base() == base0 + 12 && offs == 1);
+    ck.release(2, off); ck.release(1, off); CHECK(offs == 1 && ck.keysDown() == 0);
+    // hold Z down at the bottom and X at the top: the base stops
+    for (int i = 0; i < 20; ++i) { ck.press(3, 'z', on, off); ck.release(3, off); }
+    CHECK(ck.base() == 0);
+    ck.press(4, 'a', on, off); const int o = offs; ck.press(5, 'z', on, off);      // already at the bottom: the held note keeps sounding
+    CHECK(ck.base() == 0 && offs == o);
+    ck.releaseAll(off); CHECK(ck.keysDown() == 0 && offs == o + 1);
+    for (int i = 0; i < 20; ++i) { ck.press(3, 'x', on, off); ck.release(3, off); }
+    CHECK(ck.base() == 108);
+    // velocity: C and V change the velocity of the next notes only
+    ck.reset(); std::vector<int> vels; auto on2 = [&](int, int v) { vels.push_back(v); };
+    ck.press(1, 'a', on2, off); ck.release(1, off);
+    ck.press(2, 'v', on2, off); ck.release(2, off); ck.press(1, 'a', on2, off); ck.release(1, off);
+    ck.press(2, 'c', on2, off); ck.release(2, off); ck.press(2, 'c', on2, off); ck.release(2, off); ck.press(1, 'a', on2, off); ck.release(1, off);
+    CHECK(vels.size() == 3 && vels[0] == 100 && vels[1] == 120 && vels[2] == 80 && ck.velocity() == 80);
+    // a key that is not ours is not handled; releaseIf lets go of the keys that are up
+    CHECK(!ck.press(9, 'b', on, off) && ck.keysDown() == 0);
+    ck.press(10, 'a', on, off); ck.press(11, 's', on, off); const int o2 = offs;
+    ck.releaseIf([](int code) { return code == 10; }, off);
+    CHECK(ck.keysDown() == 1 && ck.isDown(11) && !ck.isDown(10) && offs == o2 + 1);
 }
 
 TEST(kb_wheel_conversions) {

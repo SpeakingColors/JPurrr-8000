@@ -73,6 +73,7 @@ private:
     bool partsOpenFlag = false;
     float stripYNow() const;
     mutable layout::Tip splitTip;
+    mutable layout::Tip infoTip;                       // v3.7: tip of the KEYS / VEL readout
     std::unique_ptr<DialogLayer> dialogs;
     juce::Image texture;
     juce::String lastInfo, lastMsg, lastTitle;

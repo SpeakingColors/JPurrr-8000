@@ -130,7 +130,7 @@ void JPurrr8000AudioProcessor::pushStrip(StripEvent e) {
     if (n1 > 0) { stripData[(size_t) s1] = e; stripFifo.finishedWrite(1); }
     else if (e.kind == 1) stripPanic.store(true);                     // a lost note off or all-off must never leave a note hanging
 }
-void JPurrr8000AudioProcessor::stripNoteOn(int note)  { pushStrip({ 0, (std::int8_t) juce::jlimit(0, 127, note) }); }
+void JPurrr8000AudioProcessor::stripNoteOn(int note, int velocity) { pushStrip({ 0, (std::int8_t) juce::jlimit(0, 127, note), (std::int8_t) juce::jlimit(1, 127, velocity) }); }
 void JPurrr8000AudioProcessor::stripNoteOff(int note) { pushStrip({ 1, (std::int8_t) juce::jlimit(0, 127, note) }); }
 
 void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce::MidiBuffer& midi) {
@@ -174,7 +174,7 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
     {
         int s1, n1, s2, n2; stripFifo.prepareToRead(stripFifo.getNumReady(), s1, n1, s2, n2);
         auto play = [&](const StripEvent& e) {
-            if (e.kind == 0) { if (synth.heldVoices() == 0) fx.restartGate(); synth.stripNoteOn(e.note, jpurrr::kKeyVelocity); }
+            if (e.kind == 0) { if (synth.heldVoices() == 0) fx.restartGate(); synth.stripNoteOn(e.note, e.vel); }
             else synth.stripNoteOff(e.note);
         };
         for (int i = 0; i < n1; ++i) play(stripData[(size_t) (s1 + i)]);

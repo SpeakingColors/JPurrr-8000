@@ -392,6 +392,11 @@ void Root::paint(juce::Graphics& g) {
 const Tip* Root::tipAtPoint(juce::Point<float> p, juce::Rectangle<float>&) const {
     if (mpMenu->isVisible()) for (auto& t : mpTips) if (p.x >= t.r.x && p.x <= t.r.x + t.r.w && p.y >= t.r.y && p.y <= t.r.y + t.r.h) return &t;
     if (stripShown()) {                                    // the BEND and MOD wheels have tips (data-tip); the keys do not
+        const auto ir = strip->infoRect();                 // v3.7: the KEYS / VEL readout over the keys explains the computer keys
+        if (p.x >= ir.getX() && p.x < ir.getRight() && p.y >= stripYNow() + ir.getY() && p.y < stripYNow() + ir.getBottom()) {
+            infoTip = { { ir.getX(), stripYNow() + ir.getY(), ir.getWidth(), ir.getHeight() }, "Computer keys: A S D F G H J K L ; ' play the white keys and W E T Y U O P the black keys. Z and X move the octave down and up, C and V lower and raise the velocity. The keys with a blue bar are the ones the computer keys play now.", "" };
+            return &infoTip;
+        }
         for (int i = 0; i < 2; ++i) {
             const Wheel& w = kStrip.wheels[(size_t) i]; const float y0 = kPages[page].stripY;
             if (p.x >= w.r.x && p.x < w.r.x + w.r.w && p.y >= y0 + w.r.y && p.y < y0 + w.r.y + w.r.h) {
@@ -497,7 +502,7 @@ void Root::showTextBubble(juce::Component& c, const juce::String& text) {
 }
 
 bool Root::applyState(const juce::String& s) {
-    if (s.startsWith("kbd_")) {                          // test hook: kbd_<sound|chain|master>_n60_n64_b40_m90_dragb_focusm (notes held, wheel values, wheel states)
+    if (s.startsWith("kbd_")) {                          // test hook: kbd_<sound|chain|master>_n60_n64_b40_m90_c60_v80_dragb_focusm (notes held, wheel values, A = note 60, velocity 80, wheel states)
         juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();
         ctl.quiet(P_prev, 1); showPage(t[1] == "chain" ? kChain : t[1] == "master" ? kMaster : kSound);
         int drag = -1, focus = -1;
@@ -505,15 +510,19 @@ bool Root::applyState(const juce::String& s) {
             const auto& k = t[i]; const int v = k.substring(1).getIntValue();
             if (k.startsWith("n")) strip->noteOn(v); else if (k.startsWith("b") && k.length() > 1) ctl.quiet(P_bend, v);
             else if (k.startsWith("m") && k.length() > 1) ctl.quiet(P_mod, v);
+            else if (k.startsWith("c") && k.length() > 1 && std::isdigit((unsigned char) k[1])) strip->setComputerKeys(v, strip->computerVelocity());   // v3.7: cNN = the note A plays
+            else if (k.startsWith("v") && k.length() > 1 && std::isdigit((unsigned char) k[1])) strip->setComputerKeys(strip->computerBase(), v);    // vNN = velocity of the computer keys
             else if (k == "dragb") drag = 0; else if (k == "dragm") drag = 1; else if (k == "focusb") focus = 0; else if (k == "focusm") focus = 1;
         }
         strip->snapshotState(drag, focus); return true; }
     if (s == "reset") { if (exportWarnApplied) { for (int i = 0; i < 4; ++i) ctl.quiet(Controller::idx(kExportWarnIds[i]), exportWarnOld[i]); ctl.pm.cur.dirty = false; exportWarnApplied = false; }
-        setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
+        setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); strip->setComputerKeys(48, 100); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
     if (s.startsWith("sound_parts_")) {                  // test hook: sound_parts_<split|dual|single>[_ps0|_ps2|_ps3][_nokbd]: the PARTS band open on the SOUND page
         juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();
         ctl.quiet(P_prev, t.contains("nokbd") ? 0 : 1); ctl.quiet(P_ps, 1);
         for (auto& k : t) if (k.length() == 3 && k.startsWith("ps")) ctl.quiet(P_ps, k.substring(2).getIntValue());
+        strip->setComputerKeys(48, 100);
+        for (auto& k : t) if (k.length() > 1 && std::isdigit((unsigned char) k[1])) { if (k[0] == 'c') strip->setComputerKeys(k.substring(1).getIntValue(), strip->computerVelocity()); else if (k[0] == 'v') strip->setComputerKeys(strip->computerBase(), k.substring(1).getIntValue()); }   // v3.7: cNN, vNN
         ctl.quiet(P_km, t.contains("single") ? 0 : t.contains("dual") ? 1 : 2);
         setPartsOpen(true); showPage(kSound); ctl.msgUntil = 0; return true; }
     if (s.endsWith("_nokbd")) {                          // test hook: PREVIEW off, keyboard strip hidden (sound_nokbd chain_nokbd master_nokbd)

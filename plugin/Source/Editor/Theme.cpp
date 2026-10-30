@@ -148,7 +148,7 @@ static juce::Colour mixc(juce::Colour a, float p, juce::Colour b) {
 enum { kTintNone = 0, kTintLower = 1, kTintUpper = 2, kTintBoth = 3 };
 static int tintOf(const KeyTint& t, int n) { return !t.on ? kTintNone : t.km == 2 ? (n < t.sp ? kTintLower : kTintUpper) : t.km == 1 ? kTintBoth : kTintNone; }
 
-static void paintKeyBox(juce::Graphics& g, const Look& L, juce::Rectangle<float> r, bool black, bool on, int tint, bool sk, juce::Colour whiteBorder) {
+static void paintKeyBox(juce::Graphics& g, const Look& L, juce::Rectangle<float> r, bool black, bool on, int tint, bool sk, juce::Colour whiteBorder, bool ck = false) {
     const juce::Colour pu = L[acc], pl = L[acc2];
     if (!black) {
         juce::ColourGradient gr; const float y0 = r.getY(), y1 = r.getBottom();
@@ -164,6 +164,7 @@ static void paintKeyBox(juce::Graphics& g, const Look& L, juce::Rectangle<float>
         } else { gr = juce::ColourGradient(juce::Colour(0xffeef0f3), 0, y0, juce::Colour(0xffd9dce1), 0, y1, false); gr.addColour(.6, juce::Colour(0xfffbfbfc)); }
         g.setGradientFill(gr); g.fillRect(r);
         if (sk) { g.setColour(pu); g.fillRect(r.getX() + 1, r.getBottom() - 1 - 6, r.getWidth() - 2, 6.0f); }   // inset 0 -6px 0 var(--pu)
+        else if (ck) { g.setColour(juce::Colour(0xff4a82b8)); g.fillRect(r.getX() + 1, r.getBottom() - 1 - 4, r.getWidth() - 2, 4.0f); }   // v3.7 inset 0 -4px 0 #4a82b8
         g.setColour(whiteBorder);                              // 1 px borders left, right, bottom (no top)
         g.fillRect(r.getX(), r.getY(), 1.0f, r.getHeight()); g.fillRect(r.getRight() - 1, r.getY(), 1.0f, r.getHeight()); g.fillRect(r.getX(), r.getBottom() - 1, r.getWidth(), 1.0f);
     } else {
@@ -174,12 +175,13 @@ static void paintKeyBox(juce::Graphics& g, const Look& L, juce::Rectangle<float>
         else if (tint != kTintNone) { const juce::Colour tc = tint == kTintLower ? pl : pu; gr = juce::ColourGradient(mixc(tc, .60f, juce::Colour(0xff22252a)), 0, r.getY(), mixc(tc, .30f, juce::Colour(0xff050607)), 0, r.getBottom(), false); }
         g.setGradientFill(gr); g.fillPath(p);
         if (sk) { g.setColour(pu); g.fillRect(r.getX() + 1, r.getBottom() - 1 - 5, r.getWidth() - 2, 5.0f); }     // inset 0 -5px 0 var(--pu)
+        else if (ck) { g.setColour(juce::Colour(0xff7db8f0)); g.fillRect(r.getX() + 1, r.getBottom() - 1 - 3, r.getWidth() - 2, 3.0f); }   // v3.7 inset 0 -3px 0 #7db8f0
         juce::Path q; q.addRoundedRectangle(r.getX() + 0.5f, r.getY() - 0.5f, r.getWidth() - 1.0f, r.getHeight(), 2.5f, 2.5f, false, false, true, true);
         g.setColour(juce::Colours::black); g.strokePath(q, juce::PathStrokeType(1.0f));
     }
 }
 
-void jp::drawKeyStripKeys(juce::Graphics& g, const Look& L, float y0, const bool* lit, const KeyTint& tint) {
+void jp::drawKeyStripKeys(juce::Graphics& g, const Look& L, float y0, const bool* lit, const KeyTint& tint, int ckBase) {
     const KeyStrip& S = kStrip;
     auto kb = snapBox(S.keysRect, y0);
     g.setColour(juce::Colour(0xff0b0e13)); g.fillRoundedRectangle(kb, 3.0f);
@@ -188,7 +190,7 @@ void jp::drawKeyStripKeys(juce::Graphics& g, const Look& L, float y0, const bool
     for (auto& k : S.keys) {
         auto r = snapBox(k.r, y0);
         const bool on = lit != nullptr && k.note >= 0 && k.note < 128 && lit[k.note];
-        paintKeyBox(g, L, r, k.black, on, tintOf(tint, k.note), tint.on && tint.km == 2 && k.note == tint.sp, juce::Colour(0xff888888));
+        paintKeyBox(g, L, r, k.black, on, tintOf(tint, k.note), tint.on && tint.km == 2 && k.note == tint.sp, juce::Colour(0xff888888), ckBase >= 0 && k.note >= ckBase && k.note < ckBase + 18);
     }
     g.setColour(juce::Colour((juce::uint32) S.labelCol)); g.setFont(fontOf(S.labelFont));
     for (auto& l : S.labels) drawTextAt(g, l.t, l.x + l.w / 2.0f, y0 + l.base, 'c');

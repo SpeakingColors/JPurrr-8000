@@ -17,7 +17,7 @@ public:
     }
     void paint(juce::Graphics& g) override {
         g.addTransform(juce::AffineTransform::translation(-(kStrip.r.x + (float) getX()), -(float) getY()));
-        drawKeyStripKeys(g, strip.L(), 0.0f, strip.lit, strip.tint);
+        drawKeyStripKeys(g, strip.L(), 0.0f, strip.lit, strip.tint, strip.ck.lowNote());
     }
     // the point is in strip coordinates (x is a window x)
     int noteAt(juce::Point<float> p) const { return keyAtPoint(boxes.data(), (int) boxes.size(), p.x, p.y); }
@@ -146,6 +146,41 @@ private:
         for (int n = 36; n <= 96; ++n) { const float d = std::abs(splitX(n).xt - f); if (d < bd) { bd = d; best = n; } }
         set(best);
     }
+};
+
+// ------------------------------------------------------------------------------ KEYS / VEL readout (mockup v3.7 #kinfo)
+// A small label over the top right corner of the keys: the notes the computer keys play now ("KEYS C3 - F4") and their velocity ("VEL 100").
+// Under the SPLIT handle row it steps down (mockup #keys.sp2). It only takes the mouse where it is drawn (nothing under it plays).
+class InfoW : public juce::Component {
+public:
+    explicit InfoW(KeyboardStrip& s) : strip(s) { setComponentID("kinfo"); setInterceptsMouseClicks(true, false); }
+    static juce::Font fSmall() { return fontOf(kCond, 16.7f, 700, 0.14f); }
+    static juce::Font fNote() { return fontOf(kMono, 18.4f, 600); }
+    juce::Rectangle<float> pad() const { return { 1.0f, 1.0f, (float) getWidth() - 2.0f, (float) getHeight() - 2.0f }; }
+    juce::String keysText() const { char b[32]; ckKeysText(strip.ck.lowNote(), b, 32); return b; }
+    juce::String velText() const { return juce::String(strip.ck.velocity()); }
+    juce::Rectangle<float> box() const {
+        const auto P = pad();
+        const float w = 2 + 20 + textWidth(fSmall(), "KEYS") + 8 + textWidth(fNote(), keysText()) + 16 + textWidth(fSmall(), "VEL") + 8 + textWidth(fNote(), velText());
+        const float top = strip.tint.on && strip.tint.km == 2 ? 38.0f : 6.0f;
+        return { P.getRight() - 8.0f - w, P.getY() + top, w, 26.0f };
+    }
+    bool hitTest(int x, int y) override { return box().contains((float) x, (float) y); }
+    void paint(juce::Graphics& g) override {
+        const Look& L = strip.L(); const auto r = box();
+        g.setColour(L[hdr].withAlpha(0.88f)); g.fillRoundedRectangle(r, 4.0f);
+        g.setColour(L[edge]); g.drawRoundedRectangle(r.reduced(0.5f), 4.0f, 1.0f);
+        auto base = [&](const juce::Font& f) { return r.getY() + (r.getHeight() - (f.getAscent() + f.getDescent())) / 2.0f + f.getAscent(); };
+        float x = r.getX() + 1 + 10;
+        auto part = [&](const char* label, const juce::String& v) {
+            g.setColour(L[lbl2]); g.setFont(fSmall()); drawTextAt(g, label, x, base(fSmall()), 'l'); x += textWidth(fSmall(), label) + 8;
+            g.setColour(L[lbl]); g.setFont(fNote()); drawTextAt(g, v, x, base(fNote()), 'l'); x += textWidth(fNote(), v);
+        };
+        part("KEYS", keysText()); x += 16; part("VEL", velText());
+    }
+    void refresh() { if (lastBase != strip.ck.lowNote() || lastVel != strip.ck.velocity() || lastSp != (strip.tint.on && strip.tint.km == 2)) { lastBase = strip.ck.lowNote(); lastVel = strip.ck.velocity(); lastSp = strip.tint.on && strip.tint.km == 2; repaint(); } }
+private:
+    KeyboardStrip& strip; int lastBase = -1, lastVel = -1; bool lastSp = false;
 };
 
 // ------------------------------------------------------------------------------ wheels
@@ -288,6 +323,8 @@ KeyboardStrip::KeyboardStrip(JPurrr8000AudioProcessor& p, Ctx& c) : proc(p), x(c
     addAndMakeVisible(*keys);
     split = std::make_unique<SplitW>(*this);
     addAndMakeVisible(*split);
+    info = std::make_unique<InfoW>(*this);
+    addAndMakeVisible(*info);
     for (int i = 0; i < 2; ++i) { wheels[i] = std::make_unique<WheelW>(*this, i); addAndMakeVisible(*wheels[i]); }
     place(0.0f);
 }
@@ -297,6 +334,7 @@ void KeyboardStrip::place(float stripY) {
     // children are placed in strip coordinates relative to the strip box: x - r.x, y
     keys->setBounds(snapRect(kStrip.keysRect).translated(-(int) std::lround(kStrip.r.x), 0));
     split->setBounds(keys->getBounds());
+    info->setBounds(keys->getBounds());
     for (int i = 0; i < 2; ++i) {
         const auto& r = kStrip.wheels[(size_t) i].r;
         wheels[i]->setBounds(juce::Rectangle<int>((int) std::floor(r.x - kStrip.r.x) - 5, (int) std::floor(r.y) - 5, (int) std::ceil(r.w) + 10, (int) std::ceil(r.h) + 10));
@@ -318,9 +356,11 @@ void KeyboardStrip::snapshotState(int dragWheel, int focusWheel) { for (int i = 
 
 void KeyboardStrip::setPartsMode(bool on) {
     const KeyTint t { on, ctl.get(P_km), ctl.get(P_sp) };
-    if (t.on != tint.on || t.km != tint.km || t.sp != tint.sp) { tint = t; keys->repaint(); split->repaint(); }
+    if (t.on != tint.on || t.km != tint.km || t.sp != tint.sp) { tint = t; keys->repaint(); split->repaint(); info->repaint(); }
 }
 void KeyboardStrip::keysRepaint() { setPartsMode(tint.on); keys->repaint(); }
+juce::Rectangle<float> KeyboardStrip::infoRect() const { return info->box().translated((float) info->getX() + kStrip.r.x, (float) info->getY()); }
+void KeyboardStrip::setComputerKeys(int base, int vel) { ck.setBase(base); ck.setVelocity(vel); keys->repaint(); info->repaint(); }
 juce::Rectangle<float> KeyboardStrip::splitHandle() const {
     if (!tint.on || tint.km != 2) return {};
     auto r = split->handleRect().translated((float) split->getX() + kStrip.r.x, (float) split->getY());
@@ -329,26 +369,26 @@ juce::Rectangle<float> KeyboardStrip::splitHandle() const {
 void KeyboardStrip::refresh() {
     setPartsMode(tint.on);                             // follow KEY MODE and the split point (panel, host, MIDI)
     split->refresh();
+    info->refresh();
     for (auto& w : wheels) w->refresh();
     // computer keys: a key that went up without us noticing, or focus that left the editor
-    if (!ckeys.empty()) {
+    if (ck.keysDown() > 0) {
         const bool focused = getParentComponent() != nullptr && getParentComponent()->hasKeyboardFocus(true);
         if (!focused) releaseComputerKeys(); else keyStateChanged();
     }
     // a mouse note whose button is no longer down (window switched away during the press)
     if (keys->pointerDown() && juce::Desktop::getInstance().getNumDraggingMouseSources() == 0) {
         for (int n = kKeyFirstNote; n <= kKeyLastNote; ++n) if (held.isDown(n)) {
-            bool fromKey = false; for (auto& k : ckeys) if (k.note == n) fromKey = true;
-            if (!fromKey) noteOff(n);
+            if (!ck.plays(n)) noteOff(n);
         }
         keys->forget();
     }
 }
 
-void KeyboardStrip::noteOn(int note) {
+void KeyboardStrip::noteOn(int note, int vel) {
     if (!held.press(note)) return;
     if (note >= 0 && note < 128) lit[note] = true;
-    proc.stripNoteOn(note);
+    proc.stripNoteOn(note, vel);
     keys->repaint();
 }
 void KeyboardStrip::noteOff(int note) {
@@ -359,14 +399,11 @@ void KeyboardStrip::noteOff(int note) {
 }
 void KeyboardStrip::releaseAll() {
     held.releaseAll([this](int n) { if (n < 128) lit[n] = false; proc.stripNoteOff(n); });
-    ckeys.clear();
+    ck.releaseAll([](int) {});                         // the notes themselves ended just above
     if (keys) { keys->forget(); keys->repaint(); }
     for (auto& w : wheels) if (w) w->stopAll();
 }
-void KeyboardStrip::releaseComputerKeys() {
-    auto ks = ckeys; ckeys.clear();
-    for (auto& k : ks) noteOff(k.note);
-}
+void KeyboardStrip::releaseComputerKeys() { ck.releaseAll([this](int n) { noteOff(n); }); }
 
 bool KeyboardStrip::keyDown(const juce::KeyPress& k) {
     if (!isVisible()) return false;
@@ -377,18 +414,16 @@ bool KeyboardStrip::keyDown(const juce::KeyPress& k) {
         if (dynamic_cast<juce::TextInputTarget*>(fc) != nullptr) return false;
         if (dynamic_cast<KnobW*>(fc) != nullptr || dynamic_cast<SliderW*>(fc) != nullptr) return false;
     }
-    const int n = keyboardNoteForChar((uint32_t) k.getTextCharacter());
-    if (n < 0) return false;
-    for (auto& c : ckeys) if (c.code == k.getKeyCode()) return true;              // auto repeat
-    ckeys.push_back({ k.getKeyCode(), n });
-    noteOn(n);
-    return true;
+    // Keys are told apart by the key code the host gives us (the typed key, so the letters follow the layout; see the notes in the manual).
+    const bool ours = ck.press(k.getKeyCode(), (uint32_t) k.getTextCharacter(), [this](int n, int v) { noteOn(n, v); }, [this](int n) { noteOff(n); });
+    if (ours) { keys->repaint(); info->repaint(); }
+    return ours;
 }
 
 void KeyboardStrip::keyStateChanged() {
-    for (size_t i = 0; i < ckeys.size();) {
-        const int c = ckeys[i].code;
+    auto isUp = [](int c) {
         const bool down = juce::KeyPress::isKeyCurrentlyDown(c) || (c >= 'A' && c <= 'Z' && juce::KeyPress::isKeyCurrentlyDown(c + 32)) || (c >= 'a' && c <= 'z' && juce::KeyPress::isKeyCurrentlyDown(c - 32));
-        if (!down) { const int n = ckeys[i].note; ckeys.erase(ckeys.begin() + (long) i); noteOff(n); } else ++i;
-    }
+        return !down;
+    };
+    ck.releaseIf(isUp, [this](int n) { noteOff(n); });
 }

@@ -501,7 +501,7 @@ void DialogLayer::openGuide() {
     ul->add({ n("SOUND and FX tabs at the top: SOUND is the front panel, FX holds the trance gate.") });
     ul->add({ n("Double click the preset name to rename. Saving over a factory sound makes your own copy. WRITE opens Save.") });
     ul->add({ n("Resize from any edge or corner; the shape stays the same. Double click a wood cheek for 100%.") });
-    ul->add({ n("Keyboard: play the bottom keys with the mouse, or type "), k("Z S X D C V G B H N J M"), n(" and "), k("Q 2 W 3 E R 5 T 6 Y 7 U I"), n(". PREVIEW hides the strip. Left of the keys: BEND springs back to the middle, MOD stays where you leave it. Drag, scroll or use the arrow keys.") });
+    ul->add({ n("Keyboard: play the bottom keys with the mouse, or use the computer keys like in Ableton Live: "), k("A S D F G H J K L ; '"), n(" play the white keys and "), k("W E T Y U O P"), n(" the black keys. "), k("Z"), n(" and "), k("X"), n(" move the octave down and up, "), k("C"), n(" and "), k("V"), n(" lower and raise the velocity. The keys with a blue bar are the ones the computer keys play. PREVIEW hides the strip. Left of the keys: BEND springs back to the middle, MOD stays where you leave it. Drag, scroll or use the arrow keys.") });
     ul->add({ n("FX block presets: SAVE keeps the knobs of a block as your own preset. The ... button renames or deletes your presets. Factory block presets cannot be changed.") });
     ul->add({ n("Voices: 8 up to 128.") });
     f.layoutBody = [p0, ul](float w) { float y = 0; y += p0->layoutFor(w); p0->setTopLeftPosition(0, 0); y += kGap; ul->setTopLeftPosition(0, juce::roundToInt(y)); y += ul->layoutFor(w); return y; };

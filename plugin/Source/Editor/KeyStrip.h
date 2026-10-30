@@ -11,6 +11,7 @@ namespace jp {
 class WheelW;
 class KeysW;
 class SplitW;
+class InfoW;
 
 class KeyboardStrip : public juce::Component {
 public:
@@ -23,6 +24,7 @@ public:
     // v3.5: while the PARTS band is shown the keys get the LOWER / UPPER tints and the split marker (KEY MODE DUAL and SPLIT)
     void setPartsMode(bool on);
     void keysRepaint();
+    juce::Rectangle<float> infoRect() const;           // the KEYS / VEL readout over the keys (mockup v3.7 #kinfo) in strip coordinates
     juce::Rectangle<float> splitHandle() const;        // the split handle in strip coordinates (window x, y from the top of the strip); empty when not shown
     jp::KeyTint tint;
     // test hook (snapshot tool): handles jump to their values, pretend a wheel is dragged or has keyboard focus (-1 none, 0 BEND, 1 MOD)
@@ -30,14 +32,17 @@ public:
     void animateForTest(int ms);                       // test hook (headless check): run the wheel animations for ms without a message loop
 
     // notes (message thread)
-    void noteOn(int note);
+    void noteOn(int note, int vel = jpurrr::kKeyVelocity);
     void noteOff(int note);
     void releaseAll();
     bool anyDown() const { return held.count() > 0; }
+    int computerBase() const { return ck.base(); }          // the note A plays (48 = C3 at the start)
+    int computerVelocity() const { return ck.velocity(); }
+    void setComputerKeys(int base, int vel);           // test hook (snapshot tool): the octave and velocity of the computer keys
     bool isLit(int note) const { return held.isDown(note); }
 
     // computer keys, called by the editor root
-    bool keyDown(const juce::KeyPress& k);             // true when the key plays a note
+    bool keyDown(const juce::KeyPress& k);             // true when the key is one of the computer keys (notes, Z / X octave, C / V velocity)
     void keyStateChanged();                            // a key went up: release notes whose key is no longer down
 
     std::function<void(juce::Component&, const juce::String&)> showBubble;   // value bubble under a component
@@ -46,14 +51,14 @@ public:
     const Look& L() const { return x.L(); }
 
 private:
-    friend class WheelW; friend class KeysW; friend class SplitW;
+    friend class WheelW; friend class KeysW; friend class SplitW; friend class InfoW;
     JPurrr8000AudioProcessor& proc; Ctx& x; Controller& ctl;
     jpurrr::HeldNotes held;
     bool lit[128] = {};
-    struct CKey { int code; int note; };
-    std::vector<CKey> ckeys;
+    jpurrr::ComputerKeys ck;                           // the computer keys that are down, the octave and the velocity
     std::unique_ptr<KeysW> keys;
     std::unique_ptr<SplitW> split;
+    std::unique_ptr<InfoW> info;
     std::unique_ptr<WheelW> wheels[2];
     void releaseComputerKeys();
 };

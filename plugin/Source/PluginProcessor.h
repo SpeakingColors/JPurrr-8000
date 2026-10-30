@@ -61,7 +61,7 @@ public:
     void markPartDirty(int part);
     juce::String presetName { "Init" };
     // --- the editor's keyboard strip (message thread only; lock-free queue, the audio thread plays them at the start of the next block) ---
-    void stripNoteOn(int note);
+    void stripNoteOn(int note, int velocity = 100);
     void stripNoteOff(int note);
 
     juce::AudioProcessorValueTreeState apvts;
@@ -85,7 +85,7 @@ private:
     std::array<jpurrr::MidiUpdate, kMidiFifo> midiFifoData {};
     std::array<jpurrr::MidiMapper, 16> mappers;
     // Notes of the keyboard strip travel from the message thread to the audio thread through this FIFO (single producer).
-    struct StripEvent { std::int8_t kind; std::int8_t note; };         // 0 note on, 1 note off
+    struct StripEvent { std::int8_t kind; std::int8_t note; std::int8_t vel = 100; };         // 0 note on, 1 note off
     static constexpr int kStripFifo = 256;
     juce::AbstractFifo stripFifo { kStripFifo };
     std::array<StripEvent, kStripFifo> stripData {};

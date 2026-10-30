@@ -41,7 +41,8 @@ SplitX splitX(int sp);
 juce::String noteNameOf(int note);                       // 60 = "C4"
 void drawSplitLines(juce::Graphics& g, const Look& L, juce::Rectangle<float> box, int sp);       // box = the key area (padding box)
 void drawMiniKeys(juce::Graphics& g, const Look& L, juce::Rectangle<float> box, const KeyTint& tint);   // the 61 keys C2..C7 in box (the PARTS map)
-void drawKeyStripKeys(juce::Graphics& g, const Look& L, float y0, const bool* lit, const KeyTint& tint);
+// ckBase >= 0 (mockup v3.7): the 18 keys the computer keys play from that note get a blue bar along the bottom (the split key's amber bar wins).
+void drawKeyStripKeys(juce::Graphics& g, const Look& L, float y0, const bool* lit, const KeyTint& tint, int ckBase = -1);
 void drawKeyStripWheel(juce::Graphics& g, const Look& L, float y0, int idx, float wn, float handleWn, bool dragging, bool focus);
 void drawKeyStripCaptions(juce::Graphics& g, const Look& L, float y0);
 

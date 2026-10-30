@@ -123,18 +123,62 @@ int main() {
     strip->noteOff(64); check(!strip->isLit(64), "key goes dark on release");
     render(proc, 48000 * 6 / 256);
 
-    // computer keys (Z = C3 = 48); in this headless run no key is physically down, so keyStateChanged() sees the key as released
-    check(root.keyPressed(juce::KeyPress('z', juce::ModifierKeys(), 'z')) && strip->isLit(48), "computer key Z plays note 48");
-    check(root.keyPressed(juce::KeyPress('z', juce::ModifierKeys(), 'z')) && strip->isLit(48), "auto repeat does not retrigger");
-    check(!root.keyPressed(juce::KeyPress('a', juce::ModifierKeys(), 'a')), "unmapped key is left alone");
+    // computer keys like Ableton Live (v3.7): A = C3 = 48 at the start; in this headless run no key is physically down, so keyStateChanged()
+    // sees every key as released
+    auto kp = [&](juce::juce_wchar ch, int mods = 0) { return root.keyPressed(juce::KeyPress((int) ch, juce::ModifierKeys(mods), ch)); };
+    check(strip->computerBase() == 48 && strip->computerVelocity() == 100, "computer keys start at A = C3 (48), velocity 100");
+    check(kp('a') && strip->isLit(48), "computer key A plays note 48 (C3)");
+    check(kp('a') && strip->isLit(48), "auto repeat does not retrigger");
+    check(render(proc, 40, 4).peak > 0.01, "the computer key sounds");
+    check(kp('s') && kp('d') && strip->isLit(50) && strip->isLit(52), "S and D play D3 and E3");
+    check(kp('w') && kp('e') && strip->isLit(49) && strip->isLit(51), "W and E play the black keys C#3 and D#3");
+    check(kp(';') && kp('\'') && strip->isLit(64) && strip->isLit(65), "; and ' play E4 and F4");
+    check(!kp('b') && !kp('q') && !kp('m'), "keys that are not used are left alone (the old mapping is gone)");
     check(!root.keyPressed(juce::KeyPress('x', juce::ModifierKeys::ctrlModifier, 'x')), "ctrl+key is left alone");
+    check(!root.keyPressed(juce::KeyPress('a', juce::ModifierKeys::commandModifier, 'a')), "cmd+key is left alone");
+    check(!root.keyPressed(juce::KeyPress('a', juce::ModifierKeys::altModifier, 'a')), "alt+key is left alone");
+    // X: octave up. The notes of the old octave end at once, the new notes start an octave higher, no stuck note
+    check(kp('x') && strip->computerBase() == 60, "X moves the octave up (A = C4)");
+    check(!strip->isLit(48) && !strip->isLit(49) && !strip->isLit(50) && !strip->isLit(51) && !strip->isLit(52) && !strip->isLit(64) && !strip->isLit(65), "the held notes of the old octave end when the octave changes");
+    check(kp('x') && strip->computerBase() == 60, "auto repeat of X does not shift again");
+    render(proc, 20); root.keyStateChanged(true);
+    check(!strip->anyDown(), "all keys up: nothing hangs");
+    check(kp('a') && strip->isLit(60) && !strip->isLit(48), "A now plays C4 (60)");
+    check(kp('z') && strip->computerBase() == 48 && !strip->isLit(60), "Z moves the octave down again and ends the C4 that was held");
+    root.keyStateChanged(true);
+    for (int i = 0; i < 12; ++i) { kp('z'); root.keyStateChanged(true); }
+    check(strip->computerBase() == 0, "Z stops at the bottom (A = C-1, MIDI 0)");
+    check(kp('a') && strip->isLit(0), "A plays MIDI note 0 at the bottom"); root.keyStateChanged(true);
+    for (int i = 0; i < 14; ++i) { kp('x'); root.keyStateChanged(true); }
+    check(strip->computerBase() == 108, "X stops at the top (A = C8, MIDI 108)");
+    check(kp(';') && kp('\'') && strip->isLit(124) && strip->isLit(125), "the top notes of the span are 124 and 125 (inside MIDI 0..127)");
+    root.keyStateChanged(true); check(!strip->anyDown(), "released");
+    strip->setComputerKeys(48, 100);
+    // C and V: velocity in steps of 20, readout follows, the note sounds louder or softer
+    kp('v'); const int v120 = strip->computerVelocity(); root.keyStateChanged(true);
+    kp('c'); root.keyStateChanged(true); kp('c'); root.keyStateChanged(true);
+    check(v120 == 120 && strip->computerVelocity() == 80, "V and C change the velocity in steps of 20");
+    kp('c'); kp('c'); check(strip->computerVelocity() == 60, "holding C (auto repeat) lowers the velocity only once"); root.keyStateChanged(true);
+    root.keyStateChanged(true);
+    for (int i = 0; i < 8; ++i) { kp('c'); root.keyStateChanged(true); }
+    check(strip->computerVelocity() == 20, "C stops at 20");
+    proc.setInt(P_pch, 5);
+    kp('a'); const double soft = render(proc, 40, 8).peak; root.keyStateChanged(true); render(proc, 48000 * 6 / 256);
+    strip->setComputerKeys(48, 127); kp('a'); const double loud = render(proc, 40, 8).peak; root.keyStateChanged(true); render(proc, 48000 * 6 / 256);
+    std::printf("     peak at velocity 127: %.3f, at 20: %.3f\n", loud, soft);
+    check(loud > soft * 1.2 && soft > 1e-4, "a higher velocity from the computer keys plays louder");
+    strip->setComputerKeys(48, 100);
     render(proc, 20); root.keyStateChanged(true);
     check(!strip->isLit(48), "key up releases the note");
     render(proc, 48000 * 6 / 256);
+    {   // the readout over the keys exists and has a tip rectangle inside the strip
+        const auto ir = strip->infoRect();
+        check(!ir.isEmpty() && ir.getRight() < jp::layout::kStrip.r.x + jp::layout::kStrip.r.w && ir.getY() > 0, "KEYS / VEL readout sits inside the keys");
+    }
     {   // typing in a text field must not play
         juce::TextEditor te; root.addAndMakeVisible(te); te.grabKeyboardFocus();
         const bool hasFocus = te.hasKeyboardFocus(false);
-        const bool played = root.keyPressed(juce::KeyPress('z', juce::ModifierKeys(), 'z'));
+        const bool played = root.keyPressed(juce::KeyPress('a', juce::ModifierKeys(), 'a'));
         check(!hasFocus || (!played && !strip->isLit(48)), hasFocus ? "typing in a text field does not play" : "typing in a text field does not play (no window focus here, not testable)");
         strip->releaseAll(); root.removeChildComponent(&te);
     }
