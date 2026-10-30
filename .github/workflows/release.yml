@@ -191,7 +191,7 @@ jobs:
           if (-not (Test-Path $ico)) { throw "missing $ico" }
           $vst3dir = Join-Path $env:CommonProgramFiles 'VST3\JPurrr-8000.vst3'
           & "$env:GITHUB_WORKSPACE\scripts\check_icons.ps1" -Files "$app;$vst3;$setup" -Vst3Folder $vst3dir
-          if ($LASTEXITCODE -ne 0) { throw "icon check failed" }
+          if ($LASTEXITCODE) { throw "icon check failed" }
           Start-Process -FilePath $unins -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           for ($i = 0; $i -lt 30 -and (Test-Path $vst3); $i++) { Start-Sleep -Seconds 1 }
           if (Test-Path $vst3) { throw "uninstall left $vst3" }
