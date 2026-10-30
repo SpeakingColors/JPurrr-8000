@@ -26,18 +26,21 @@ JPurrrEditor::JPurrrEditor(JPurrr8000AudioProcessor& p) : juce::AudioProcessorEd
     startTimerHz(30);
     if (juce::JUCEApplicationBase::isStandaloneApp())     // the computer keys play the keyboard strip: take keyboard focus when the window opens
         juce::Timer::callAfterDelay(400, [sp = juce::Component::SafePointer<juce::Component>(&root)] { if (sp != nullptr && sp->isShowing()) sp->grabKeyboardFocus(); });
+    if (juce::JUCEApplicationBase::isStandaloneApp())
+        juce::Timer::callAfterDelay(400, [sp = juce::Component::SafePointer<JPurrrEditor>(this)] { if (sp != nullptr) sp->setWindowIcon(); });
 }
 JPurrrEditor::~JPurrrEditor() { stopTimer(); }
 
 // JUCE gives the standalone window no icon on Linux (the menu entry has one from the .desktop file, but a window
 // started from a terminal or a launcher without it would show the generic one). Windows and macOS take the icon from the app file.
-void JPurrrEditor::parentHierarchyChanged() {
+void JPurrrEditor::setWindowIcon() {
 #if JUCE_LINUX
     if (! juce::JUCEApplicationBase::isStandaloneApp()) return;
-    if (auto* win = dynamic_cast<juce::DocumentWindow*>(getTopLevelComponent())) {
-        auto icon = juce::ImageFileFormat::loadFrom(IconData::jpurrr8000256_png, (size_t) IconData::jpurrr8000256_pngSize);
-        if (icon.isValid()) win->setIcon(icon);
-    }
+    auto* top = getTopLevelComponent();
+    if (top == nullptr || top == this) return;
+    auto icon = juce::ImageFileFormat::loadFrom(IconData::jpurrr8000256_png, (size_t) IconData::jpurrr8000256_pngSize);
+    if (icon.isValid())
+        if (auto* peer = top->getPeer()) peer->setIcon(icon);
 #endif
 }
 

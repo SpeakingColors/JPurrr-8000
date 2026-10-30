@@ -12,7 +12,6 @@ public:
     jp::Root& content() { return root; }
     void setPageHeightAspect();                       // after a page change
     void setScaleWidth(int width);
-    void parentHierarchyChanged() override;           // Linux standalone: give the window its icon
 private:
     JPurrr8000AudioProcessor& proc;
     jp::Root root;
@@ -20,5 +19,6 @@ private:
     juce::ComponentBoundsConstrainer* unused = nullptr;
     double t0 = 0;
     bool inResize = false;
+    void setWindowIcon();                             // Linux standalone: the window icon
     void timerCallback() override;
 };
