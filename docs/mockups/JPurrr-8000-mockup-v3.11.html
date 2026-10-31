@@ -295,6 +295,8 @@ canvas.cv#plPos{cursor:default}
 #plGenP .chip:hover{filter:brightness(1.25)}
 #plGenP .chip:focus-visible,#plGenP .hb:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
 #pgSeed{width:150px}
+#bUndo,#bRedo{padding:0}#bUndo svg,#bRedo svg{width:20px;height:20px;display:block;margin:auto}
+.hb:disabled{opacity:.35;cursor:default;filter:none}
 .ctl[data-for="o2ss"] .lb{white-space:nowrap;max-width:none}
 .opts[data-id="o2w"] .opt[data-v="4"]{order:-1}
 #win:not([data-o2ss="1"]) .opts[data-id="o2w"] .opt[data-v="4"]{display:none}
@@ -314,7 +316,7 @@ canvas.cv#plPos{cursor:default}
 #plMenu .pli small{flex:none;font:600 17px 'Barlow Condensed',sans-serif;letter-spacing:.08em;color:var(--lbl2)}
 </style>
 
-<div class="pagebar"><b>JPurrr-8000</b><span>Design mockup v3.11 (new EXTRA switch on OSC 2 shows SUPER SAW at the top of its waveform list, off by default like the JP-8000; WIDE moved up next to SYNC and EXT; new GEN button in the player bar opens a melody generator: it writes new uplifting trance melodies in the style of the 22 in the list, with key, mode, style and seed; new gear icon in the top bar opens Settings, now with Sound engine options: oscillator style Clean or Classic, anti-aliasing and oversampling; built-in MIDI player: a PLAYER switch next to PREVIEW shows a slim player bar above the keyboard strip with PLAY, previous and next piece, a grouped piece list, BPM with LOCK, TRANSPOSE, LOAD MIDI FILE and a loop position bar; computer keys like Ableton Live: A S D F ... and W E T ... play, Z and X move the octave, C and V set the velocity; the Export dialog asks format, device ID and slot; UPPER and LOWER parts and the split marker shown on demand with EDIT in KEY &amp; PANEL): the JP-8000 front panel plus the MIX READY and MASTER pages. This is the plugin window at its real size. In a narrow pane, scroll sideways or press Fit width. Drag any edge or corner to resize, double click a wood cheek for 100%.</span></div>
+<div class="pagebar"><b>JPurrr-8000</b><span>Design mockup v3.11 (new UNDO and REDO buttons next to the preset menu (Ctrl+Z, Ctrl+Y); new EXTRA switch on OSC 2 shows SUPER SAW at the top of its waveform list, off by default like the JP-8000; WIDE moved up next to SYNC and EXT; new GEN button in the player bar opens a melody generator: it writes new uplifting trance melodies in the style of the 22 in the list, with key, mode, style and seed; new gear icon in the top bar opens Settings, now with Sound engine options: oscillator style Clean or Classic, anti-aliasing and oversampling; built-in MIDI player: a PLAYER switch next to PREVIEW shows a slim player bar above the keyboard strip with PLAY, previous and next piece, a grouped piece list, BPM with LOCK, TRANSPOSE, LOAD MIDI FILE and a loop position bar; computer keys like Ableton Live: A S D F ... and W E T ... play, Z and X move the octave, C and V set the velocity; the Export dialog asks format, device ID and slot; UPPER and LOWER parts and the split marker shown on demand with EDIT in KEY &amp; PANEL): the JP-8000 front panel plus the MIX READY and MASTER pages. This is the plugin window at its real size. In a narrow pane, scroll sideways or press Fit width. Drag any edge or corner to resize, double click a wood cheek for 100%.</span></div>
 <div id="stageWrap"><div id="holder"><div id="win"></div></div></div>
 <div class="zoomrow"><button id="zOut" aria-label="Zoom out">−</button><button id="zIn" aria-label="Zoom in">+</button><button id="zFit">Fit width</button><button id="z100">100%</button><output id="zOutp" aria-label="Zoom"></output>
 <span>The keyboard at the bottom plays the sound. The PLAYER switch (next to PREVIEW) adds a bar above it that loops a short piece through the sound. BEND springs back, MOD stays where you leave it. Sound is a rough preview (no chorus, unison, voice count or LFO 1; LFO 2 gives vibrato or filter wobble).</span></div>
@@ -734,7 +736,7 @@ const CAT=`<svg viewBox="0 0 40 40" aria-hidden="true"><path fill="currentColor"
 function buildWin(){
  return `<div class="cheek l" data-cheek></div><div id="center">
  <div id="hdr"><div class="brand">${CAT}<div class="wm">JPurrr-8000<small>STUDIO 87</small></div></div>
-  <div class="pbar"><button class="hb sq" id="bPrev" data-tip="Previous preset.">‹</button><div id="pname" data-tip="Preset name. Click it to open the preset browser. Double click to rename. Saving or renaming a factory sound makes your own copy."></div><button class="hb sq" id="bNext" data-tip="Next preset.">›</button><button class="hb sq" id="bMenu" data-tip="Preset menu: Save, Rename, Delete, Export, Import. A right click in the top bar opens it too. Click the preset name to browse.">☰</button><span id="pinfo"></span>
+  <div class="pbar"><button class="hb sq" id="bPrev" data-tip="Previous preset.">‹</button><div id="pname" data-tip="Preset name. Click it to open the preset browser. Double click to rename. Saving or renaming a factory sound makes your own copy."></div><button class="hb sq" id="bNext" data-tip="Next preset.">›</button><button class="hb sq" id="bMenu" data-tip="Preset menu: Save, Rename, Delete, Export, Import. A right click in the top bar opens it too. Click the preset name to browse.">☰</button><button class="hb sq" id="bUndo" aria-label="Undo" disabled data-tip="Undo: goes back to the setting before your last change. Ctrl+Z also works. Turning a knob in one go is one step. Loading another sound starts a new history."><svg viewBox="0 0 20 20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 4 3 8l4 4M3 8h8.5a4.5 4.5 0 0 1 0 9H8"/></svg></button><button class="hb sq" id="bRedo" aria-label="Redo" disabled data-tip="Redo: brings back the change you just undid. Ctrl+Y or Ctrl+Shift+Z also work."><svg viewBox="0 0 20 20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M13 4l4 4-4 4M17 8H8.5a4.5 4.5 0 0 0 0 9H12"/></svg></button><span id="pinfo"></span>
    <div id="pmenu" hidden><button class="hb" id="bSave" data-tip="Save the sound. Asks before overwriting.">Save</button><button class="hb" id="bRen" data-tip="Rename the preset.">Rename</button><button class="hb" id="bDel" data-tip="Delete one of your own presets. Factory sounds stay.">Delete</button><button class="hb" id="bExp" data-tip="Export this preset as text (SysEx in the plugin).">Export</button><button class="hb" id="bImp" data-tip="Import a preset. It is checked first.">Import</button></div></div>
   <div class="tabs" style="margin-left:18px"><button class="hb tab on" id="tSound" data-tip="Sound page: the synth front panel.">Sound</button><button class="hb tab" id="tFx" data-tip="FX page: trance gate, the MIX READY chain and the MASTER tools (our own twist).">FX</button></div><div class="hsp"><span id="msg"></span></div><button class="hb" id="bGuide" data-tip="Quick guide and shortcuts.">Guide</button><button class="hb sq" id="bSet" aria-label="Settings" aria-haspopup="dialog" data-tip="Settings (gear): info bubbles, power saving, colour look and the sound engine options: oscillator style, anti-aliasing and oversampling."><svg viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M16.7 8.4 L19.1 8.8 L19.1 11.2 L16.7 11.6 L15.9 13.6 L17.3 15.6 L15.6 17.3 L13.6 15.9 L11.6 16.7 L11.2 19.1 L8.8 19.1 L8.4 16.7 L6.4 15.9 L4.4 17.3 L2.7 15.6 L4.1 13.6 L3.3 11.6 L0.9 11.2 L0.9 8.8 L3.3 8.4 L4.1 6.4 L2.7 4.4 L4.4 2.7 L6.4 4.1 L8.4 3.3 L8.8 0.9 L11.2 0.9 L11.6 3.3 L13.6 4.1 L15.6 2.7 L17.3 4.4 L15.9 6.4ZM7 10a3 3 0 1 0 6 0a3 3 0 1 0-6 0Z"/></svg></button><button class="hb" id="bAbout" data-tip="About, support and install notes.">About &amp; Support</button></div>
  <div id="body">${buildPanel()}</div>
@@ -792,7 +794,7 @@ function deps(id){
 }
 function depsAll(){['o1w','o2w','o2ss','m2s','vc1','vc2','prev','player','os','ksh'].forEach(i=>{if(i==='os'||i==='ksh')paint(i);else deps(i);});}
 let mpReady=false;
-function setP(id,v,user){const p=P[id];v=clamp(Math.round(v),p.min,p.max);if(v===p.v&&!user)return;if(id==='gpt'&&user&&v>0)P.gpat.v=gmask(GPATS[v-1][1]);p.v=v;if(user)mirrorPart(id);if(id==='m2d')P[['m2dp','m2df','m2da'][P.m2s.v]].v=v;paint(id);deps(id);if(id==='bend'||id==='mod'||id==='m2d'||id==='m2r'||id==='m2s'){wheelPaint();bendAudio();}
+function setP(id,v,user){const p=P[id];v=clamp(Math.round(v),p.min,p.max);if(v===p.v&&!user)return;if(user&&v!==p.v)histNote(id);if(id==='gpt'&&user&&v>0)P.gpat.v=gmask(GPATS[v-1][1]);p.v=v;if(user)mirrorPart(id);if(id==='m2d')P[['m2dp','m2df','m2da'][P.m2s.v]].v=v;paint(id);deps(id);if(id==='bend'||id==='mod'||id==='m2d'||id==='m2r'||id==='m2s'){wheelPaint();bendAudio();}
  if(p.t==='w'&&p.mom){p.v=0;paint(id);}
  if(id[0]==='q')procApply();
  if(mpReady&&(id[0]==='q'||id[0]==='g'))mpSync();
@@ -1579,7 +1581,27 @@ function loadPreset(p,part){/* the sound goes into the edited part (both parts w
  const ts=part==null?(P.km.v&&P.ps.v===2?[0,1]:[effEdit()]):[part];storePanel(edPart);let full;ts.forEach(i=>{full=putPart(i,p);});
  if(ts.includes(0))GLOB_IDS.forEach(id=>{P[id].v=id in full?full[id]:DEFS[id];});/* voices, arpeggiator, MIX READY chain follow the main (UPPER) sound */
  PART_IDS.forEach(id=>{P[id].v=pStore[edPart].v[id];});cur=pStore[edPart].meta;paintAll();
- history=[p.bank+p.slot+' '+p.name].concat(history.filter(h=>h!==p.bank+p.slot+' '+p.name)).slice(0,12);refreshHdr();showLcd();}
+ history=[p.bank+p.slot+' '+p.name].concat(history.filter(h=>h!==p.bank+p.slot+' '+p.name)).slice(0,12);histClear();refreshHdr();showLcd();}
+/* ================= v3.11 undo and redo =================
+   One step = the whole sound as it was before a change. Turning one knob (or any control) in one go is one step: a second change of the same control
+   within 0.9 s joins the first. Loading another sound or changing the edited part starts a new history. The player, the preview switch and the
+   performance controls are not part of a sound and are not recorded. Up to 100 steps. */
+const HIST={u:[],r:[],id:null,t:0,busy:false};
+function histOk(id){const p=P[id];return p&&!p.nosave&&!PERF.includes(id);}
+function histNote(id){if(HIST.busy||!histOk(id))return;const now=performance.now();if(HIST.id===id&&now-HIST.t<900){HIST.t=now;return;}
+ HIST.u.push({s:snapshot(),lab:P[id].label||id});if(HIST.u.length>100)HIST.u.shift();HIST.r=[];HIST.id=id;HIST.t=now;histUi();}
+function histClear(){HIST.u=[];HIST.r=[];HIST.id=null;histUi();}
+function histGo(from,to,word){if(!from.length)return false;const e=from.pop();to.push({s:snapshot(),lab:e.lab});HIST.busy=true;try{loadV(e.s);}finally{HIST.busy=false;}
+ HIST.id=null;markDirty();histUi();say(word+': '+e.lab);return true;}
+const histUndo=()=>histGo(HIST.u,HIST.r,'Undone');
+const histRedo=()=>histGo(HIST.r,HIST.u,'Redone');
+function histUi(){const u=$('#bUndo'),r=$('#bRedo');if(!u)return;u.disabled=!HIST.u.length;r.disabled=!HIST.r.length;
+ u.dataset.tip=HIST.u.length?'Undo: goes back to the setting before your last change ('+HIST.u[HIST.u.length-1].lab+'). '+HIST.u.length+' step'+(HIST.u.length>1?'s':'')+' kept. Ctrl+Z also works.':'Undo: nothing to undo yet. Every change you make is kept here, so you can go back to an earlier setting (Ctrl+Z).';
+ r.dataset.tip=HIST.r.length?'Redo: brings back the change you just undid ('+HIST.r[HIST.r.length-1].lab+'). Ctrl+Y or Ctrl+Shift+Z also work.':'Redo: nothing to redo. After an undo, this brings the change back (Ctrl+Y).';}
+window.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;
+ const t=e.target;if(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))return;if(document.querySelector('.dlg,#scrim.show'))return;
+ e.preventDefault();e.stopImmediatePropagation();if(k==='y'||e.shiftKey)histRedo();else histUndo();},true);
+window.__JPhist={undo:histUndo,redo:histRedo,clear:histClear,get undoCount(){return HIST.u.length},get redoCount(){return HIST.r.length}};
 function markDirty(){if(!cur.dirty){cur.dirty=true;refreshHdr();}}
 function refreshHdr(){const n=$('#pname');if(!n.querySelector('input')){n.textContent=cur.name+(cur.dirty?' *':'');}$('#pinfo').textContent=(P.km.v?PN[edPart]+' · ':'')+cur.bank+(cur.slot?String(cur.slot).padStart(3,'0'):'')+(cur.factory?' · factory':' · mine');showL1();updateNav();partsRender();}
 function stepPreset(d){const a=allPresets();let i=a.findIndex(p=>p.bank===cur.bank&&p.slot===cur.slot&&p.name===cur.name);if(i<0)i=0;i=(i+d+a.length)%a.length;loadPreset(a[i]);}
@@ -1707,6 +1729,7 @@ function browser(part){part=(part===0||part===1)?part:null;let bank='A',q='',typ
 $('#tfx1').onclick=()=>fxSub(1);$('#tfx2').onclick=()=>fxSub(2);$('#bPrev').onclick=()=>stepPreset(-1);$('#bNext').onclick=()=>stepPreset(1);$('#bSave').onclick=saveDlg;$('#bRen').onclick=startRename;$('#bDel').onclick=delPreset;$('#bExp').onclick=exportDlg;$('#bImp').onclick=importDlg;
 $('#bBrowse').onclick=browser;
 const pm=$('#pmenu');const pmShow=(x,y)=>{pm.hidden=false;pm.style.left=Math.max(4,Math.min(x,W-34-170))+'px';pm.style.top=y+'px';};const pmHide=()=>{pm.hidden=true;};
+$('#bUndo').onclick=histUndo;$('#bRedo').onclick=histRedo;histUi();
 $('#bMenu').onclick=e=>{e.stopPropagation();if(!pm.hidden){pmHide();return;}const hr=$('#hdr').getBoundingClientRect(),br=e.currentTarget.getBoundingClientRect();pmShow((br.left-hr.left)/scale,(br.bottom-hr.top)/scale+4);};
 $('#hdr').addEventListener('contextmenu',e=>{e.preventDefault();const hr=$('#hdr').getBoundingClientRect();pmShow((e.clientX-hr.left)/scale,(e.clientY-hr.top)/scale+6);});
 pm.addEventListener('click',()=>setTimeout(pmHide,0));document.addEventListener('pointerdown',e=>{if(!pm.hidden&&!e.target.closest('#pmenu')&&!e.target.closest('#bMenu'))pmHide();});document.addEventListener('keydown',e=>{if(e.key==='Escape')pmHide();});
@@ -1945,7 +1968,7 @@ function putPart(i,p){const full=Object.assign({},p.factory?qvals(p.type):{},p.v
 function storePanel(i){PART_IDS.forEach(id=>{pStore[i].v[id]=P[id].v;});}
 function paintAll(){ORDER.forEach(id=>paint(id));depsAll();procApply();if(mpReady)mpSync();requestDraw();}
 /* KEY MODE or PANEL SELECT changed: the panel shows the patch of the edited part */
-function partsSwitch(){const t=effEdit();if(t!==edPart){storePanel(edPart);edPart=t;PART_IDS.forEach(id=>{P[id].v=pStore[t].v[id];});cur=pStore[t].meta;paintAll();refreshHdr();showLcd();}partsSync();}
+function partsSwitch(){const t=effEdit();if(t!==edPart){histClear();storePanel(edPart);edPart=t;PART_IDS.forEach(id=>{P[id].v=pStore[t].v[id];});cur=pStore[t].meta;paintAll();refreshHdr();showLcd();}partsSync();}
 function mirrorPart(id){if(partsReady&&P.km.v&&P.ps.v===2&&PART_SET.has(id)){const o=pStore[1-edPart];o.v[id]=P[id].v;o.meta.dirty=true;}}
 function partDet(i){const x=P.km.v?(i===0?P.pdet.v/2:-P.pdet.v/2):0;const r=Math.round(x*2)/2;return (r>0?'+':'')+(Number.isInteger(r)?r:r.toFixed(1))+' ct';}
 function partVoices(i){const vc=Math.max(8,P.vc.v);if(!P.km.v)return i===0?vc:0;const lo=Math.min(vc-1,Math.max(1,Math.round(vc*(8-P.vas.v)/10)));return i===1?lo:Math.max(1,vc-lo);}
