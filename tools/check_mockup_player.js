@@ -32,6 +32,7 @@ function tinyMidi() { const ev = []; const vl = v => { const o = [v & 127]; whil
   let s = await ev(() => ({ on: window.__JPplayer.stats.on, off: window.__JPplayer.stats.off, held: window.__JPplayer.held.length, keys: document.querySelectorAll('#keys .on').length, playing: window.__JPplayer.playing, btn: document.querySelector('#plPlay').textContent.trim() }));
   console.log('     playing ' + JSON.stringify(s));
   ok(s.playing && s.on > 0 && s.btn === 'STOP', 'PLAY starts the piece: ' + s.on + ' note-ons through noteOn, button says STOP');
+  for (let k = 0; k < 20 && !s.keys; k++) { await p.waitForTimeout(40); s.keys = await ev(() => document.querySelectorAll('#keys .on').length); }   // notes have gaps: look for a moment when one is held
   ok(s.keys > 0, 'the strip keys light up: ' + s.keys + ' keys on (same noteOn path as the strip)');
   await p.waitForTimeout(300); await p.click('#plPlay'); await p.waitForTimeout(150);
   s = await ev(() => ({ held: window.__JPplayer.held.length, keys: document.querySelectorAll('#keys .on').length, playing: window.__JPplayer.playing, btn: document.querySelector('#plPlay').textContent.trim(), on: window.__JPplayer.stats.on, off: window.__JPplayer.stats.off }));
@@ -72,6 +73,14 @@ function tinyMidi() { const ev = []; const vl = v => { const o = [v & 127]; whil
   await p.click('#plSel'); await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); v = await ev(() => [window.__JPplayer.idx, window.__JPplayer.menuOpen]); ok(v[0] === 31 && !v[1], 'keyboard: arrow down and Enter chooses the next piece');
   await p.click('#plSel'); await p.keyboard.press('Escape'); ok(!(await ev(() => window.__JPplayer.menuOpen)), 'Escape closes the menu');
   await p.click('#plSel'); await p.mouse.click(300, 200); ok(!(await ev(() => window.__JPplayer.menuOpen)), 'a click outside closes the menu');
+  // 5b. EXPORT MIDI: the bytes read back with the same parser; tempo, transpose and loop length are kept
+  await ev(() => { window.__JPplayer.select(0); window.__JPplayer.setLock(false); window.__JPplayer.setBpm(150); window.__JPplayer.setTranspose(-5); });
+  const xp = await ev(() => { const b = window.__JPplayer.buildMidi(), r = window.__JPplayer.parseMidi(b), p = window.__JPplayer.piece; return { head: String.fromCharCode(...b.slice(0, 4)), bpm: Math.round(r.bpm), beats: r.beats, n: r.ev.length, n0: p.ev.length, first: r.ev[0][2], first0: p.ev[0][2], name: window.__JPplayer.midiName() }; });
+  ok(xp.head === 'MThd' && xp.bpm === 150 && xp.beats === 32 && xp.n === xp.n0 && xp.first === xp.first0 - 5, 'EXPORT MIDI: header ' + xp.head + ', ' + xp.bpm + ' BPM, ' + xp.beats + ' beats, ' + xp.n + '/' + xp.n0 + ' notes, first note ' + xp.first + ' (piece ' + xp.first0 + ', transpose -5)');
+  ok(/^[A-Za-z0-9#\- ]+\.mid$/.test(xp.name), 'EXPORT MIDI file name: ' + xp.name);
+  const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 3000 }).catch(() => null), p.click('#plExp')]);
+  ok(!!dl && dl.suggestedFilename() === xp.name, 'EXPORT MIDI button downloads ' + (dl ? dl.suggestedFilename() : 'nothing'));
+  await ev(() => { window.__JPplayer.setTranspose(0); });
   // 6. load a MIDI file
   await ev(() => { window.__JPplayer.setLock(false); }); await p.setInputFiles('#plFile', { name: 'my_arpeggio.mid', mimeType: 'audio/midi', buffer: tinyMidi() }); await p.waitForTimeout(250);
   v = await ev(() => ({ name: document.querySelector('#plName').textContent, bpm: window.__JPplayer.bpm, beats: window.__JPplayer.piece.beats, n: window.__JPplayer.piece.ev.length, grp: document.querySelector('#plGrp').textContent }));

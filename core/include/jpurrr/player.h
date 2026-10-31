@@ -38,6 +38,10 @@ constexpr int kMaxLoadedEvents = 8000;
 // a bar line (multiple of 4 beats), the loop length is the end rounded up to 4 beats. Returns false with a message for anything else.
 bool parseMidiFile(const std::uint8_t* data, std::size_t size, LoadedPiece& out, std::string* error = nullptr);
 
+// Writes the piece as a standard MIDI file (format 0, 480 ticks per quarter note, channel 1): the tempo is bpm, every note is moved by
+// `transpose` semitones (result clamped to 0..127), the track ends exactly at the loop length so a DAW clip is one loop long.
+std::vector<std::uint8_t> writeMidiFile(const PlayView& piece, double bpm, int transpose, const std::string& name);
+
 class Player {
 public:
     struct Out { int offset; bool on; std::uint8_t note; std::uint8_t vel; };      // offset: sample within the block

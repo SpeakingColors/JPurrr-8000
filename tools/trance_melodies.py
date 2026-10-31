@@ -112,6 +112,8 @@ NEW = [
         "C6:2 Eb6:2 Ab6:2 Eb6:2 C6:4 .4"]),
 ]
 
+OCTAVE_DOWN = 12   # the notes above are written in the register they read best in; the player plays them one octave lower
+
 PC = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
 
 
@@ -170,7 +172,7 @@ def build(gid, name, tonic, minor, chords, bpm, gate, bars):
             vel = 108 if step in (0, 8) else (100 if n >= 6 else 90)
             if 4 <= b <= 6:
                 vel = min(120, vel + 8)
-            ev.append([b * 4 + step * 0.25, round(0.25 * n * gate, 3), m, vel])
+            ev.append([b * 4 + step * 0.25, round(0.25 * n * gate, 3), m - OCTAVE_DOWN, vel])
     if not 5 <= top_bar <= 7:
         problems.append('%s: highest note is in bar %d, not in the lift (bars 5 to 7)' % (gid, top_bar))
     return dict(id='tr_' + gid, name=name + ', ' + '-'.join(chords), bpm=bpm, ev=ev, beats=len(bars) * 4), problems

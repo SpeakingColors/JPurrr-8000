@@ -110,6 +110,30 @@ TEST(player_reads_a_midi_file) {
     for (size_t cut = 0; cut < f.size(); ++cut) { LoadedPiece x; parseMidiFile(f.data(), cut, x, nullptr); }     // every truncation is survived (ASan/UBSan check)
 }
 
+TEST(player_writes_a_midi_file) {
+    const int i = libraryFind("tr_lift_am"); CHECK(i >= 0);
+    const LibItem& it = libraryItem(i);
+    PlayView v; v.ev = it.ev; v.n = it.n; v.beats = it.beats;
+    const std::vector<std::uint8_t> f = writeMidiFile(v, 150.0, -5, "Rising lift");
+    LoadedPiece back; std::string err;
+    CHECK(parseMidiFile(f.data(), f.size(), back, &err));
+    CHECK(std::fabs(back.bpm - 150.0) < 0.01);
+    CHECK(back.beats == it.beats);
+    CHECK((int) back.ev.size() == it.n);
+    if ((int) back.ev.size() == it.n) {
+        bool same = true;
+        for (int k = 0; k < it.n; ++k) {
+            const PlayEvent& a = it.ev[k]; const PlayEvent& b = back.ev[(size_t) k];
+            if (b.note != a.note - 5 || std::fabs(b.beat - a.beat) > 0.002f || std::fabs(b.len - a.len) > 0.004f || b.vel != a.vel) same = false;
+        }
+        CHECK(same);
+    }
+    // extreme transpose is clamped, an empty piece still gives a valid file
+    const std::vector<std::uint8_t> hi = writeMidiFile(v, 120.0, 100, "x"); LoadedPiece h2; CHECK(parseMidiFile(hi.data(), hi.size(), h2, &err));
+    for (const PlayEvent& e : h2.ev) CHECK(e.note <= 127);
+    PlayView none; none.beats = 8; const std::vector<std::uint8_t> em = writeMidiFile(none, 120.0, 0, ""); CHECK(em.size() > 20 && em[0] == 'M');
+}
+
 TEST(player_library_is_sound) {
     const int n = libraryItemCount(); CHECK(n >= 100);
     std::set<std::string> ids; int covered = 0;

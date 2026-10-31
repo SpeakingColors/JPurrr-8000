@@ -137,4 +137,47 @@ bool parseMidiFile(const std::uint8_t* data, std::size_t size, LoadedPiece& out,
     return true;
 }
 
+std::vector<std::uint8_t> writeMidiFile(const PlayView& piece, double bpm, int transpose, const std::string& name) {
+    constexpr int kPpq = 480;
+    const double loop = piece.beats > 0 ? piece.beats : 4.0;
+    const long loopTicks = std::lround(loop * kPpq);
+    struct E { long t; int on; int note; int vel; };
+    std::vector<E> ev;
+    ev.reserve((size_t) piece.n * 2);
+    for (int i = 0; i < piece.n; ++i) {
+        const PlayEvent& e = piece.ev[i];
+        const long a = std::lround((double) e.beat * kPpq);
+        if (a >= loopTicks) continue;
+        const long end = std::min(loopTicks, a + std::max(1L, std::lround((double) e.len * kPpq)));
+        const int note = std::max(0, std::min(127, (int) e.note + transpose));
+        const int vel = std::max(1, std::min(127, (int) e.vel));
+        ev.push_back({ a, 1, note, vel });
+        ev.push_back({ std::max(a + 1, end), 0, note, 0 });
+    }
+    std::stable_sort(ev.begin(), ev.end(), [](const E& x, const E& y) { return x.t != y.t ? x.t < y.t : x.on < y.on; });   // note offs before note ons at one tick
+    std::vector<std::uint8_t> trk;
+    auto vlq = [&](long v) {
+        std::uint8_t b[5]; int n = 0; b[n++] = (std::uint8_t) (v & 127);
+        while ((v >>= 7) > 0) b[n++] = (std::uint8_t) ((v & 127) | 128);
+        while (n > 0) trk.push_back(b[--n]);
+    };
+    auto meta = [&](long delta, std::uint8_t type, const std::vector<std::uint8_t>& d) {
+        vlq(delta); trk.push_back(0xFF); trk.push_back(type); vlq((long) d.size()); trk.insert(trk.end(), d.begin(), d.end());
+    };
+    const std::string title = "JPurrr-8000 " + name;
+    meta(0, 0x03, std::vector<std::uint8_t>(title.begin(), title.begin() + (long) std::min<size_t>(title.size(), 100)));
+    meta(0, 0x58, { 4, 2, 24, 8 });
+    const long us = std::lround(60000000.0 / std::max(1.0, bpm));
+    meta(0, 0x51, { (std::uint8_t) ((us >> 16) & 255), (std::uint8_t) ((us >> 8) & 255), (std::uint8_t) (us & 255) });
+    long t = 0;
+    for (const E& e : ev) {
+        vlq(e.t - t); trk.push_back(e.on ? 0x90 : 0x80); trk.push_back((std::uint8_t) e.note); trk.push_back((std::uint8_t) e.vel); t = e.t;
+    }
+    meta(std::max(0L, loopTicks - t), 0x2F, {});
+    std::vector<std::uint8_t> out = { 'M', 'T', 'h', 'd', 0, 0, 0, 6, 0, 0, 0, 1, (std::uint8_t) (kPpq >> 8), (std::uint8_t) (kPpq & 255), 'M', 'T', 'r', 'k',
+                                      (std::uint8_t) (trk.size() >> 24), (std::uint8_t) (trk.size() >> 16), (std::uint8_t) (trk.size() >> 8), (std::uint8_t) trk.size() };
+    out.insert(out.end(), trk.begin(), trk.end());
+    return out;
+}
+
 }  // namespace jpurrr
