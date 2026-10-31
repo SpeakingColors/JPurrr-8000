@@ -176,3 +176,31 @@ Only fix 6 touches `data/params.json` (two default values, no id, range, label, 
 3. **Cutoff step (p.103):** one step is a semitone; the core has 0.94. The oscillating-filter trick on p.103 (a fifth with cutoff 71 against 64) comes out about 40 cent flat. A fix needs one measured point of the cutoff curve (the manual gives none).
 4. A listening check on a real JP-8000 settles every row marked "not confirmed" with a musical number: LFO rates, fade, envelope and portamento times, chorus rates, delay feedback, arpeggiator gate.
 5. **Arpeggiator beat patterns:** neither manual prints the step lists, so patterns 7 to 90 can only be added from a recording of the unit (or a published pattern table).
+
+## Hardware facts from the service notes
+
+From the parts list of the JP-8000 Service Notes (PDF pages 4 and 5, a scan; the IC list and the crystals were checked on the page images).
+
+- CPU: Hitachi HD6413002FP16. Custom ICs: Roland SSC1080F0B (IC19) and four Toshiba TC170C140AF-003 (IC6 to IC9). The service flow calls IC6 to IC9 the DSP. There is no Motorola part in the list.
+- DAC: NEC uPD63200GS-E2, listed as an 18 bit D/A converter. Its datasheet was not available, so the maximum sample rate is not confirmed.
+- Clocks: a 67.7376 MHz crystal (IC13) and a 16.000 MHz crystal (X1). 67.7376 MHz is exactly 1536 x 44.1 kHz, so the audio rate at the DAC is very likely 44.1 kHz.
+- Not known: whether the oscillators run faster than 44.1 kHz inside. The notes do not say, and the gate arrays have no public data sheet, so what they can compute is unknown. The old guess "the hardware probably ran at 88.2 kHz inside" is removed from the code.
+- Szabo 2010 recorded the real unit at 44.1 kHz and found that the Super Saw oscillators are plain saw waves that alias, followed by a high pass at the note pitch. That is what the CLASSIC oscillator style does (raw saws, no anti-aliasing). The CLEAN style and the anti-aliasing and oversampling options are our own additions.
+
+## Engine options (gear menu)
+
+Plugin settings, not saved with sounds. Defaults (CLASSIC, STANDARD, AUTO) keep every sound exactly as it was before the options existed.
+
+Measured with the test `synth_engine_aliasing_options`: Super Saw, no detune, note 100 (2637 Hz) at 44.1 kHz, the strongest partial that is not on the harmonic series, in dB below the fundamental (lower is cleaner).
+
+| Style | Anti-aliasing | Oversampling | Alias level |
+|---|---|---|---|
+| Classic | n/a | 1x | -19.0 dB |
+| Classic | n/a | 2x (the old default) | -28.9 dB |
+| Classic | n/a | 4x | -35.9 dB |
+| Clean | Standard | 1x | -31.5 dB |
+| Clean | High | 1x | -42.9 dB |
+| Clean | Standard | 2x | -50.4 dB |
+| Clean | High | 2x | -52.1 dB |
+
+CPU for 10 voices of Super Saw with the 24 dB filter at 44.1 kHz, optimised build: classic 1x 4.0 percent of one core, classic auto (2x) 6.4, clean standard 1x 4.3, clean standard 2x 6.8, clean high 2x 7.4, classic 4x 10.9, clean high 4x 12.3. The High setting uses a 4 point correction (a cubic B-spline step): cleaner in the top octave and slightly softer.
