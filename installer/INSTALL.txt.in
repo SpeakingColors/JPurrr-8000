@@ -1,0 +1,92 @@
+JPurrr-8000 @VERSION@ - how to install
+=====================================
+
+JPurrr-8000 is a free and open source synth (VST3 plugin and standalone app).
+This zip has one installer per system, the manual, and a checksum list.
+
+  Windows/   JPurrr-8000-@VERSION@-Windows-x64-Setup.exe
+  macOS/     JPurrr-8000-@VERSION@-macOS.pkg
+  Linux/     JPurrr-8000-@VERSION@-Linux-x86_64.tar.gz
+  JPurrr-8000-manual.pdf, SHA256SUMS.txt, LICENSE, this file
+
+Use only the folder for your system. Close your DAW first, and rescan
+plugins afterwards. Presets and settings are never removed by an uninstall.
+
+
+WINDOWS 10 and 11 (64 bit)
+--------------------------
+1. Unzip, open the Windows folder and run the Setup.exe.
+2. If Windows says "Windows protected your PC" (SmartScreen), click
+   "More info", then "Run anyway".
+3. The plugin goes to C:\Program Files\Common Files\VST3 and the standalone
+   app to C:\Program Files\Studio 87\JPurrr-8000.
+   Uninstall in Settings, Apps.
+
+Why the warning: the Setup is not code signed. A signing certificate costs
+money every year and this project is free. The warning does not mean the
+file is infected. It means Windows does not know the publisher. You can
+check the file with SHA256SUMS.txt (see below).
+
+
+MACOS 11 or newer (Apple silicon and Intel)
+-------------------------------------------
+The .pkg is not signed or notarized by Apple, so macOS blocks it the first
+time ("Apple could not verify ... is free of malware"). It does not mean
+the file is infected. It means Apple has not checked it.
+
+Why: Apple only skips this warning for developers who pay for the Apple
+Developer Program (99 US dollars per year). JPurrr-8000 is free software.
+
+Easiest way, no warning: download the package with Terminal, because a
+browser marks its downloads "from the internet" and that mark triggers the
+block (and unzipping keeps the mark). Open Terminal and run:
+
+  curl -L -o ~/Downloads/JPurrr-8000.pkg https://github.com/SpeakingColors/JPurrr-8000/releases/download/@TAG@/JPurrr-8000-@VERSION@-macOS.pkg
+  open ~/Downloads/JPurrr-8000.pkg
+
+If you use the .pkg from this zip: double click it, close the message, open
+System Settings, Privacy & Security, scroll down and click "Open Anyway"
+(the button stays for about an hour), then confirm with your password. If
+the message comes back, run this in Terminal and open the file again:
+
+  xattr -d com.apple.quarantine <path of the .pkg file>
+
+On macOS 14 and older you can also right click the .pkg, choose Open, then
+Open again. Only do this for files from the official release page.
+
+The plugin goes to /Library/Audio/Plug-Ins/VST3 and the app to
+/Applications. The uninstaller is uninstall.command in
+/Library/Application Support/Studio 87/JPurrr-8000.
+More: https://github.com/SpeakingColors/JPurrr-8000/blob/main/docs/macos-install.md
+
+
+LINUX (x86_64)
+--------------
+1. Unpack the tar.gz in the Linux folder:
+     tar -xzf JPurrr-8000-@VERSION@-Linux-x86_64.tar.gz
+2. Open a terminal in the unpacked folder and run:
+     ./install.sh
+   It installs for your user only, no root needed: the plugin to ~/.vst3,
+   the standalone app to ~/.local/bin, plus a menu entry.
+   "./install.sh --dry-run" shows what it would do first.
+3. To remove it again, run "./install.sh --uninstall".
+   Or copy the JPurrr-8000.vst3 folder to ~/.vst3/ yourself.
+
+
+CHECK YOUR DOWNLOAD
+-------------------
+SHA256SUMS.txt lists the SHA-256 checksum of every file in this zip.
+Linux and macOS: in the unpacked folder run
+  shasum -a 256 -c SHA256SUMS.txt
+Every line must say OK. Windows PowerShell:
+  Get-FileHash .\Windows\JPurrr-8000-@VERSION@-Windows-x64-Setup.exe
+and compare the result with the line in SHA256SUMS.txt.
+The release page also has a SHA256SUMS.txt for the separate downloads.
+
+
+LICENCE AND SOURCE
+------------------
+GNU AGPL-3.0-or-later (see LICENSE). Source code:
+https://github.com/SpeakingColors/JPurrr-8000
+Not affiliated with or endorsed by Roland or Arturia. All names belong to
+their owners.

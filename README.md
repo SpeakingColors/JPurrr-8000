@@ -24,7 +24,7 @@ Works 100% offline.
 
 ## Install
 
-Download the files from the [latest release](https://github.com/SpeakingColors/JPurrr-8000/releases/latest). Close your DAW first and rescan plugins afterwards. Presets and settings are never removed by an uninstall. Every release has a `SHA256SUMS.txt` to check your download.
+Download from the [latest release](https://github.com/SpeakingColors/JPurrr-8000/releases/latest) either `JPurrr-8000-<version>-all-platforms.zip` (one zip with the installers for Windows, macOS and Linux, the manual and an `INSTALL.txt`) or just the file for your system. Close your DAW first and rescan plugins afterwards. Presets and settings are never removed by an uninstall. Every release has a `SHA256SUMS.txt` to check your download.
 
 **Linux (x86_64):** unpack `JPurrr-8000-<version>-Linux-x86_64.tar.gz` and run `./install.sh`. It installs for your user only, no root needed: the plugin to `~/.vst3`, the standalone app to `~/.local/bin`, plus a menu entry. `./install.sh --dry-run` shows what it would do, `./install.sh --uninstall` removes it again, `sudo ./install.sh --system` installs for all users (not on immutable systems such as Bazzite).
 

@@ -2,6 +2,8 @@
 
 JPurrr-8000 and the other Studio 87 tools are free and open source. Our macOS downloads are not signed with an Apple Developer ID and not notarized by Apple, so macOS shows a warning the first time you open them, for example "Apple could not verify ... is free of malware".
 
+Each release also has `JPurrr-8000-<version>-all-platforms.zip` with the installers for all systems, the manual and an `INSTALL.txt`. On a Mac, a zip downloaded in the browser can pass the same mark on to the files inside, so the steps below apply to the .pkg from the zip too.
+
 ## Why
 
 - Apple only skips this warning for software from developers who pay for the Apple Developer Program (99 US dollars per year) and send every build to Apple for notarization.

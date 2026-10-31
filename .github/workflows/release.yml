@@ -1,6 +1,8 @@
 name: Release
 
 # Builds Linux, Windows and macOS in Release, packages them and publishes a GitHub Release.
+# The release has the three separate downloads and also one JPurrr-8000-<version>-all-platforms.zip
+# (installers, manual, INSTALL.txt, SHA256SUMS.txt), built by scripts/make_release_zip.sh.
 # Start it by pushing a tag like v0.2.0, or by hand (Actions, Release, Run workflow) with the tag as input.
 # The tag must match the version in CMakeLists.txt (project(... VERSION x.y.z)). A suffix such as
 # v0.2.0-rc1 is allowed and makes it a pre-release (test build).
@@ -265,10 +267,16 @@ jobs:
           pattern: pkg-*
           path: dist
           merge-multiple: true
-      - name: Collect files and checksums
+      - name: Collect files, build the all-platforms zip, write checksums
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+          SKIP_MACOS: ${{ needs.meta.outputs.skip_macos }}
         run: |
           set -eu
           [ -f docs/manual/JPurrr-8000-manual.pdf ] && cp docs/manual/JPurrr-8000-manual.pdf dist/JPurrr-8000-manual.pdf
+          # One zip with the three installers, the manual, INSTALL.txt and its own SHA256SUMS.txt.
+          # It is built before the release checksums, so the release SHA256SUMS.txt lists it too.
+          sh scripts/make_release_zip.sh dist "$TAG"
           cd dist
           ls -l
           sha256sum -- * | grep -v ' SHA256SUMS.txt$' > SHA256SUMS.txt
@@ -310,7 +318,7 @@ jobs:
         run: |
           set -eu
           gh release view "$TAG" --json assets --jq '.assets[].name' | tee assets.txt
-          need="JPurrr-8000-$VERSION-Linux-x86_64.tar.gz JPurrr-8000-$VERSION-Windows-x64-Setup.exe SHA256SUMS.txt"
+          need="JPurrr-8000-$VERSION-Linux-x86_64.tar.gz JPurrr-8000-$VERSION-Windows-x64-Setup.exe JPurrr-8000-$VERSION-all-platforms.zip JPurrr-8000-manual.pdf SHA256SUMS.txt"
           [ "$SKIP_MACOS" = true ] || need="$need JPurrr-8000-$VERSION-macOS.pkg"
           for f in $need; do grep -qxF "$f" assets.txt || { echo "Missing asset: $f" >&2; exit 1; }; done
           echo "Release page: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
