@@ -24,9 +24,9 @@ constexpr int kOldCount = 51;
 
 struct Level { double peakDb = -200, dc = 0; bool finite = true; };
 
-// One note through the synth alone (the MIX READY chain of the plugin is not part of it): 2 s held, 1 s of release, 48 kHz.
+// One note through the synth alone (the MIX READY chain of the plugin is not part of it): 2 s held, 0.3 s of release, 48 kHz.
 Level renderNote(const Patch& p, int note) {
-    const int sr = 48000, block = 512, total = 3 * sr, off = 2 * sr;
+    const int sr = 48000, block = 512, total = sr * 23 / 10, off = 2 * sr;
     Synth s; s.prepare((double) sr, block); s.setParams(p.v);
     std::vector<float> l((size_t) block), r((size_t) block);
     Level lv; double pk = 0, sum = 0;
