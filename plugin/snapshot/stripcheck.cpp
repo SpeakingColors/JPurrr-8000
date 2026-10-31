@@ -397,6 +397,38 @@ int main() {
     render(proc, 20, 4);
     ed.reset();
     check(render(proc, 48000 * 6 / 256, 8).peak < 1e-3, "no stuck notes after the editor closes");
+    // the built-in MIDI player through the real processor
+    {
+        auto& pl = proc.midiPlayer;
+        const int idx = libraryFind("tr_ost_fsm");
+        check(idx >= 0, "player: the trance library piece exists");
+        pl.setBpmLock(false); pl.select(idx);
+        check(pl.selected() == idx && pl.bpm() == 138.0 && pl.pieceName().isNotEmpty(), "player: choosing a piece sets its tempo and name");
+        render(proc, 20, 4);
+        check(render(proc, 40, 8).peak < 1e-3, "player: a chosen piece is silent until Play");
+        pl.setPlaying(true);
+        check(render(proc, 48000 * 4 / 256, 48000 * 4 / 256).peak > 0.01, "player: Play makes sound through the current patch");
+        check(pl.position() >= 0.f && pl.position() < pl.loopBeats(), "player: the position stays inside the loop");
+        pl.setTranspose(12); render(proc, 200, 4); check(render(proc, 200, 200).peak > 0.01, "player: transpose +12 still plays");
+        pl.setTranspose(0);
+        juce::MemoryBlock st; proc.getStateInformation(st);
+        pl.setBpm(150); pl.setBpmLock(true); pl.setTranspose(5);
+        pl.setPlaying(false);
+        check(render(proc, 48000 * 6 / 256, 8).peak < 1e-3, "player: Stop leaves no stuck notes");
+        proc.setStateInformation(st.getData(), (int) st.getSize());
+        check(pl.selected() == idx && pl.bpm() == 138.0 && pl.transpose() == 0 && !pl.bpmLock() && !pl.isPlaying(), "player: piece, tempo, lock and transpose come back with the session (never playing)");
+        // a piece of your own: a tiny MIDI file
+        const juce::uint8 mid[] = { 'M','T','h','d',0,0,0,6,0,0,0,1,0x01,0xE0, 'M','T','r','k',0,0,0,19, 0,0x90,60,100, 0x83,0x60,0x80,60,0, 0,0x90,64,100, 0x83,0x60,0x80,64,0, 0,0xFF,0x2F,0 };
+        const auto f = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("jpurrr_playercheck.mid");
+        f.replaceWithData(mid, sizeof mid);
+        juce::String err; check(pl.loadFile(f, err), "player: a MIDI file of your own loads");
+        check(pl.pieceName().startsWith("jpurrr_playercheck") && pl.selected() == -1, "player: its name is shown");
+        pl.setPlaying(true);
+        check(render(proc, 48000 * 3 / 256, 48000 * 3 / 256).peak > 0.01, "player: your own piece plays");
+        pl.setPlaying(false); render(proc, 48000 * 6 / 256, 8);
+        juce::String err2; check(!pl.loadFile(juce::File("/nonexistent/file.mid"), err2) && err2.isNotEmpty(), "player: a missing file is refused with a message");
+        f.deleteFile();
+    }
     ed.reset(); jp::fonts::clearCache();
     std::printf(fails ? "STRIPCHECK FAILED (%d)\n" : "STRIPCHECK OK\n", fails);
     return fails ? 1 : 0;
