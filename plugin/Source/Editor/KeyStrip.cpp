@@ -326,6 +326,7 @@ KeyboardStrip::KeyboardStrip(JPurrr8000AudioProcessor& p, Ctx& c) : proc(p), x(c
     info = std::make_unique<InfoW>(*this);
     addAndMakeVisible(*info);
     for (int i = 0; i < 2; ++i) { wheels[i] = std::make_unique<WheelW>(*this, i); addAndMakeVisible(*wheels[i]); }
+    for (int i = 0; i < 2; ++i) { knobs[i] = std::make_unique<KnobW>(x, paramIndexById(kStrip.knobs[(size_t) i].id)); addAndMakeVisible(*knobs[i]); }
     place(0.0f);
 }
 KeyboardStrip::~KeyboardStrip() { releaseAll(); }
@@ -339,6 +340,10 @@ void KeyboardStrip::place(float stripY) {
         const auto& r = kStrip.wheels[(size_t) i].r;
         wheels[i]->setBounds(juce::Rectangle<int>((int) std::floor(r.x - kStrip.r.x) - 5, (int) std::floor(r.y) - 5, (int) std::ceil(r.w) + 10, (int) std::ceil(r.h) + 10));
     }
+    for (int i = 0; i < 2; ++i) {
+        const auto& r = kStrip.knobs[(size_t) i].r; const int x0 = juce::roundToInt(r.x), y0 = juce::roundToInt(r.y);     // browsers snap both edges of a box to device pixels
+        knobs[i]->setBounds(x0 - (int) std::lround(kStrip.r.x), y0, juce::roundToInt(r.x + r.w) - x0, juce::roundToInt(r.y + r.h) - y0);
+    }
     setBounds((int) std::lround(kStrip.r.x), (int) std::lround(stripY), (int) std::lround(kStrip.r.w), (int) std::lround(kStrip.r.h));
 }
 
@@ -347,7 +352,7 @@ void KeyboardStrip::paint(juce::Graphics& g) {
     drawKeyStripBox(g, L(), 0.0f);
     drawKeyStripCaptions(g, L(), 0.0f);
 }
-void KeyboardStrip::lookChanged() { repaint(); }
+void KeyboardStrip::lookChanged() { for (auto& k : knobs) k->lookChanged(); repaint(); }
 void KeyboardStrip::animateForTest(int ms) {
     const double end = juce::Time::getMillisecondCounterHiRes() + ms;
     while (juce::Time::getMillisecondCounterHiRes() < end) { for (auto& w : wheels) w->step(); juce::Thread::sleep(8); }
@@ -371,6 +376,7 @@ void KeyboardStrip::refresh() {
     split->refresh();
     info->refresh();
     for (auto& w : wheels) w->refresh();
+    for (auto& k : knobs) k->refresh();
     // computer keys: a key that went up without us noticing, or focus that left the editor
     if (ck.keysDown() > 0) {
         const bool focused = getParentComponent() != nullptr && getParentComponent()->hasKeyboardFocus(true);

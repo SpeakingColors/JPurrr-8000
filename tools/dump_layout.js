@@ -86,9 +86,10 @@ function walk() {
         scale: R(col.querySelector('.wsc').getBoundingClientRect()), wn: parseFloat(getComputedStyle(w).getPropertyValue('--wn')), tip: w.dataset.tip, aria: w.getAttribute('aria-label') }; });
     const keys = [...document.querySelectorAll('#keys .wk, #keys .bk')].map(k => ({ n: +k.dataset.n, black: k.classList.contains('bk'), rect: R(k.getBoundingClientRect()) }));
     const labels = [...document.querySelectorAll('#keys .kl')].map(k => ({ n: +k.parentElement.dataset.n, t: k.textContent }));
-    items.push({ k: 'kbd', rect: R(el.getBoundingClientRect()), keysRect: R(document.querySelector('#keys').getBoundingClientRect()), whls: R(document.querySelector('#whls').getBoundingClientRect()), wheels, keys, labels }); });
+    const knobs = [...document.querySelectorAll('#kbd .knob')].map(k => ({ id: k.dataset.id, rect: R(k.getBoundingClientRect()), tip: tipOf(k), tipRect: R((k.closest('[data-tip]') || k).getBoundingClientRect()) }));
+    items.push({ k: 'kbd', rect: R(el.getBoundingClientRect()), keysRect: R(document.querySelector('#keys').getBoundingClientRect()), whls: R(document.querySelector('#whls').getBoundingClientRect()), wheels, knobs, keys, labels }); });
   q('.mbp', el => items.push({ k: 'mbp', rect: R(el.getBoundingClientRect()) }));
-  q('.knob', el => items.push({ k: 'knob', id: el.dataset.id, rect: R(el.getBoundingClientRect()), tip: tipOf(el) }));
+  q('.knob', el => { if (el.closest('#kbd')) return; items.push({ k: 'knob', id: el.dataset.id, rect: R(el.getBoundingClientRect()), tip: tipOf(el) }); });   // v3.8: BEND UP / DOWN live in the strip
   q('.sld', el => items.push({ k: 'slider', id: el.dataset.id, hh: +el.dataset.h, tk: parseFloat(el.style.getPropertyValue('--tk')), rect: R(el.getBoundingClientRect()), tip: tipOf(el) }));
   q('.sw', el => { if (el.closest('#pmenu')) return; items.push({ k: 'switch', id: el.dataset.id || el.id, mom: el.classList.contains('mom'), rect: R(el.getBoundingClientRect()), tip: tipOf(el) || el.dataset.tip || '' }); });
   q('.opts', el => {
@@ -137,6 +138,54 @@ function dumpParts() {
   out.splitTip = document.querySelector('#spH').dataset.tip;
   out.h = +B0.height.toFixed(2);
   return out;
+}
+
+// v3.8: the player bar (#plr), dumped with PLAYER on. x = window x, y = relative to the top of the bar. Texts that change (piece name, group, BPM, readouts)
+// are drawn by the plugin: only their boxes, fonts and baselines are taken here.
+function dumpPlayer() {
+  const win = document.querySelector('#win'), W0 = win.getBoundingClientRect(), bar = document.querySelector('#plr'), B0 = bar.getBoundingClientRect();
+  const rr = r => ({ x: +(r.left - W0.left).toFixed(2), y: +(r.top - B0.top).toFixed(2), w: +r.width.toFixed(2), h: +r.height.toFixed(2) });
+  const cvs = document.createElement('canvas').getContext('2d');
+  const fontOf = el => { const cs = getComputedStyle(el); const fam = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim();
+    return { fam, size: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight), ls: cs.letterSpacing === 'normal' ? 0 : +(parseFloat(cs.letterSpacing) / parseFloat(cs.fontSize)).toFixed(4), italic: false }; };
+  const met = el => { const cs = getComputedStyle(el); const fam = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim(); cvs.font = `${cs.fontWeight} ${cs.fontSize} "${fam}"`; const m = cvs.measureText('Hx'); return [m.fontBoundingBoxAscent, m.fontBoundingBoxDescent]; };
+  const textNode = el => [...el.childNodes].find(n => n.nodeType === 3 && n.nodeValue.trim());
+  const base = el => { const n = textNode(el); if (!n) return null; const rg = document.createRange(); rg.setStart(n, 0); rg.setEnd(n, 1); const r = rg.getClientRects()[0]; return +(r.top - B0.top + Math.round(met(el)[0])).toFixed(2); };
+  const tline = el => { const n = textNode(el); if (!n) return null; const rg = document.createRange(); rg.setStart(n, 0); rg.setEnd(n, n.nodeValue.length); const r = rg.getBoundingClientRect(); return { t: n.nodeValue.trim(), x: +(r.left - W0.left).toFixed(2), w: +r.width.toFixed(2), base: base(el) }; };
+  const inputBase = el => { const [a, d] = met(el), r = el.getBoundingClientRect(); return +(r.top - B0.top + r.height / 2 + (Math.round(a) - Math.round(d)) / 2).toFixed(2); };
+  const tipOf = el => { const t = el.closest('[data-tip]'); return t ? t.dataset.tip : ''; };
+  const it = (id, el, o) => Object.assign({ id, rect: rr(el.getBoundingClientRect()), tip: tipOf(el), f: fontOf(el), line: tline(el) }, o || {});
+  const items = [];
+  const $1 = s => document.querySelector(s);
+  items.push(it('title', $1('#plr .pl-t')));
+  const play = $1('#plPlay'); items.push(it('play', play, { icon: rr($1('#plPlay .i-play').getBoundingClientRect()), lbl: it('lbl', $1('#plPlay span')) }));
+  items.push(it('prev', $1('#plPrev'), { icon: rr($1('#plPrev svg').getBoundingClientRect()) }));
+  items.push(it('sel', $1('#plSel'), { name: it('name', $1('#plName'), { base: base($1('#plName')) }), grp: it('grp', $1('#plGrp'), { base: base($1('#plGrp')) }), chev: rr($1('#plSel svg').getBoundingClientRect()), pad: parseFloat(getComputedStyle($1('#plSel')).paddingLeft) }));
+  items.push(it('next', $1('#plNext'), { icon: rr($1('#plNext svg').getBoundingClientRect()) }));
+  [...document.querySelectorAll('#plr .pl-sep')].forEach((e, i) => items.push(it('sep' + i, e)));
+  const grp = id => $1(id).closest('.plg1');
+  items.push(it('bpmG', grp('#plBpm'))); items.push(it('bpmL', grp('#plBpm').querySelector('.pl-l')));
+  items.push(it('bpm', $1('#plBpm'), { base: inputBase($1('#plBpm')) }));
+  items.push(it('lockG', grp('#plLock'))); items.push(it('lock', $1('#plLock'), { led: rr($1('#plLock .led').getBoundingClientRect()) })); items.push(it('lockL', grp('#plLock').querySelector('.pl-l')));
+  items.push(it('trG', grp('#plTr'))); items.push(it('trL', grp('#plTr').querySelector('.pl-l')));
+  items.push(it('tr', $1('#plTr'), { base: inputBase($1('#plTr')) }));
+  items.push(it('load', $1('#plLoad'))); items.push(it('exp', $1('#plExp')));
+  const pc = $1('#plPos'); items.push(it('posG', grp('#plPos'))); items.push(it('pos', pc, { cw: +pc.dataset.w, ch: +pc.dataset.h }));
+  const pt = $1('#plPosT'), sm = pt.querySelector('small'), vn = [...pt.childNodes].find(n => n.nodeType === 3);
+  const vrg = document.createRange(); vrg.setStart(vn, 0); vrg.setEnd(vn, vn.nodeValue.length); const vr = vrg.getBoundingClientRect();
+  items.push(it('posT', pt, { small: it('small', sm), val: { x: +(vr.left - W0.left).toFixed(2), y: +(vr.top - B0.top).toFixed(2), w: +vr.width.toFixed(2), h: +vr.height.toFixed(2), f: fontOf(pt), base: +(vr.top - B0.top + Math.round(met(pt)[0])).toFixed(2) } }));
+  const cs = getComputedStyle(bar);
+  return { rect: rr(B0), h: +B0.height.toFixed(2), radius: parseFloat(cs.borderTopLeftRadius), items };
+}
+// the piece menu (#plMenu): constants of its CSS, dumped with the menu open
+function dumpPlayerMenu() {
+  __JPplayer.openMenu();
+  const m = document.querySelector('#plMenu'), g = m.querySelector('.plg'), r = m.querySelector('.pli'), cm = getComputedStyle(m), cg = getComputedStyle(g), cr = getComputedStyle(r);
+  const fo = (el, sel) => { const e = sel ? el.querySelector(sel) : el, cs = getComputedStyle(e); return { fam: cs.fontFamily.split(',')[0].replace(/["']/g, '').trim(), size: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight), ls: cs.letterSpacing === 'normal' ? 0 : +(parseFloat(cs.letterSpacing) / parseFloat(cs.fontSize)).toFixed(4), italic: false }; };
+  const o = { w: m.getBoundingClientRect().width, border: parseFloat(cm.borderTopWidth), radius: parseFloat(cm.borderTopLeftRadius), gh: g.getBoundingClientRect().height, gpad: parseFloat(cg.paddingLeft), rh: r.getBoundingClientRect().height,
+    rpadL: parseFloat(cr.paddingLeft), rpadR: parseFloat(cr.paddingRight), rgap: parseFloat(cr.columnGap), gf: fo(g, 'span'), gsf: fo(g, 'small'), rf: fo(r, 'span'), rsf: fo(r, 'small'), above: 6, minTop: 76, maxH: 640, minH: 240, left: 40 };
+  __JPplayer.closeMenu();
+  return o;
 }
 
 (async () => {
@@ -228,6 +277,7 @@ function dumpParts() {
   const kb = pages.sound.find(i => i.k === 'kbd');
   out.strip = { rect: dyRect(kb.rect), keysRect: dyRect(kb.keysRect), whls: dyRect(kb.whls),
     wheels: kb.wheels.map(w => Object.assign({}, w, { rect: dyRect(w.rect), handle: dyRect(w.handle), line: dyRect(w.line), name: dyRect(w.name), scale: dyRect(w.scale) })),
+    knobs: kb.knobs.map(k => Object.assign({}, k, { rect: dyRect(k.rect), tipRect: dyRect(k.tipRect) })),
     keys: kb.keys.map(k => Object.assign({}, k, { rect: dyRect(k.rect) })), labels: kb.labels,
     texts: pages.sound.filter(i => i.kbd).map(t => Object.assign({}, t, { rect: dyRect(t.rect), lines: t.lines.map(l => Object.assign({}, l, { y: +(l.y - sy).toFixed(2), base: +(l.base - sy).toFixed(2) })) })) };
   for (const [name, items] of Object.entries(pages)) {
@@ -284,6 +334,18 @@ function dumpParts() {
   out.parts.hOpen = hp.shown; out.parts.hOpenBare = hp.bare; out.parts.stripYOpen = hp.stripY;
   out.parts.top = out.stripY.sound;                       // y of the band in the window = where the strip starts when the band is closed
   await p.evaluate(() => { __JPparts.setParts(false); __JP.setP('km', 0, true); });
+  // v3.8: the player bar (SOUND page, PARTS closed). Window heights with the bar: strip shown and PREVIEW off.
+  await p.evaluate(() => { __JP.setP('player', 1, false); }); await p.waitForTimeout(200);
+  out.player = await p.evaluate(dumpPlayer);
+  out.player.menu = await p.evaluate(dumpPlayerMenu);
+  out.player.playOn = await p.evaluate(() => { __JPplayer.demo(21); const pl = document.querySelector('#plPlay'), B0 = document.querySelector('#plr').getBoundingClientRect(), W0 = document.querySelector('#win').getBoundingClientRect();
+    const rr = r => ({ x: +(r.left - W0.left).toFixed(2), y: +(r.top - B0.top).toFixed(2), w: +r.width.toFixed(2), h: +r.height.toFixed(2) }), sp = pl.querySelector('span'), n = [...sp.childNodes].find(n => n.nodeType === 3), rg = document.createRange(); rg.setStart(n, 0); rg.setEnd(n, n.nodeValue.length); const tr = rg.getBoundingClientRect();
+    const r = { icon: rr(pl.querySelector('.i-stop').getBoundingClientRect()), lbl: rr(sp.getBoundingClientRect()), t: n.nodeValue, x: +(tr.left - W0.left).toFixed(2), w: +tr.width.toFixed(2) }; __JPplayer.stop(); return r; });
+  const hq = await p.evaluate(() => { const J = window.__JP, w = document.querySelector('#win'), k = document.querySelector('#kbd'), b = document.querySelector('#plr'); const shown = w.offsetHeight, sy = k.getBoundingClientRect().top - w.getBoundingClientRect().top, by = b.getBoundingClientRect().top - w.getBoundingClientRect().top;
+    J.setP('prev', 0, true); const bare = w.offsetHeight, byBare = b.getBoundingClientRect().top - w.getBoundingClientRect().top; J.setP('prev', 1, true); return { shown, bare, stripY: +sy.toFixed(2), barY: +by.toFixed(2), barYBare: +byBare.toFixed(2) }; });
+  out.player.hShown = hq.shown; out.player.hBare = hq.bare; out.player.stripY = hq.stripY; out.player.barY = hq.barY; out.player.barYBare = hq.barYBare;
+  out.player.extra = hq.shown - out.pageHk.sound;
+  await p.evaluate(() => { __JP.setP('player', 0, false); });
   // tooltips and value bubble geometry
   out.bubbles = await p.evaluate(() => { const win = document.querySelector('#win'); const tip = document.querySelector('#tip'); tip.hidden = false; tip.innerHTML = 'Tip text<br><b>Now: 12</b> · double click resets'; const r = tip.getBoundingClientRect(); const cs = getComputedStyle(tip); tip.hidden = true; return { tipPad: cs.padding, tipZoom: cs.zoom, w: r.width, h: r.height }; });
   fs.mkdirSync(path.dirname(outFile), { recursive: true });

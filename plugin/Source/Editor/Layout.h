@@ -51,6 +51,7 @@ struct Page {
 struct Wheel { const char* id; bool pitch; Rect r; Rect handle; Rect line; Rect name; Rect scale; float wn; float travel; const char* label; const char* tip; };
 struct Key { int note; bool black; Rect r; };                               // white keys first, then black keys (draw in this order)
 struct KeyLabel { int note; const char* t; float x, w, base; };            // "C2".."C7": centred on x + w / 2 at baseline base, font KeyStrip::labelFont, colour labelCol
+struct StripKnob { const char* id; Rect r; Rect tipRect; const char* tip; };      // v3.8: BEND UP / BEND DOWN (r = the knob, tipRect = knob and caption); y relative to the strip
 struct KeyStrip {
     Rect r;                         // the strip box (x, 0, w, 166): 6 px radius, pnl3 fill, 1 px sbd border
     Rect keysRect;                  // #keys: dark box (0b0e13) with 1 px edge border, 3 px radius; the keys are clipped to it
@@ -60,7 +61,8 @@ struct KeyStrip {
     Span<Wheel> wheels;             // [0] = BEND (id wBend), [1] = MOD (id wMod)
     Span<Key> keys;
     Span<KeyLabel> labels;
-    Span<Text> texts;               // wheel captions BEND, MOD, +, -, MAX, 0 (Text::tok colours, y relative to the strip)
+    Span<Text> texts;               // wheel captions BEND, MOD, +, -, MAX, 0 and the knob captions BEND UP, BEND DOWN (Text::tok colours, y relative to the strip)
+    Span<StripKnob> knobs;          // v3.8: [0] = bu, [1] = bd, left of the BEND wheel
 };
 // v3.5 PARTS band (LOWER card, KEYS map, UPPER card) on the SOUND page while EDIT PARTS is on. Rectangles: x is a window x, y is relative to the
 // top of the band (kParts.top in the window). Inner boxes of a card or the map are relative to the card or map. base = text baseline in the same frame.
@@ -77,6 +79,33 @@ struct PartsGeo {
     PMap map;
     Span<HBtn> btns; Span<Text> btnTexts;   // pt_prev_l, pt_next_l, pt_browse_l, then the same for u
 };
+// v3.8 PLAYER bar (#plr) above the keyboard strip while the PLAYER switch (CONTROLLER panel) is on. x is a window x, y is relative to the top of the bar.
+// base = text baseline in the same frame. Texts that change (piece name, group, tempo, readouts) are drawn by the plugin: only boxes, fonts and baselines come from the mockup.
+struct PlLine { float x, w, base; };
+struct PlMenu {                     // #plMenu, opens upwards from the piece box: constants of its CSS
+    float w, border, radius, groupH, groupPad, rowH, rowPadL, rowPadR, rowGap;
+    Font groupFont, groupSmall, rowFont, rowSmall;
+    float above, minTop, maxH, minH, left;
+};
+struct PlayerGeo {
+    float h;                        // 40
+    float extra;                    // window height added while the bar is shown (the bar and the 8 px gap)
+    Rect bar; float radius;         // the bar box and its corner radius
+    Font title, play, label, name, group, num, posSmall, posVal;   // PLAYER, PLAY / LOAD / EXPORT, BPM / LOCK / TRANSPOSE, piece name, group, number boxes, BAR, "1 / 8"
+    PlLine tTitle;
+    Rect playR, playIcon, stopIcon; PlLine playL, stopL;
+    Rect prevR, prevIcon, nextR, nextIcon;
+    Rect sel; Rect nameR; float nameBase; Rect grpR; float grpBase; Rect chev; float selPad;
+    Rect bpmG, bpmR; float bpmBase; PlLine bpmL;
+    Rect lockG, lockR, led; PlLine lockL;
+    Rect trG, trR; float trBase; PlLine trL;
+    Rect loadR, expR; PlLine loadL, expL;
+    Rect posG, posR, posTR; PlLine barL; PlLine valL; int posW, posH;
+    Rect seps[4];
+    PlMenu menu;
+    Span<Tip> tips;                 // data-tip of play, prev, sel, next, bpm group, lock group, transpose group, load, export, position group
+};
+extern const PlayerGeo kPlayer;
 extern const PartsGeo kParts;
 extern const KeyStrip kStrip;
 extern const int kChromeH;          // window height in which the chrome (footer, cheeks) was dumped: footer shift = page height - kChromeH

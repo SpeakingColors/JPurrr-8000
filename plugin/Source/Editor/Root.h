@@ -10,6 +10,7 @@ class MenuPanel;
 class Bubble;
 class KeyboardStrip;
 class PartsBand;
+class PlayerBar;
 
 class Root : public juce::Component, private juce::Timer {
 public:
@@ -25,6 +26,8 @@ public:
     static constexpr const char* kExportWarnIds[4] = { "o1w", "xt", "dty", "o2wide" };
     bool partsOpen() const { return partsOpenFlag; }   // EDIT PARTS (v3.5): kept while you visit FX and MASTER, not saved with the plugin state
     bool partsShown() const;                           // the band is on screen: EDIT PARTS on and the SOUND page
+    bool playerShown() const;                          // v3.8: the PLAYER bar is on screen (the PLAYER switch of the CONTROLLER panel)
+    PlayerBar* playerBar() { return player.get(); }
     void setPartsOpen(bool open);
     void layoutStrip();                                // place the keyboard strip under the page, show or hide it with PREVIEW
     void syncHeight();                                 // follow a PREVIEW change: resize the content and tell the editor
@@ -70,10 +73,13 @@ private:
     std::unique_ptr<Bubble> tipBubble, valBubble;
     std::unique_ptr<KeyboardStrip> strip;
     std::unique_ptr<PartsBand> band;
+    std::unique_ptr<PlayerBar> player;
     bool partsOpenFlag = false;
     float stripYNow() const;
+    float barYNow() const;                             // top of the PLAYER bar (where the strip starts when the bar is off)
     mutable layout::Tip splitTip;
     mutable layout::Tip infoTip;                       // v3.7: tip of the KEYS / VEL readout
+    mutable layout::Tip knobTips[2];                   // v3.8: tips of the BEND UP / BEND DOWN knobs in the strip
     std::unique_ptr<DialogLayer> dialogs;
     juce::Image texture;
     juce::String lastInfo, lastMsg, lastTitle;

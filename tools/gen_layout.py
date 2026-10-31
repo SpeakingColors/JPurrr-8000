@@ -90,7 +90,10 @@ emit_page('chrome', d['chrome'], 0)
 S = d['strip']
 sarr = make_arr('strip')
 is_kl = lambda t: t['col'] == 'rgb(107, 114, 128)' and t['lines'][0]['t'][0] == 'C'
-stexts, _ = emit_texts('strip', sarr, [t for t in S['texts'] if not is_kl(t)])
+# the KEYS / VEL readout (#kinfo, v3.7) over the keys is drawn live by the plugin
+is_info = lambda t: t['rect']['x'] >= S['keysRect']['x'] and not is_kl(t)
+stexts, _ = emit_texts('strip', sarr, [t for t in S['texts'] if not is_kl(t) and not is_info(t)])
+sknobs = sarr('StripKnob', 'knobs', ['{%s,%s,%s,%s}' % (cs(k['id']), R(k['rect']), R(k['tipRect']), cs(k['tip'])) for k in S['knobs']])
 wrows = []
 for wh in S['wheels']:
     wrows.append('{%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s}' % (cs(wh['id']), 'true' if wh['pitch'] else 'false', R(wh['rect']), R(wh['handle']), R(wh['line']) if wh['line'] else '{0.f,0.f,0.f,0.f}', R(wh['name']), R(wh['scale']), f(wh['wn']), f(wh['rect']['h'] - 2 - 16), cs(wh['aria']), cs(wh['tip'])))
@@ -108,7 +111,34 @@ for lb in S['labels']:
 slabels = sarr('KeyLabel', 'labels', lrows)
 kfont = [t for t in S['texts'] if t['col'] == 'rgb(107, 114, 128)'][0]
 w('}')
-w('const KeyStrip kStrip = {%s,%s,%s,%d,%d,%s,%s,%s,%s,%s,%s};' % (R(S['rect']), R(S['keysRect']), R(S['whls']), min(k['n'] for k in S['keys']), max(k['n'] for k in S['keys']), F(kfont['f']), col(kfont['col']), swheels, skeys, slabels, stexts))
+w('const KeyStrip kStrip = {%s,%s,%s,%d,%d,%s,%s,%s,%s,%s,%s,%s};' % (R(S['rect']), R(S['keysRect']), R(S['whls']), min(k['n'] for k in S['keys']), max(k['n'] for k in S['keys']), F(kfont['f']), col(kfont['col']), swheels, skeys, slabels, stexts, sknobs))
+# v3.8 PLAYER bar
+PL = d['player']
+PI = {i['id']: i for i in PL['items']}
+def PLL(l): return '{%s,%s,%s}' % (f(l['x']), f(l['w']), f(l['base']))
+def FN(o): return F(o)
+pm = PL['menu']
+plmenu = '{%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s}' % (f(pm['w']), f(pm['border']), f(pm['radius']), f(pm['gh']), f(pm['gpad']), f(pm['rh']), f(pm['rpadL']), f(pm['rpadR']), f(pm['rgap']),
+    F(pm['gf']), F(pm['gsf']), F(pm['rf']), F(pm['rsf']), f(pm['above']), f(pm['minTop']), f(pm['maxH']), f(pm['minH']), f(pm['left']))
+ptips = [(k, PI[k]) for k in ['play', 'prev', 'sel', 'next', 'bpmG', 'lockG', 'trG', 'load', 'exp', 'posG']]
+w('namespace {')
+w('const Tip player_tips[] = {%s};' % ','.join('{%s,%s,""}' % (R(v['rect']), cs(v['tip'])) for k, v in ptips))
+w('}')
+pbar = PL['rect']
+fields = [
+    f(PL['h']), f(PL['extra']), R(pbar), f(PL['radius']),
+    F(PI['title']['f']), F(PI['play']['lbl']['f']), F(PI['bpmL']['f']), F(PI['sel']['name']['f']), F(PI['sel']['grp']['f']), F(PI['bpm']['f']), F(PI['posT']['small']['f']), F(PI['posT']['val']['f']),
+    PLL(PI['title']['line']),
+    R(PI['play']['rect']), R(PI['play']['icon']), R(PL['playOn']['icon']), PLL(PI['play']['lbl']['line']), PLL({'x': PL['playOn']['x'], 'w': PL['playOn']['w'], 'base': PI['play']['lbl']['line']['base']}),
+    R(PI['prev']['rect']), R(PI['prev']['icon']), R(PI['next']['rect']), R(PI['next']['icon']),
+    R(PI['sel']['rect']), R(PI['sel']['name']['rect']), f(PI['sel']['name']['base']), R(PI['sel']['grp']['rect']), f(PI['sel']['grp']['base']), R(PI['sel']['chev']), f(PI['sel']['pad']),
+    R(PI['bpmG']['rect']), R(PI['bpm']['rect']), f(PI['bpm']['base']), PLL(PI['bpmL']['line']),
+    R(PI['lockG']['rect']), R(PI['lock']['rect']), R(PI['lock']['led']), PLL(PI['lockL']['line']),
+    R(PI['trG']['rect']), R(PI['tr']['rect']), f(PI['tr']['base']), PLL(PI['trL']['line']),
+    R(PI['load']['rect']), R(PI['exp']['rect']), PLL(PI['load']['line']), PLL(PI['exp']['line']),
+    R(PI['posG']['rect']), R(PI['pos']['rect']), R(PI['posT']['rect']), PLL(PI['posT']['small']['line']), PLL({'x': PI['posT']['val']['x'], 'w': PI['posT']['val']['w'], 'base': PI['posT']['val']['base']}), str(PI['pos']['cw']), str(PI['pos']['ch']),
+    '{%s}' % ','.join(R(PI['sep%d' % k]['rect']) for k in range(4)), plmenu, 'Span<Tip>{player_tips,%d}' % len(ptips)]
+w('const PlayerGeo kPlayer = {%s};' % ','.join(fields))
 # v3.5 PARTS band
 PT = d['parts']
 def PB(o): return '{%s,%s}' % (R(o), f(o['base'] if o.get('base') is not None else 0))

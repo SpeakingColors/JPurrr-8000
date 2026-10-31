@@ -14,8 +14,18 @@ public:
     void select(int libraryIndex);                                   // -1 = no piece. Sets the tempo to the piece's own unless the lock is on
     int selected() const { return selLib.load(); }                   // library index, or -1 (also while a file of your own is loaded)
     bool loadFile(const juce::File& f, juce::String& error);         // a MIDI file of your own; the name is shown by pieceName()
-    bool fileLoaded() const { return userName.isNotEmpty() && selRaw.load() <= -2; }
-    juce::String pieceName() const;
+    bool fileLoaded() const { return selRaw.load() <= -2; }
+    juce::String pieceName() const;                                  // library name, or "MIDI: <file> (<bpm>)" for a file of your own
+    juce::String groupName() const;                                  // the style group of the piece, "Your MIDI file" for a file of your own
+    double pieceBpm() const;                                         // the tempo the piece itself asks for
+    jpurrr::PlayView view() const;                                   // the notes of the piece, for the display (message thread)
+    // up to two files of your own are kept, in the order they were loaded (oldest first); choosing one makes it the piece
+    int userCount() const;
+    int userSlotAt(int k) const;                                     // slot (0 or 1) of the k-th file, or -1
+    juce::String userName(int slot) const { return slots[slot].name; }
+    double userBpm(int slot) const { return slots[slot].bpm; }
+    bool userSelected(int slot) const { return selRaw.load() == -2 - slot; }
+    void selectUser(int slot);
     void setPlaying(bool on) { playing.store(on); }
     bool isPlaying() const { return playing.load(); }
     void setBpm(double bpm) { bpmA.store(juce::jlimit(20.0, 300.0, bpm)); }
@@ -34,10 +44,9 @@ public:
     void reset();
 
 private:
-    struct Slot { std::unique_ptr<jpurrr::PlayEvent[]> ev; int n = 0; double beats = 4.0; };
+    struct Slot { std::unique_ptr<jpurrr::PlayEvent[]> ev; int n = 0; double beats = 4.0; double bpm = 120.0; juce::String name; int seq = 0; };   // name, bpm, seq: message thread only
     Slot slots[2];
-    int lastSlot = 1;                                                // message thread: the slot that was written last
-    juce::String userName;                                           // message thread
+    int seqNow = 0;                                                  // message thread: counts the loads
     std::atomic<int> selRaw { -1 };                                  // >= 0 library index, -1 none, -2 / -3 = user slot 0 / 1
     std::atomic<int> selLib { -1 };
     std::atomic<int> gen { 0 }, ack { 0 };

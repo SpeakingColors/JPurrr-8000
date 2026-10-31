@@ -1,6 +1,7 @@
 #include "Root.h"
 #include "KeyStrip.h"
 #include "PartsBand.h"
+#include "PlayerBar.h"
 #include "../PluginProcessor.h"
 #include "BlockPresets.h"
 using namespace jp;
@@ -210,6 +211,12 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
     strip->hideTip = [this] { hideTip(); };
     strip->modalOpen = [this] { return dialogs && dialogs->isOpen(); };
 
+    player = std::make_unique<PlayerBar>(p, ctx, env); addChildComponent(*player);        // v3.8; its piece list is a child of the root, it opens upwards over the panels
+    addChildComponent(player->menuComponent());
+    player->showBubble = [this](juce::Component& c, const juce::String& t) { showTextBubble(c, t); };
+    player->hideBubble = [this] { hideValueBubble(); };
+    player->hideTip = [this] { hideTip(); };
+
     band = std::make_unique<PartsBand>(p, ctx); addChildComponent(*band); band->place();
     band->openBrowser = [this](int part) { dialogs->openBrowser(part); };
     band->hideTip = [this] { hideTip(); };
@@ -256,7 +263,7 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
     showPage(kSound);
     startTimerHz(20);
 }
-Root::~Root() { stopTimer(); removeMouseListener(this); if (strip) strip->releaseAll(); }
+Root::~Root() { stopTimer(); removeMouseListener(this); if (strip) strip->releaseAll(); if (player) player->stopAll(); }       // a piece never keeps playing without its window
 
 void Root::applyLook(const juce::String& id) {
     ctx.lookIdx = lookIndexOf(id); env.pal = paletteOf(look());
@@ -264,7 +271,7 @@ void Root::applyLook(const juce::String& id) {
     texture = panelTexture(look());
     for (auto* p : pages) p->lookChanged();
     for (auto* h : header) h->lookChanged();
-    strip->lookChanged(); band->lookChanged();
+    strip->lookChanged(); band->lookChanged(); player->lookChanged();
     dialogs->lookChanged(); repaint();
 }
 
@@ -294,20 +301,24 @@ void Root::layoutStrip() {
     strip->place(stripYNow());
     strip->setPartsMode(partsShown());
     band->setVisible(partsShown());
+    player->place(barYNow());
+    if (playerShown()) player->setVisible(true); else if (player->isVisible()) { player->stopAll(); player->setVisible(false); }     // hiding the bar stops the piece
     if (stripShown()) strip->setVisible(true); else { strip->releaseAll(); strip->setVisible(false); }   // PREVIEW off: nothing may keep sounding
 }
 
 bool Root::stripShown() const { return ctl.get(P_prev) != 0; }
 bool Root::partsShown() const { return partsOpenFlag && page == kSound; }
-float Root::stripYNow() const { return partsShown() ? kParts.stripY : kPages[page].stripY; }
-int Root::designHeight() const { return (stripShown() ? kPages[page].h : kPages[page].hBare) + (partsShown() ? juce::roundToInt(kParts.extra) : 0); }
+bool Root::playerShown() const { return ctl.get(P_player) != 0; }
+float Root::barYNow() const { return partsShown() ? kParts.stripY : kPages[page].stripY; }
+float Root::stripYNow() const { return barYNow() + (playerShown() ? kPlayer.extra : 0.0f); }
+int Root::designHeight() const { return (stripShown() ? kPages[page].h : kPages[page].hBare) + (partsShown() ? juce::roundToInt(kParts.extra) : 0) + (playerShown() ? juce::roundToInt(kPlayer.extra) : 0); }
 void Root::setPartsOpen(bool open) {
     if (partsOpenFlag == open) return;
     partsOpenFlag = open; hideTip();
     layoutStrip(); syncHeight(); repaint();
 }
 void Root::syncHeight() {
-    if (strip->isVisible() != stripShown() || band->isVisible() != partsShown()) layoutStrip();
+    if (strip->isVisible() != stripShown() || band->isVisible() != partsShown() || player->isVisible() != playerShown()) layoutStrip();
     if (getHeight() == designHeight()) return;
     setSize(kDesignW, designHeight());
     dialogs->setBounds(juce::Rectangle<int>((int) kCheekL.w, 0, kDesignW - (int) kCheekL.w - (int) kCheekR.w, designHeight()));
@@ -321,6 +332,7 @@ void Root::tick(double now) {
     pages[page]->refresh();
     if (band->isVisible()) band->refresh();
     if (strip->isVisible()) strip->refresh();
+    if (player->isVisible()) player->refresh();
     for (auto* h : header) h->refresh();
     pages[page]->tickDisplays(now);
     dialogs->refresh();
@@ -397,14 +409,22 @@ const Tip* Root::tipAtPoint(juce::Point<float> p, juce::Rectangle<float>&) const
             infoTip = { { ir.getX(), stripYNow() + ir.getY(), ir.getWidth(), ir.getHeight() }, "Computer keys: A S D F G H J K L ; ' play the white keys and W E T Y U O P the black keys. Z and X move the octave down and up, C and V lower and raise the velocity. The keys with a blue bar are the ones the computer keys play now.", "" };
             return &infoTip;
         }
+        for (int i = 0; i < 2; ++i) {                      // v3.8: the BEND UP / BEND DOWN knobs, with their captions, are tipped with "Now: ..." as the knobs of the pages
+            const StripKnob& k = kStrip.knobs[(size_t) i]; const float y1 = stripYNow();
+            if (p.x >= k.tipRect.x && p.x < k.tipRect.x + k.tipRect.w && p.y >= y1 + k.tipRect.y && p.y < y1 + k.tipRect.y + k.tipRect.h) {
+                knobTips[i] = { { k.tipRect.x, y1 + k.tipRect.y, k.tipRect.w, k.tipRect.h }, k.tip, k.id };
+                return &knobTips[i];
+            }
+        }
         for (int i = 0; i < 2; ++i) {
-            const Wheel& w = kStrip.wheels[(size_t) i]; const float y0 = kPages[page].stripY;
+            const Wheel& w = kStrip.wheels[(size_t) i]; const float y0 = stripYNow();
             if (p.x >= w.r.x && p.x < w.r.x + w.r.w && p.y >= y0 + w.r.y && p.y < y0 + w.r.y + w.r.h) {
                 wheelTips[i] = { { w.r.x, y0 + w.r.y, w.r.w, w.r.h }, w.tip, "" };
                 return &wheelTips[i];
             }
         }
     }
+    if (playerShown() && !player->menuOpen()) if (auto* pt = player->tipAt(p)) return pt;
     if (partsShown()) {
         const auto h = strip->splitHandle();                // the split handle of the keyboard strip
         if (stripShown() && !h.isEmpty() && p.x >= h.getX() && p.x < h.getRight() && p.y >= stripYNow() + h.getY() && p.y < stripYNow() + h.getBottom()) {
@@ -431,6 +451,7 @@ void Root::mouseMove(const juce::MouseEvent& e) {
 void Root::mouseExit(const juce::MouseEvent&) { hideTip(); hoverTip = nullptr; tipDone = nullptr; }
 void Root::mouseDown(const juce::MouseEvent& e) {
     hideTip();
+    if (player->menuOpen() && !player->menuOwns(e.eventComponent)) player->closeMenu();       // a press anywhere else closes the piece list
     if (menu->isVisible() && !e.eventComponent->isParentOf(menu.get()) && e.eventComponent != menu.get()) {
         auto p = e.getEventRelativeTo(this).position;
         if (!menu->getBounds().toFloat().contains(p) && e.eventComponent != header[2]) menu->setVisible(false);
@@ -515,8 +536,31 @@ bool Root::applyState(const juce::String& s) {
             else if (k == "dragb") drag = 0; else if (k == "dragm") drag = 1; else if (k == "focusb") focus = 0; else if (k == "focusm") focus = 1;
         }
         strip->snapshotState(drag, focus); return true; }
+    if (s.contains("_player")) {                         // test hook (v3.8): <sound|chain|master>[_parts_split]_player[_menu|_stopped|_lock|_midi|_nokbd]: PLAYER on, "Soaring anthem" playing with the playhead at beat 21 (no sound, no timer)
+        juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();
+        player->closeMenu(); player->stopDemo(); proc.midiPlayer.setBpmLock(false); proc.midiPlayer.setTranspose(0);
+        ctl.quiet(P_player, 1); ctl.quiet(P_prev, t.contains("nokbd") ? 0 : 1);
+        if (t.contains("parts")) { ctl.quiet(P_ps, 1); ctl.quiet(P_km, 2); setPartsOpen(true); } else { setPartsOpen(false); ctl.quiet(P_km, 0); }
+        showPage(t[0] == "chain" ? kChain : t[0] == "master" ? kMaster : kSound);
+        float beat = 21.0f;
+        if (t.contains("midi")) {                       // a loaded file: a C minor arpeggio, 96 BPM, two bars
+            const auto f = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("my_arpeggio.mid");
+            juce::MemoryOutputStream tr; auto vl = [&](int v) { juce::uint8 b[4]; int n = 0; b[n++] = (juce::uint8) (v & 127); while ((v >>= 7) != 0) b[n++] = (juce::uint8) ((v & 127) | 128); while (n > 0) tr.writeByte((char) b[--n]); };
+            auto ev = [&](int d, int a, int b2, int c) { vl(d); tr.writeByte((char) a); tr.writeByte((char) b2); tr.writeByte((char) c); };
+            vl(0); tr.writeByte((char) 0xFF); tr.writeByte(0x51); tr.writeByte(3); tr.writeByte(0x09); tr.writeByte((char) 0x89); tr.writeByte(0x68);
+            for (int n : { 60, 63, 67, 72, 67, 63, 60, 63 }) { ev(0, 0x90, n, 96); ev(240, 0x80, n, 0); }
+            vl(0); tr.writeByte((char) 0xFF); tr.writeByte(0x2F); tr.writeByte(0);
+            juce::MemoryOutputStream o; const char hd[] = { 'M', 'T', 'h', 'd', 0, 0, 0, 6, 0, 0, 0, 1, 0x01, (char) 0xE0, 'M', 'T', 'r', 'k' }; o.write(hd, sizeof(hd));
+            o.writeIntBigEndian((int) tr.getDataSize()); o.write(tr.getData(), tr.getDataSize());
+            f.replaceWithData(o.getData(), o.getDataSize()); player->loadTestFile(f); f.deleteFile(); ctl.msgUntil = 0;
+            player->demo(-1, 5.0f);
+        } else if (t.contains("stopped")) { player->demo(1, 0.0f); player->stopDemo(); }
+        else { player->demo(1, beat); if (t.contains("lock")) { proc.midiPlayer.setBpmLock(true); proc.midiPlayer.setBpm(150); proc.midiPlayer.setTranspose(-5); } }
+        layoutStrip(); syncHeight();
+        if (t.contains("menu")) player->openMenu();
+        return true; }
     if (s == "reset") { if (exportWarnApplied) { for (int i = 0; i < 4; ++i) ctl.quiet(Controller::idx(kExportWarnIds[i]), exportWarnOld[i]); ctl.pm.cur.dirty = false; exportWarnApplied = false; }
-        setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); strip->setComputerKeys(jpurrr::kCkBaseDefault, 100); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
+        player->closeMenu(); player->stopDemo(); proc.midiPlayer.setBpmLock(false); proc.midiPlayer.setTranspose(0); ctl.quiet(P_player, 0); setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); strip->setComputerKeys(jpurrr::kCkBaseDefault, 100); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
     if (s.startsWith("sound_parts_")) {                  // test hook: sound_parts_<split|dual|single>[_ps0|_ps2|_ps3][_nokbd]: the PARTS band open on the SOUND page
         juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();
         ctl.quiet(P_prev, t.contains("nokbd") ? 0 : 1); ctl.quiet(P_ps, 1);

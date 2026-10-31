@@ -60,6 +60,7 @@ private:
     std::unique_ptr<SplitW> split;
     std::unique_ptr<InfoW> info;
     std::unique_ptr<WheelW> wheels[2];
+    std::unique_ptr<KnobW> knobs[2];                   // v3.8: BEND UP and BEND DOWN, left of the BEND wheel
     void releaseComputerKeys();
 };
 

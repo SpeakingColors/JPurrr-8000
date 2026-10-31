@@ -3,6 +3,7 @@
 #include "PluginEditor.h"
 #include "Editor/Fonts.h"
 #include "Editor/KeyStrip.h"
+#include "Editor/PlayerBar.h"
 #include "Editor/Widgets.h"
 #include "jpurrr/patch.h"
 #include <juce_events/juce_events.h>
@@ -392,6 +393,33 @@ int main() {
     check(render(proc, 48000 * 6 / 256, 8).peak < 1e-3, "no stuck notes after PREVIEW off");
     proc.setInt(P_prev, 1); root.tick(0.2);
 
+    // the PLAYER bar (mockup v3.8): +48 px, above the strip, stops the piece when hidden, the bend knobs sit in the strip
+    {
+        auto& pl = proc.midiPlayer; auto* bar = root.playerBar();
+        const int h0 = root.getHeight(), sy0 = strip->getY();
+        check(strip->getHeight() == 166 && !bar->isVisible(), "player bar: off by default, strip 166 px");
+        proc.setInt(P_player, 1); root.tick(0.3);
+        check(bar->isVisible() && root.getHeight() == h0 + 48 && strip->getY() == sy0 + 48 && bar->getY() == sy0 && bar->getHeight() == 40, "player bar: switch on adds 48 px, the bar sits where the strip was, the strip moves down");
+        check(pl.selected() >= 0, "player bar: a piece is chosen as soon as it shows");
+        pl.setPlaying(true); proc.setInt(P_prev, 0); root.tick(0.4);
+        check(pl.isPlaying() && !strip->isVisible() && bar->isVisible() && root.getHeight() == h0 - 166 - 8 + 48 + 0, "player bar: stays while PREVIEW is off (the bar takes the strip's place)");
+        proc.setInt(P_prev, 1); root.tick(0.5);
+        pl.setPlaying(true);
+        proc.setInt(P_player, 0); root.tick(0.6);
+        check(!bar->isVisible() && !pl.isPlaying() && root.getHeight() == h0 && strip->getY() == sy0, "player bar: switch off stops the piece and gives the 48 px back");
+        render(proc, 48000 * 6 / 256, 8);
+        check(proc.getInt(P_bu) >= 0 && jp::layout::kStrip.knobs.n == 2 && juce::String(jp::layout::kStrip.knobs[0].id) == "bu", "strip: BEND UP and BEND DOWN knobs are part of the strip");
+        // the midi export of the bar
+        pl.setBpmLock(false); pl.select(libraryFind("tr_ost_fsm")); pl.setTranspose(0);
+        proc.setInt(P_player, 1); root.tick(0.7);
+        const auto dir = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("jpurrr_exportcheck"); dir.createDirectory();
+        const auto f = bar->exportToFile(dir);
+        juce::MemoryBlock mb; f.loadFileAsData(mb); jpurrr::LoadedPiece back; std::string e3;
+        check(f.existsAsFile() && jpurrr::parseMidiFile((const std::uint8_t*) mb.getData(), mb.getSize(), back, &e3) && back.ev.size() == (size_t) jpurrr::libraryItem(libraryFind("tr_ost_fsm")).n, "player bar: EXPORT MIDI writes a file that reads back with every note");
+        check(jp::PlayerBar::midiFileName("Rising lift, Am-F-C-G") == "Rising lift Am-F-C-G.mid" && jp::PlayerBar::midiFileName("") == "piece.mid", "player bar: export file names keep letters, digits, # and -");
+        dir.deleteRecursively();
+        proc.setInt(P_player, 0); root.tick(0.8);
+    }
     // editor closed while keys are held
     strip = root.keyStrip(); strip->noteOn(55); strip->noteOn(59);
     render(proc, 20, 4);
@@ -422,7 +450,7 @@ int main() {
         const auto f = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("jpurrr_playercheck.mid");
         f.replaceWithData(mid, sizeof mid);
         juce::String err; check(pl.loadFile(f, err), "player: a MIDI file of your own loads");
-        check(pl.pieceName().startsWith("jpurrr_playercheck") && pl.selected() == -1, "player: its name is shown");
+        check(pl.pieceName().startsWith("MIDI: jpurrr_playercheck") && pl.selected() == -1 && pl.fileLoaded() && pl.groupName() == "Your MIDI file", "player: its name is shown");
         pl.setPlaying(true);
         check(render(proc, 48000 * 3 / 256, 48000 * 3 / 256).peak > 0.01, "player: your own piece plays");
         pl.setPlaying(false); render(proc, 48000 * 6 / 256, 8);
