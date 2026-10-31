@@ -1607,8 +1607,8 @@ const Cat chrome_cats[] = {
 };
 const Page chrome_page = {0,0,0.f,Span<Sec>{nullptr,0},Span<Text>{chrome_texts,13},Span<Knob>{nullptr,0},Span<Slider>{nullptr,0},Span<Switch>{nullptr,0},Span<Opts>{nullptr,0},Span<Select>{nullptr,0},Span<Canvas>{nullptr,0},Span<Tip>{chrome_tips,9},Span<HBtn>{chrome_hbtns,8},Span<Rect>{nullptr,0},Span<VText>{nullptr,0},Span<Cat>{chrome_cats,1},Span<BlockBtn>{nullptr,0},false,{}};
 const Line strip_lines[] = {
-  {"BEND UP",62.42f,59.f,38.69f},
-  {"BEND DOWN",51.f,81.86f,112.f},
+  {"BEND UP",62.42f,59.f,27.69f},
+  {"BEND DOWN",51.f,81.86f,101.f},
   {"BEND",159.89f,41.94f,25.f},
   {"+",196.86f,11.52f,48.f},
   {"-",196.86f,8.95f,158.f},
@@ -1617,8 +1617,8 @@ const Line strip_lines[] = {
   {"0",276.86f,8.52f,156.f}
 };
 const Text strip_texts[] = {
-  {"lb_bu",{kCond,18.4f,600,0.03f,false},'c',7,0xffe9eef6,{62.42f,22.69f,59.f,19.31f},{strip_lines+0,1}},
-  {"lb_bd",{kCond,18.4f,600,0.03f,false},'c',7,0xffe9eef6,{51.f,96.f,81.86f,19.31f},{strip_lines+1,1}},
+  {"lb_bu",{kCond,18.4f,600,0.03f,false},'c',7,0xffe9eef6,{62.42f,11.69f,59.f,19.31f},{strip_lines+0,1}},
+  {"lb_bd",{kCond,18.4f,600,0.03f,false},'c',7,0xffe9eef6,{51.f,85.f,81.86f,19.31f},{strip_lines+1,1}},
   {"",{kCond,16.7f,600,0.16f,false},'c',8,0xff9fb0dc,{148.86f,8.f,64.f,18.f},{strip_lines+2,1}},
   {"",{kCond,24.f,700,0.04f,false},'l',7,0xffe9eef6,{196.86f,30.f,11.52f,18.f},{strip_lines+3,1}},
   {"",{kCond,24.f,700,0.04f,false},'l',7,0xffe9eef6,{196.86f,140.f,8.95f,18.f},{strip_lines+4,1}},
@@ -1627,8 +1627,8 @@ const Text strip_texts[] = {
   {"",{kCond,16.7f,600,0.06f,false},'l',8,0xff9fb0dc,{276.86f,140.f,8.52f,18.f},{strip_lines+7,1}}
 };
 const StripKnob strip_knobs[] = {
-  {"bu",{67.92f,44.f,48.f,48.f},{51.f,22.69f,81.86f,69.31f},"Pitch bend range up, in semitones (0 to +24)."},
-  {"bd",{67.92f,117.31f,48.f,48.f},{51.f,96.f,81.86f,69.31f},"Pitch bend range down, in semitones (-24 to 0)."}
+  {"bu",{67.92f,33.f,48.f,48.f},{51.f,11.69f,81.86f,69.31f},"Pitch bend range up, in semitones (0 to +24)."},
+  {"bd",{67.92f,106.31f,48.f,48.f},{51.f,85.f,81.86f,69.31f},"Pitch bend range down, in semitones (-24 to 0)."}
 };
 const Wheel strip_wheels[] = {
   {"wBend",true,{148.86f,30.f,42.f,128.f},{151.86f,92.f,36.f,4.f},{149.86f,93.f,40.f,1.f},{148.86f,8.f,64.f,18.f},{196.86f,30.f,16.f,128.f},0.5f,110.f,"Pitch bend wheel","Pitch bend wheel: drag it up or down, or scroll over it. It springs back to the middle when let go. The range follows BEND UP and BEND DOWN."},
