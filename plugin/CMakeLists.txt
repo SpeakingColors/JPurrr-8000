@@ -88,3 +88,9 @@ add_executable(jpurrr_stripcheck EXCLUDE_FROM_ALL snapshot/stripcheck.cpp)
 target_include_directories(jpurrr_stripcheck PRIVATE Source $<TARGET_PROPERTY:JPurrr8000,INCLUDE_DIRECTORIES>)
 target_compile_definitions(jpurrr_stripcheck PRIVATE $<TARGET_PROPERTY:JPurrr8000,COMPILE_DEFINITIONS>)
 target_link_libraries(jpurrr_stripcheck PRIVATE JPurrr8000 jpurrr_core JPurrrFonts JPurrrIcon)
+
+# Headless check of the sound engine options: settings.json round trip and fallback, the processor passes the options to the synth.
+add_executable(jpurrr_enginecheck EXCLUDE_FROM_ALL snapshot/enginecheck.cpp)
+target_include_directories(jpurrr_enginecheck PRIVATE Source $<TARGET_PROPERTY:JPurrr8000,INCLUDE_DIRECTORIES>)
+target_compile_definitions(jpurrr_enginecheck PRIVATE $<TARGET_PROPERTY:JPurrr8000,COMPILE_DEFINITIONS>)
+target_link_libraries(jpurrr_enginecheck PRIVATE JPurrr8000 jpurrr_core JPurrrFonts JPurrrIcon)
