@@ -794,8 +794,8 @@ const D3={
   x.fillStyle=CC.txt;x.font='15.5px "JetBrains Mono",monospace';x.textAlign='left';x.fillText('PEAKS',3,10);x.textAlign='right';x.fillText((-3+P.qlc.v/10).toFixed(1)+' dB ceiling',w-3,10);},
  cv_fe(){env('cv_fe','fea','fed','fes','fer');},cv_ae(){env('cv_ae','aea','aed','aes','aer');},
  cv_pe(){const c=cx('cv_pe');if(!c)return;const {x,w,h}=c;const a=P.pa.v/127,d=P.pdd.v/127,dep=P.pd.v/64;const N=100;x.beginPath();
-  const aw=6+a*w*.3,dw=10+d*w*.45;x.moveTo(4,h/2);const top=h/2-dep*(h/2-8);
-  x.lineTo(4+aw,top);for(let i=1;i<=30;i++){const t=i/30;x.lineTo(4+aw+t*dw,h/2+(top-h/2)*Math.exp(-4*t));}x.lineTo(w-4,h/2);
+  const aw=a*w*.3,dw=d*w*.45;x.moveTo(2,h/2);const top=h/2-dep*(h/2-8);
+  x.lineTo(2+aw,top);for(let i=1;i<=30;i++){const t=i/30;x.lineTo(2+aw+t*dw,h/2+(top-h/2)*Math.exp(-4*t));}x.lineTo(w-4,h/2);
   x.strokeStyle=CC.line;x.lineWidth=1.8;x.stroke();x.strokeStyle=CC.grid;x.lineWidth=1;x.beginPath();x.moveTo(0,h/2+.5);x.lineTo(w,h/2+.5);x.stroke();
   x.fillStyle=CC.txt;x.font='15.5px "JetBrains Mono",monospace';x.fillText('pitch',4,10);},
  cv_pad(){const c=cx('cv_pad');if(!c)return;const {x,w,h}=c;x.strokeStyle=CC.grid;x.lineWidth=1;x.beginPath();x.moveTo(w/2+.5,0);x.lineTo(w/2+.5,h);x.moveTo(0,h-.5);x.lineTo(w,h-.5);x.stroke();
@@ -815,9 +815,9 @@ const D3={
  cv_m(){/* drawn by meter loop */}
 };
 function env(cid,a,d,s,r){const c=cx(cid);if(!c)return;const {x,w,h}=c;const A=P[a].v/127,Dd=P[d].v/127,Ss=P[s].v/127,R=P[r].v/127;
- const aw=6+A*w*.22,dw=6+Dd*w*.26,sw=w*.12,rw=6+R*w*.26;const base=h-5,top=7,sy=base-Ss*(base-top);
- let px=4;x.beginPath();x.moveTo(px,base);px+=aw;x.lineTo(px,top);px+=dw;x.lineTo(px,sy);px+=sw;x.lineTo(px,sy);px+=rw;x.lineTo(Math.min(px,w-3),base);
- x.lineTo(4,base);x.fillStyle=CC.fill;x.fill();x.strokeStyle=CC.line;x.lineWidth=1.7;x.stroke();
+ const aw=A*w*.22,dw=Dd*w*.26,sw=w*.12,rw=R*w*.26;const base=h-5,top=7,sy=base-Ss*(base-top);
+ let px=2;x.beginPath();x.moveTo(px,base);px+=aw;x.lineTo(px,top);px+=dw;x.lineTo(px,sy);px+=sw;x.lineTo(px,sy);px+=rw;x.lineTo(Math.min(px,w-3),base);
+ x.lineTo(2,base);x.fillStyle=CC.fill;x.fill();x.strokeStyle=CC.line;x.lineWidth=1.7;x.stroke();
  x.fillStyle=CC.txt;x.font='15.5px "JetBrains Mono",monospace';x.fillText('A',6+aw/2-2,h-8>top+8?top+9:h-8);}
 
 /* ===== live audio taps: every display reacts to the sound going through ===== */
@@ -837,7 +837,7 @@ function lvSpec(x,w,k,fLo,fHi,yTop,yBot){const s=LV.spec[k];if(!s||!LV.act)retur
  x.lineTo(w,yBot);x.closePath();x.globalAlpha=.38;x.fillStyle=CC.acc;x.fill();x.globalAlpha=1;}
 function lvDot(x,px,py,r){x.fillStyle=CC.acc;x.beginPath();x.arc(px,py,r||5,0,7);x.fill();x.strokeStyle=CC.bg||'#000';x.lineWidth=1;x.stroke();}
 function lvEnv(x,w,h,ids,ta,td,rl){const v=LV.last;if(!v)return;const now=ctx.currentTime;const A=P[ids[0]].v/127,Dd=P[ids[1]].v/127,Ss=P[ids[2]].v/127,R=P[ids[3]].v/127;
- const aw=6+A*w*.22,dw=6+Dd*w*.26,sw=w*.12,rw=6+R*w*.26,base=h-5,top=7,sy=base-Ss*(base-top),x0=4,x1=x0+aw,x2=x1+dw,x3=x2+sw,x4=Math.min(x3+rw,w-3);
+ const aw=A*w*.22,dw=Dd*w*.26,sw=w*.12,rw=R*w*.26,base=h-5,top=7,sy=base-Ss*(base-top),x0=2,x1=x0+aw,x2=x1+dw,x3=x2+sw,x4=Math.min(x3+rw,w-3);
  const held=t=>t<ta?[x0+aw*t/ta,base-(base-top)*t/ta]:t<ta+td?[x1+dw*(t-ta)/td,top+(sy-top)*(t-ta)/td]:[x2+sw*Math.min(1,(t-ta-td)/3),sy];
  let p;if(v.tr!=null){const f=(now-v.tr)/Math.max(.05,rl);if(f>1.1)return;const s0=held(v.tr-v.t0);const k=Math.min(1,f);p=[s0[0]+(x4-s0[0])*k,s0[1]+(base-s0[1])*k];}else p=held(now-v.t0);
  lvDot(x,p[0],p[1],5);}
@@ -859,8 +859,8 @@ const LIVE={
   const t=LV.oL+LV.oR,bal=t>.001?(LV.oR-LV.oL)/t:0;lvDot(x,w/2,h/2-clamp(bal*2,-1,1)*(h/2-12),5);},
  cv_qo(x,w,h){if(!LV.act)return;const Y=v=>h/2-v*(h/2-6),S=LV.wv;let st=0;for(let i=1;i<512;i++)if(S[i-1]<0&&S[i]>=0){st=i;break;}x.beginPath();
   for(let i=0;i<=w;i++){const v=clamp(S[st+Math.floor(i/w*500)],-1,1);if(i===0)x.moveTo(i,Y(v));else x.lineTo(i,Y(v));}x.strokeStyle=CC.acc;x.lineWidth=1.5;x.globalAlpha=.9;x.stroke();x.globalAlpha=1;},
- cv_pe(x,w,h){const v=LV.last;if(!v||!P.pd.v)return;const now=ctx.currentTime,t=now-v.t0;if(v.tr!=null&&now>v.tr+v.rel*1.1)return;const a=P.pa.v/127,d=P.pdd.v/127,dep=P.pd.v/64;const aw=6+a*40,dw=10+d*60,top=h/2-dep*(h/2-8);let px,py;
-  if(t<v.pa){const k=t/v.pa;px=4+aw*k;py=h/2+(top-h/2)*k;}else{const k=Math.min(1,(t-v.pa)/v.pdc);px=4+aw+dw*k;py=h/2+(top-h/2)*Math.exp(-4*k);}lvDot(x,px,py,5);},
+ cv_pe(x,w,h){const v=LV.last;if(!v||!P.pd.v)return;const now=ctx.currentTime,t=now-v.t0;if(v.tr!=null&&now>v.tr+v.rel*1.1)return;const a=P.pa.v/127,d=P.pdd.v/127,dep=P.pd.v/64;const aw=a*w*.3,dw=d*w*.45,top=h/2-dep*(h/2-8);let px,py;
+  if(t<v.pa){const k=t/v.pa;px=2+aw*k;py=h/2+(top-h/2)*k;}else{const k=Math.min(1,(t-v.pa)/v.pdc);px=2+aw+dw*k;py=h/2+(top-h/2)*Math.exp(-4*k);}lvDot(x,px,py,5);},
  cv_fe(x,w,h){lvEnv(x,w,h,['fea','fed','fes','fer'],LV.last?LV.last.fa:1,LV.last?LV.last.fd:1,tm(P.fer.v,.01,5));},
  cv_ae(x,w,h){lvEnv(x,w,h,['aea','aed','aes','aer'],LV.last?LV.last.aa:1,LV.last?LV.last.ad:1,LV.last?LV.last.rel:1);},
  cv_qf(x,w,h){lvFlow(x,w,h,2);},cv_qf2(x,w,h){lvFlow(x,w,h,2);}

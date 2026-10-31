@@ -187,10 +187,10 @@ public:
     void draw(Ctx& x, float w, float h) override {
         const float a = v(P_pa) / 127.0f, d = v(P_pdd) / 127.0f, dep = v(P_pd) / 64.0f;
         x.beginPath();
-        const float aw = 6 + a * w * 0.3f, dw = 10 + d * w * 0.45f; x.moveTo(4, h / 2);
+        const float aw = a * w * 0.3f, dw = d * w * 0.45f; x.moveTo(2, h / 2);
         const float top = h / 2 - dep * (h / 2 - 8);
-        x.lineTo(4 + aw, top);
-        for (int i = 1; i <= 30; ++i) { const float t = i / 30.0f; x.lineTo(4 + aw + t * dw, h / 2 + (top - h / 2) * std::exp(-4 * t)); }
+        x.lineTo(2 + aw, top);
+        for (int i = 1; i <= 30; ++i) { const float t = i / 30.0f; x.lineTo(2 + aw + t * dw, h / 2 + (top - h / 2) * std::exp(-4 * t)); }
         x.lineTo(w - 4, h / 2);
         x.strokeStyle(x.pal.line); x.lineWidth = 1.8f; x.stroke();
         x.strokeStyle(x.pal.grid); x.lineWidth = 1; x.line(0, h / 2 + 0.5f, w, h / 2 + 0.5f);
@@ -200,8 +200,8 @@ public:
         const double now = env.nowSeconds, t = now - note.t0;
         if (note.off && now > note.tr + note.rel * 1.1) return;
         float px, py;
-        if (t < note.pa) { const float k = (float) (t / note.pa); px = 4 + aw * k; py = h / 2 + (top - h / 2) * k; }
-        else { const float k = (float) std::min(1.0, (t - note.pa) / note.pdc); px = 4 + aw + dw * k; py = h / 2 + (top - h / 2) * std::exp(-4 * k); }
+        if (t < note.pa) { const float k = (float) (t / note.pa); px = 2 + aw * k; py = h / 2 + (top - h / 2) * k; }
+        else { const float k = (float) std::min(1.0, (t - note.pa) / note.pdc); px = 2 + aw + dw * k; py = h / 2 + (top - h / 2) * std::exp(-4 * k); }
         drawDot(x, px, py, 5);
     }
 private:
@@ -252,18 +252,18 @@ public:
     void update() override { note.update(env); }
     void draw(Ctx& x, float w, float h) override {
         const float A = v(ids[0]) / 127.0f, D = v(ids[1]) / 127.0f, S = v(ids[2]) / 127.0f, R = v(ids[3]) / 127.0f;
-        const float aw = 6 + A * w * 0.22f, dw = 6 + D * w * 0.26f, sw = w * 0.12f, rw = 6 + R * w * 0.26f;
+        const float aw = A * w * 0.22f, dw = D * w * 0.26f, sw = w * 0.12f, rw = R * w * 0.26f;
         const float base = h - 5, top = 7, sy = base - S * (base - top);
-        float px = 4; x.beginPath(); x.moveTo(px, base);
+        float px = 2; x.beginPath(); x.moveTo(px, base);
         px += aw; x.lineTo(px, top); px += dw; x.lineTo(px, sy); px += sw; x.lineTo(px, sy); px += rw; x.lineTo(std::min(px, w - 3), base);
-        x.lineTo(4, base); x.fillStyle(x.pal.fill); x.fill(); x.strokeStyle(x.pal.line); x.lineWidth = 1.7f; x.stroke();
+        x.lineTo(2, base); x.fillStyle(x.pal.fill); x.fill(); x.strokeStyle(x.pal.line); x.lineWidth = 1.7f; x.stroke();
         x.fillStyle(x.pal.txt); x.mono(15.5f); x.textAlign(-1); x.fillText("A", 6 + aw / 2 - 2, h - 8 > top + 8 ? top + 9 : h - 8);
         // live dot (mockup lvEnv)
         if (!note.have) return;
         const double now = env.nowSeconds;
         const double ta = isFilter ? note.fa : note.aa, td = isFilter ? note.fd : note.ad;
         const double rl = isFilter ? tm((float) v(ids[3]), 0.01f, 5) : note.rel;
-        const float x0 = 4, x1 = x0 + aw, x2 = x1 + dw, x3 = x2 + sw, x4 = std::min(x3 + rw, w - 3);
+        const float x0 = 2, x1 = x0 + aw, x2 = x1 + dw, x3 = x2 + sw, x4 = std::min(x3 + rw, w - 3);
         auto held = [&](double t) -> juce::Point<float> {
             if (t < ta) return { (float) (x0 + aw * t / ta), (float) (base - (base - top) * t / ta) };
             if (t < ta + td) return { (float) (x1 + dw * (t - ta) / td), (float) (top + (sy - top) * (t - ta) / td) };
