@@ -1156,7 +1156,14 @@ function plBuildMidi(){const p=PL.list[PL.idx],PPQ=480,bpm=PL.bpm,loop=Math.max(
  const h=[0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,PPQ>>8,PPQ&255],th=[0x4D,0x54,0x72,0x6B,(T.length>>>24)&255,(T.length>>16)&255,(T.length>>8)&255,T.length&255];
  return new Uint8Array([...h,...th,...T]);}
 function plMidiName(){return (PL.list[PL.idx].name||'piece').replace(/[^A-Za-z0-9#\- ]+/g,' ').replace(/\s+/g,' ').trim().slice(0,60)+'.mid';}
-function plExport(){try{const u=URL.createObjectURL(new Blob([plBuildMidi()],{type:'audio/midi'})),a=document.createElement('a');a.href=u;a.download=plMidiName();document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);say('Exported '+plMidiName());}catch(e){say('Export failed');}}
+function plZip(name,data){const nb=new TextEncoder().encode(name);let c,crc=-1;for(let i=0;i<data.length;i++){c=(crc^data[i])&255;for(let k=0;k<8;k++)c=c&1?(c>>>1)^0xEDB88320:c>>>1;crc=(crc>>>8)^c;}crc=(crc^-1)>>>0;
+ const u16=v=>[v&255,(v>>8)&255],u32=v=>[v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255],tm=[0,0,0x21,0],n=data.length;
+ const lh=[0x50,0x4B,3,4,...u16(20),...u16(0x800),...u16(0),...tm,...u32(crc),...u32(n),...u32(n),...u16(nb.length),...u16(0),...nb];
+ const cd=[0x50,0x4B,1,2,...u16(20),...u16(20),...u16(0x800),...u16(0),...tm,...u32(crc),...u32(n),...u32(n),...u16(nb.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(0),...nb];
+ const eo=[0x50,0x4B,5,6,0,0,0,0,...u16(1),...u16(1),...u32(cd.length),...u32(lh.length+n),...u16(0)];return new Uint8Array([...lh,...data,...cd,...eo]);}
+async function plExport(){const name=plMidiName();try{const bytes=plBuildMidi();let dl=null;try{dl=window.claude&&await window.claude.use('downloads');}catch(e){}
+ if(dl){await dl.save({filename:name.replace(/\.mid$/,'.zip'),data:plZip(name,bytes)});say('Saved '+name.replace(/\.mid$/,'.zip')+' (unzip it, then drop the .mid in your DAW)');return;}
+ const u=URL.createObjectURL(new Blob([bytes],{type:'audio/midi'})),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);say('Exported '+name);}catch(e){say(e&&e.code==='declined'?'Export cancelled':'Export failed');}}
 function plApply(){const on=!!P.player.v,b=$('#plr');if(!b)return;b.hidden=!on;if(!on){plStop();plMenuClose();}else{plUi();plDraw();}fitH();}
 (function(){
  $('#plPlay').addEventListener('click',()=>{if(PL.playing)plStop();else plPlay();});
@@ -1181,7 +1188,7 @@ function plApply(){const on=!!P.player.v,b=$('#plr');if(!b)return;b.hidden=!on;i
  plUi();
 })();
 window.__JPplayer={get on(){return !!P.player.v},setOn:v=>setP('player',v?1:0,false),play:plPlay,stop:plStop,select:plSelect,next:()=>plSelect(PL.idx+1),prev:()=>plSelect(PL.idx-1),
- openMenu:plMenuOpen,closeMenu:plMenuClose,get menuOpen(){return plMenuIsOpen()},setBpm:plSetBpm,setTranspose:plSetTr,setLock:plLockSet,loadFile:plLoadFile,parseMidi:plParseMidi,buildMidi:plBuildMidi,midiName:plMidiName,
+ openMenu:plMenuOpen,closeMenu:plMenuClose,get menuOpen(){return plMenuIsOpen()},setBpm:plSetBpm,setTranspose:plSetTr,setLock:plLockSet,loadFile:plLoadFile,parseMidi:plParseMidi,buildMidi:plBuildMidi,zipMidi:plZip,midiName:plMidiName,
  get playing(){return PL.playing},get idx(){return PL.idx},get bpm(){return PL.bpm},get transpose(){return PL.tr},get lock(){return PL.lock},get piece(){return plPiece()},get count(){return PL.list.length},get lib(){return PLLIB},
  get stats(){return PL.stat},get held(){return [...PL.held]},get pos(){return plPos()},
  /* for the screenshot tools: shows the playing state with the playhead at the given beat, without a timer and without sound */
