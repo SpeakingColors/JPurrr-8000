@@ -1202,7 +1202,7 @@ function F(slot,name,type,genres,v,start){return {name,type,genres,tags:[],v,fac
 /* Our own sound set. Slots are laid out by group: 1-8 leads, 9-16 pads, 17-24 basses, 25-32 plucks, 33-40 chords, 41-48 effects.
    The first sound is the default state of every control (all other sounds list only what differs). */
 const FACTORY=[
- F(1,'Anthem Cat','Lead',['Trance','Uplifting'],{},1),
+ F(1,'Anthem Cat','Lead',['Trance','Uplifting'],{fc:113,fr:0},1),
  F(2,'Purrfect Climax','Lead',['Uplifting','Trance'],{o1c1:92,o1c2:110,fc:100,fr:30,fe:20,fed:80,fes:70,aer:70,xt:2,xl:70,dl:35,dt:80,dfb:55}),
  F(3,'Sharp Claws','Lead',['Hard Trance','Trance'],{o1w:5,o2w:1,o2r:7,ob:-10,fc:90,fr:38,fe:24,fed:70,fes:90,fea:4,aer:30,xt:5,xl:60,dl:30,dty:2}),
  F(4,'Goa Gato','Lead',['Goa','Psytrance'],{o1w:5,o2w:1,o2f:9,ob:0,mono:1,pon:1,pt:30,fc:76,fr:55,fe:36,fed:55,fes:50,aer:30,xt:8,xl:50,dt:78,dfb:60,dl:35}),
