@@ -383,6 +383,20 @@ void HBtnW::paint(juce::Graphics& g) {
         for (int k = -1; k <= 1; ++k) g.fillEllipse(cx + (float) k * 5.5f - 1.7f, cy - 1.7f, 3.4f, 3.4f);
         return;
     }
+    if (std::strcmp(b.id, "bSet") == 0) {                    // v3.9: the gear (svg 20 x 20 drawn at 18 px: 8 teeth, outer r 9.2, root r 6.9, hole r 3, even odd fill)
+        const float k = 18.0f / 20.0f; juce::Path p; const float W = juce::MathConstants<float>::twoPi / 8.0f;
+        for (int i = 0; i < 8; ++i) {
+            static const float da[4] = { -0.30f, -0.17f, 0.17f, 0.30f }, rr[4] = { 6.9f, 9.2f, 9.2f, 6.9f };
+            for (int j = 0; j < 4; ++j) {
+                const float t = (float) i * W + da[j] * W, px = 10.0f + rr[j] * std::cos(t), py = 10.0f + rr[j] * std::sin(t);
+                if (i == 0 && j == 0) p.startNewSubPath(px, py); else p.lineTo(px, py);
+            }
+        }
+        p.closeSubPath(); p.addEllipse(7.0f, 7.0f, 6.0f, 6.0f); p.setUsingNonZeroWinding(false);
+        g.setColour(on ? juce::Colour(0xff10141a) : L[lbl]);
+        g.fillPath(p, juce::AffineTransform::scale(k).translated(r.getCentreX() - 10.0f * k, r.getCentreY() - 10.0f * k));
+        return;
+    }
     if (txt == nullptr) return;
     g.setColour(on ? juce::Colour(0xff10141a) : L[lbl]);
     const float base = txt->lines[0].base - (float) getY() + dy;
