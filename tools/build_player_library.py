@@ -109,6 +109,11 @@ PROGS = [  # id, name, tonic, chords (one per bar, 4 or 8), bpm
     ('stabs_csm', 'C#m A E B C#m A E B', ['C#m', 'A', 'E', 'B', 'C#m', 'A', 'E', 'B'], 138),
     ('anthem_c', 'C G Am F C G F G', ['C', 'G', 'Am', 'F', 'C', 'G', 'F', 'G'], 138),
     ('arp_lift_am', 'F G Am Am F G Am E', ['F', 'G', 'Am', 'Am', 'F', 'G', 'Am', 'E'], 138),
+    ('pulse_fsm', 'F#m D A E F#m D A E', ['F#m', 'D', 'A', 'E', 'F#m', 'D', 'A', 'E'], 138),
+    ('pump_gm', 'Gm Eb Bb F Gm Eb Bb F', ['Gm', 'Eb', 'Bb', 'F', 'Gm', 'Eb', 'Bb', 'F'], 138),
+    ('step_dm', 'Dm Bb F C Dm Bb F C', ['Dm', 'Bb', 'F', 'C', 'Dm', 'Bb', 'F', 'C'], 138),
+    ('sunrise_d', 'D A Bm G D A G A', ['D', 'A', 'Bm', 'G', 'D', 'A', 'G', 'A'], 138),
+    ('descent_cm', 'Cm Bb Gm Ab Cm Bb Gm Ab', ['Cm', 'Bb', 'Gm', 'Ab', 'Cm', 'Bb', 'Gm', 'Ab'], 138),
 ]
 
 

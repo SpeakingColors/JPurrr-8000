@@ -1,5 +1,6 @@
 """Original uplifting trance melodies for the built-in player (written by hand, not copied from any track).
 Format: one string per bar, 16 steps (16th notes) per bar. Tokens: NOTE:len (len in steps, default 1), '.' = one step rest, '.N' = N steps rest.
+Written by hand. The pulse style pieces follow measured statistics of 2000s trance (see docs/trance-patterns-learned.md); no notes were copied.
 Rules used when writing (and checked by validate()):
   * every bar adds up to exactly 16 steps
   * a note that starts on beat 1 or beat 3 of the bar (step 0 or 8) is a tone of that bar's chord
@@ -64,6 +65,51 @@ NEW = [
         "D6:2 G6:2 B6:8 G6:2 D6:2",
         "E6:2 A6:2 C7:8 A6:2 E6:2",
         "G#5:2 B5:2 E6:4 G#6:4 B6:4"]),
+    ('pulse_fsm', 'Pulse motif', 'F#', True, ['F#m', 'D', 'A', 'E', 'F#m', 'D', 'A', 'E'], 138, 0.8, [
+        "F#5:2 C#6:2 F#6:2 C#6:2 F#6:2 G#6:2 A6:2 G#6:2",
+        "D6:2 A5:2 D6:2 A5:2 F#6:2 E6:2 D6:2 E6:2",
+        "C#6:2 E6:2 A6:2 E6:2 A6:2 B6:2 A6:2 E6:2",
+        "B5:2 E6:2 G#6:2 E6:2 B6:2 A6:2 G#6:2 F#6:2",
+        "C#6:2 F#6:2 A6:2 F#6:2 A6:4 G#6:2 F#6:2",
+        "D6:2 F#6:2 A6:2 F#6:2 A6:4 B6:2 A6:2",
+        "C#6:2 E6:2 A6:2 E6:2 C#7:4 B6:2 A6:2",
+        "B5:2 E6:2 G#6:2 B6:2 G#6:4 E6:2 B5:2"]),
+    ('pump_gm', 'Pedal pump', 'G', True, ['Gm', 'Eb', 'Bb', 'F', 'Gm', 'Eb', 'Bb', 'F'], 138, 0.55, [
+        "G5 G6 G5 D6 G5 Bb5 G5 D6 G5 G6 G5 F6 G5 D6 G5 Bb5",
+        "Eb5 Eb6 Eb5 Bb5 Eb5 G5 Eb5 Bb5 Eb5 Eb6 Eb5 D6 Eb5 Bb5 Eb5 G5",
+        "Bb5 Bb6 Bb5 F6 Bb5 D6 Bb5 F6 Bb5 Bb6 Bb5 A6 Bb5 F6 Bb5 D6",
+        "F5 F6 F5 C6 F5 A5 F5 C6 F5 F6 F5 E6 F5 C6 F5 A5",
+        "G5 G6 G5 Bb6 G5 D7 G5 Bb6 G5 G6 G5 Bb6 G5 A6 G5 G6",
+        "Eb5 Bb6 Eb5 G6 Eb5 Bb6 Eb5 G6 Eb5 Eb6 Eb5 G6 Eb5 Bb5 Eb5 G6",
+        "Bb5 D6 Bb5 F6 Bb5 Bb6 Bb5 F6 Bb5 D6 Bb5 F6 Bb5 D6 Bb5 F6",
+        "F5 A5 F5 C6 F5 A5 F5 C6 F5 A5 F5 C6 F5:4"]),
+    ('step_dm', 'Stepwise hook', 'D', True, ['Dm', 'Bb', 'F', 'C', 'Dm', 'Bb', 'F', 'C'], 138, 0.85, [
+        "A5:2 A5:2 D6:2 A5:2 F6:2 E6:2 D6:2 A5:2",
+        "Bb5:2 Bb5:2 D6:2 F6:2 D6:2 C6:2 Bb5:2 D6:2",
+        "C6:2 C6:2 F6:2 C6:2 A6:2 G6:2 F6:2 C6:2",
+        "C6:2 E6:2 G6:2 E6:2 G6:2 F6:2 E6:2 D6:2",
+        "D6:2 F6:2 A6:2 F6:2 A6:4 G6:2 F6:2",
+        "Bb5:2 D6:2 F6:2 D6:2 Bb6:6 A6:2",
+        "A6:2 F6:2 C6:2 F6:2 A6:4 G6:2 F6:2",
+        "G6:2 E6:2 C6:2 E6:2 G6:6 .2"]),
+    ('sunrise_d', 'Sunrise hook', 'D', False, ['D', 'A', 'Bm', 'G', 'D', 'A', 'G', 'A'], 138, 0.85, [
+        "F#5:2 A5:2 D6:2 A5:2 F#6:4 E6:2 D6:2",
+        "E5:2 A5:2 C#6:2 A5:2 E6:4 D6:2 C#6:2",
+        "B5:2 D6:2 F#6:2 D6:2 F#6:4 E6:2 D6:2",
+        "G5:2 B5:2 D6:2 B5:2 G6:4 F#6:2 E6:2",
+        "A5:2 D6:2 F#6:2 D6:2 A6:6 G6:2",
+        "C#6:2 E6:2 A6:2 E6:2 A6:4 B6:2 C#7:2",
+        "B5:2 D6:2 G6:2 D6:2 B6:6 A6:2",
+        "E6:2 C#6:2 A5:2 C#6:2 E6:4 .4"]),
+    ('descent_cm', 'Falling vamp', 'C', True, ['Cm', 'Bb', 'Gm', 'Ab', 'Cm', 'Bb', 'Gm', 'Ab'], 138, 0.85, [
+        "G5:2 C6:2 Eb6:2 C6:2 G6:4 F6:2 Eb6:2",
+        "F5:2 Bb5:2 D6:2 Bb5:2 F6:4 Eb6:2 D6:2",
+        "G5:2 Bb5:2 D6:2 Bb5:2 D6:4 C6:2 Bb5:2",
+        "Ab5:2 C6:2 Eb6:2 C6:2 Eb6:4 D6:2 C6:2",
+        "C6:2 Eb6:2 G6:2 Eb6:2 G6:4 Ab6:2 G6:2",
+        "D6:2 F6:2 Bb6:2 F6:2 Bb6:4 C7:2 Bb6:2",
+        "D6:2 G6:2 Bb6:2 G6:2 Bb6:4 A6:2 G6:2",
+        "C6:2 Eb6:2 Ab6:2 Eb6:2 C6:4 .4"]),
 ]
 
 PC = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}

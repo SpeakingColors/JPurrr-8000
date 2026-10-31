@@ -47,7 +47,7 @@ function tinyMidi() { const ev = []; const vl = v => { const o = [v & 127]; whil
   ok(h1 >= 1 && h2.off > 0, 'notes end by their length (held ' + h1 + ' at 0.2 s, ' + h2.off + ' note-offs by 0.9 s)'); await ev(() => window.__JPplayer.stop());
   // 3. LOCK
   await ev(() => { window.__JPplayer.setLock(false); window.__JPplayer.select(0); }); let b0 = await ev(() => window.__JPplayer.bpm);
-  await ev(() => window.__JPplayer.select(45)); const b1 = await ev(() => window.__JPplayer.bpm); await ev(() => window.__JPplayer.select(54)); const b2 = await ev(() => window.__JPplayer.bpm);
+  await ev(() => window.__JPplayer.select(65)); const b1 = await ev(() => window.__JPplayer.bpm); await ev(() => window.__JPplayer.select(74)); const b2 = await ev(() => window.__JPplayer.bpm);
   ok(b0 === 138 && b1 === 140 && b2 === (await ev(() => Math.round(window.__JPplayer.piece.bpm))), 'LOCK off: each piece sets its own BPM (' + [b0, b1, b2] + ')');
   await p.click('#plLockG'); await ev(() => window.__JPplayer.setBpm(155)); await p.click('#plNext'); await p.click('#plNext'); const b3 = await ev(() => [window.__JPplayer.bpm, window.__JPplayer.piece.bpm, window.__JPplayer.lock]);
   ok(b3[2] && b3[0] === 155 && b3[1] !== 155, 'LOCK on: NEXT keeps your BPM (155, piece has ' + b3[1] + ')'); await p.click('#plLockG');
@@ -67,7 +67,7 @@ function tinyMidi() { const ev = []; const vl = v => { const o = [v & 127]; whil
   ok(tn[0] >= tn[1] + 12 - 12 && tn[0] - 12 >= 24, 'TRANSPOSE +12 plays an octave higher (last note ' + tn[0] + ', first note of the piece ' + tn[1] + ')');
   // 5. piece menu
   await p.click('#plSel'); await p.waitForTimeout(100); const mn = await ev(() => ({ open: window.__JPplayer.menuOpen, groups: document.querySelectorAll('#plMenu .plg').length, rows: document.querySelectorAll('#plMenu .pli').length, first: document.querySelector('#plMenu .plg span').textContent, second: document.querySelectorAll('#plMenu .plg span')[1].textContent }));
-  ok(mn.open && mn.groups === 14 && mn.rows === 142 && /trance/i.test(mn.first) && /trance/i.test(mn.second), 'menu: ' + mn.groups + ' groups, ' + mn.rows + ' pieces, first two groups "' + mn.first + '", "' + mn.second + '"');
+  ok(mn.open && mn.groups === 14 && mn.rows === 162 && /trance/i.test(mn.first) && /trance/i.test(mn.second), 'menu: ' + mn.groups + ' groups, ' + mn.rows + ' pieces, first two groups "' + mn.first + '", "' + mn.second + '"');
   await p.click('#plMenu .pli[data-i="30"]'); v = await ev(() => [window.__JPplayer.idx, window.__JPplayer.menuOpen]); ok(v[0] === 30 && !v[1], 'clicking a row chooses the piece and closes the menu');
   await p.click('#plSel'); await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); v = await ev(() => [window.__JPplayer.idx, window.__JPplayer.menuOpen]); ok(v[0] === 31 && !v[1], 'keyboard: arrow down and Enter chooses the next piece');
   await p.click('#plSel'); await p.keyboard.press('Escape'); ok(!(await ev(() => window.__JPplayer.menuOpen)), 'Escape closes the menu');
