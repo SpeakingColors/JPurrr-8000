@@ -11,7 +11,7 @@ TEST(params_table) {
 }
 #include "jpurrr/patch.h"
 TEST(factory_presets) {
-    CHECK(factoryCount() == 51);
+    CHECK(factoryCount() == 112);
     for (int i = 0; i < factoryCount(); ++i) {
         const Patch& p = factoryPatch(i);
         CHECK(!p.name.empty());

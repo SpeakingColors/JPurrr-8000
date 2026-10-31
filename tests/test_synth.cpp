@@ -455,7 +455,7 @@ TEST(synth_oscillator_waves_and_options) {
 }
 
 TEST(synth_levels_of_factory_presets) {
-    // Each of the 51 factory presets plays a chord without clipping and without NaN.
+    // Each of the factory presets plays a chord without clipping and without NaN.
     for (int i = 0; i < factoryCount(); ++i) {
         Rig rig(48000.0, i);
         rig.s.noteOn(0, 57, 100); rig.s.noteOn(0, 60, 100); rig.s.noteOn(0, 64, 100);

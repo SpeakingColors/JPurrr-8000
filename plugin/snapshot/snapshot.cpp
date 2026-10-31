@@ -150,11 +150,11 @@ static int selftest() {
         JPurrr8000AudioProcessor a; a.prepareToPlay(44100.0, 512);
         Controller ctl(a);
         const int nb = ctl.bankSoundCount();
-        check(nb == 51 && ctl.bankLetter() == "A", "export: the bank of the first sound is bank A with 51 sounds");
+        check(nb == 112 && ctl.bankLetter() == "A", "export: the bank of the first sound is bank A with 112 sounds");
         auto plan = [&](EC::Format f, bool bank, int dev, int dest) { EC c; c.format = f; c.wholeBank = bank; c.device = dev; c.destination = dest; return ctl.planExport(c); };
         auto at = [](const Controller::ExportPlan& p, size_t o) { return std::vector<uint8_t>((const uint8_t*) p.data.getData() + o, (const uint8_t*) p.data.getData() + o + 4); };
         auto j = plan(EC::Json, false, 17, -1); check(j.ok && j.fileName == "Anthem Cat.json" && juce::String::fromUTF8((const char*) j.data.getData(), (int) j.data.getSize()).contains("\"app\""), "export: JSON text of this sound");
-        auto jb = plan(EC::Json, true, 17, -1); check(jb.ok && jb.sounds == 51 && jb.fileName == "Bank A.json" && jpurrr::loadPresetFile((const uint8_t*) jb.data.getData(), jb.data.getSize()).patches.size() == 51, "export: JSON bank file holds 51 sounds and loads again");
+        auto jb = plan(EC::Json, true, 17, -1); check(jb.ok && jb.sounds == 112 && jb.fileName == "Bank A.json" && jpurrr::loadPresetFile((const uint8_t*) jb.data.getData(), jb.data.getSize()).patches.size() == 112, "export: JSON bank file holds 112 sounds and loads again");
         auto e80 = plan(EC::SysexJP8080, false, 17, -1);
         check(e80.ok && e80.messages == 2 && e80.data.getSize() == 272 && at(e80, 6) == std::vector<uint8_t>({ 1, 0, 0x40, 0 }) && e80.fileName == "Anthem Cat (JP-8080).syx", "export: JP-8080 edit buffer (01 00 40 00, 2 messages, 272 bytes)");
         auto e00 = plan(EC::SysexJP8000, false, 17, -1);
@@ -162,9 +162,9 @@ static int selftest() {
         auto s = plan(EC::SysexJP8080, false, 20, 64 + 26);   // B27
         check(s.ok && at(s, 6) == std::vector<uint8_t>({ 2, 1, 52, 0 }) && ((const uint8_t*) s.data.getData())[2] == 0x13, "export: slot B27 is 02 01 34 00 and device ID 20 is 13h on the wire");
         auto bk = plan(EC::SysexJP8000, true, 17, -1);
-        check(bk.ok && bk.sounds == 51 && bk.messages == 51 && bk.data.getSize() == 51 * 251 && bk.fileName == "Bank A (JP-8000).syx", "export: a bank of 51 sounds is 51 messages");
+        check(bk.ok && bk.sounds == 112 && bk.messages == 112 && bk.data.getSize() == 112 * 251 && bk.fileName == "Bank A (JP-8000).syx", "export: a bank of 112 sounds is 112 messages");
         auto back = jpurrr::sysexToPatches((const uint8_t*) bk.data.getData(), bk.data.getSize());
-        check(back.ok && back.patches.size() == 51 && back.info[0].slotName == "A11" && back.info[50].slotName == "A73", "export: the bank starts at A11 and fills the slots in order");
+        check(back.ok && back.patches.size() == 112 && back.info[0].slotName == "A11" && back.info[50].slotName == "A73" && back.info[111].slotName == "B68", "export: the bank starts at A11 and fills the slots in order");
         check(!plan(EC::SysexJP8080, false, 16, -1).ok && !plan(EC::SysexJP8080, false, 33, 0).ok && !plan(EC::SysexJP8080, true, 40, -1).ok, "export: a device ID outside 17 to 32 is refused");
         a.presets.cur.bank = "F"; a.presets.cur.factory = false;
         check(!plan(EC::SysexJP8080, true, 17, -1).ok && !plan(EC::SysexJP8080, true, 17, -1).error.isEmpty(), "export: an empty bank gives a message");

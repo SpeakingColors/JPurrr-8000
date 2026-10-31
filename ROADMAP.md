@@ -32,7 +32,14 @@ Rough order. Nothing here is promised for a date.
 - Computer keys start at C4 (MIDI 60), like Ableton Live.
 - One zip with everything (JPurrr-8000-v0.2.3.zip): INSTALL.txt, LICENSE, SHA256SUMS, manual PDF and the linux, macos and windows folders. The separate downloads stay.
 
+## Done in 0.3.0
+- Factory bank A grows from 51 to 112 sounds (slots 52 to 112 are new, slots 1 to 51 keep their place and order): 13 FM bells and mallets, uplifting trance leads, plucks and arps, pads and strings, offbeat and rolling basses, acid, rave stabs and growls, brass, keys, FX risers and drops, and a few tuned drum sounds.
+- Yarn Bell is now a real FM bell: OSC 1 sine carrier, OSC 2 triangle modulator at an odd pitch ratio, and the pitch envelope sent to X-MOD DEPTH (LFO 1 + ENV DEST = X-MOD) so the FM index decays and the tail turns into a clean sine. The other FM sounds (Crystal Bell, Tubular Chime, Wood Mallet, Vibe Bar, Kalimba Cat, Music Box Cat, Pan Mallet, Glock Sparkle, Temple Gong, Bell Choir, Ice Chimes, Tine Keys) use the same idea; Glock Sparkle, Temple Gong and Ice Chimes add RING.
+- Every new sound is level matched: peak between -12 and -3 dBFS on C2, C4 and C6 (velocity 100), no clipping, no NaN, no DC. `tests/test_factory.cpp` renders the whole bank on those three notes in `sh tests/run.sh` and fails when a sound goes out of range or a name is longer than 16 characters, repeated, or one of the first 51 moved.
+- `node tools/dump_factory.js` rebuilds `data/factory.json` from the mockup's FACTORY list (the sounds are edited in the mockup, then `python3 tools/gen_params.py`).
+
 ## Next
+- Level the first 51 factory sounds: 48 of them peak below -12 dBFS on at least one of C2, C4 and C6 and Zap Whisker is the quietest (-37 dBFS at its loudest note); they were left untouched in 0.3.0 (the new sounds sit around -9 dBFS, so they are a few dB louder).
 - Check the three enum orders (OSC1 waveform, Multi-FX type, Delay type) and the SysEx exports on real hardware.
 - Arturia export.
 - Engine check against the JP-8000 manual is done (docs/engine-check-jp8000.md). Still open from it: effects per part (the effects section is still one effect for both parts and follows the UPPER sound), arpeggiator beat patterns beyond the first six (the manuals print only their names), velocity behaviour, a listening check of the "not confirmed" rows.
