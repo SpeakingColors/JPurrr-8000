@@ -2,7 +2,9 @@
 # Build the one-file download for a release: all installers, manual, INSTALL.txt, checksums.
 #   scripts/make_release_zip.sh <dist dir> <tag> [out dir]
 # <dist dir> holds the three installers and JPurrr-8000-manual.pdf (as the release workflow collects them).
-# Writes <out dir>/JPurrr-8000-<version>-all-platforms.zip (out dir defaults to <dist dir>).
+# Writes <out dir>/JPurrr-8000-v<version>.zip (out dir defaults to <dist dir>). The files sit at the zip root, in the
+# same layout as the other Studio 87 release zips: INSTALL.txt, LICENSE, SHA256SUMS, the manual, and the folders
+# linux, macos, windows. Windows "Extract all" makes a folder named after the zip, JPurrr-8000-v<version>.
 # Set SKIP_MACOS=true to build without the macOS package (the macOS build was skipped).
 set -eu
 [ $# -ge 2 ] || { echo "usage: $0 <dist dir> <tag> [out dir]" >&2; exit 2; }
@@ -36,12 +38,12 @@ OUT=$(CDPATH='' cd -- "$OUT" && pwd)
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 D="$STAGE/$NAME"
-mkdir -p "$D/Windows" "$D/Linux"
-cp "$DIST/$WIN" "$D/Windows/"
-cp "$DIST/$LIN" "$D/Linux/"
+mkdir -p "$D/windows" "$D/linux"
+cp "$DIST/$WIN" "$D/windows/"
+cp "$DIST/$LIN" "$D/linux/"
 if [ "${SKIP_MACOS:-false}" != true ]; then
-    mkdir -p "$D/macOS"
-    cp "$DIST/$MAC" "$D/macOS/"
+    mkdir -p "$D/macos"
+    cp "$DIST/$MAC" "$D/macos/"
 fi
 cp "$DIST/$MANUAL" "$D/"
 cp "$ROOT/LICENSE" "$D/LICENSE"
@@ -54,13 +56,13 @@ fi
 # Checksums of every file in the zip (paths relative to the top folder, so "shasum -a 256 -c" works there).
 (
     cd "$D"
-    find . -type f ! -name SHA256SUMS.txt | sed 's|^\./||' | LC_ALL=C sort | while IFS= read -r f; do
+    find . -type f ! -name SHA256SUMS | sed 's|^\./||' | LC_ALL=C sort | while IFS= read -r f; do
         sum "$f"
     done > "$STAGE/sums.txt"
 )
-mv "$STAGE/sums.txt" "$D/SHA256SUMS.txt"
+mv "$STAGE/sums.txt" "$D/SHA256SUMS"
 
-ZIP="$OUT/$NAME-all-platforms.zip"
+ZIP="$OUT/JPurrr-8000-$TAG.zip"
 rm -f "$ZIP"
-(cd "$STAGE" && zip -X -q -r "$ZIP" "$NAME")
+(cd "$D" && zip -X -q -r "$ZIP" .)
 echo "Wrote $ZIP"

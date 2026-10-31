@@ -4,10 +4,10 @@ JPurrr-8000 @VERSION@ - how to install
 JPurrr-8000 is a free and open source synth (VST3 plugin and standalone app).
 This zip has one installer per system, the manual, and a checksum list.
 
-  Windows/   JPurrr-8000-@VERSION@-Windows-x64-Setup.exe
-  macOS/     JPurrr-8000-@VERSION@-macOS.pkg
-  Linux/     JPurrr-8000-@VERSION@-Linux-x86_64.tar.gz
-  JPurrr-8000-manual.pdf, SHA256SUMS.txt, LICENSE, this file
+  windows/   JPurrr-8000-@VERSION@-Windows-x64-Setup.exe
+  macos/     JPurrr-8000-@VERSION@-macOS.pkg
+  linux/     JPurrr-8000-@VERSION@-Linux-x86_64.tar.gz
+  JPurrr-8000-manual.pdf, SHA256SUMS, LICENSE, this file
 
 Use only the folder for your system. Close your DAW first, and rescan
 plugins afterwards. Presets and settings are never removed by an uninstall.
@@ -15,7 +15,7 @@ plugins afterwards. Presets and settings are never removed by an uninstall.
 
 WINDOWS 10 and 11 (64 bit)
 --------------------------
-1. Unzip, open the Windows folder and run the Setup.exe.
+1. Unzip, open the windows folder and run the Setup.exe.
 2. If Windows says "Windows protected your PC" (SmartScreen), click
    "More info", then "Run anyway".
 3. The plugin goes to C:\Program Files\Common Files\VST3 and the standalone
@@ -25,7 +25,7 @@ WINDOWS 10 and 11 (64 bit)
 Why the warning: the Setup is not code signed. A signing certificate costs
 money every year and this project is free. The warning does not mean the
 file is infected. It means Windows does not know the publisher. You can
-check the file with SHA256SUMS.txt (see below).
+check the file with SHA256SUMS (see below).
 
 
 MACOS 11 or newer (Apple silicon and Intel)
@@ -62,7 +62,7 @@ More: https://github.com/SpeakingColors/JPurrr-8000/blob/main/docs/macos-install
 
 LINUX (x86_64)
 --------------
-1. Unpack the tar.gz in the Linux folder:
+1. Unpack the tar.gz in the linux folder:
      tar -xzf JPurrr-8000-@VERSION@-Linux-x86_64.tar.gz
 2. Open a terminal in the unpacked folder and run:
      ./install.sh
@@ -75,13 +75,13 @@ LINUX (x86_64)
 
 CHECK YOUR DOWNLOAD
 -------------------
-SHA256SUMS.txt lists the SHA-256 checksum of every file in this zip.
+SHA256SUMS lists the SHA-256 checksum of every file in this zip.
 Linux and macOS: in the unpacked folder run
-  shasum -a 256 -c SHA256SUMS.txt
+  shasum -a 256 -c SHA256SUMS
 Every line must say OK. Windows PowerShell:
-  Get-FileHash .\Windows\JPurrr-8000-@VERSION@-Windows-x64-Setup.exe
-and compare the result with the line in SHA256SUMS.txt.
-The release page also has a SHA256SUMS.txt for the separate downloads.
+  Get-FileHash .\windows\JPurrr-8000-@VERSION@-Windows-x64-Setup.exe
+and compare the result with the line in SHA256SUMS.
+The release page also has a SHA256SUMS.txt for the zip and the separate downloads.
 
 
 LICENCE AND SOURCE

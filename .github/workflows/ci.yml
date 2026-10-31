@@ -55,7 +55,7 @@ jobs:
         run: |
           shellcheck -s sh installer/linux/install.sh installer/macos/uninstall.command scripts/check_version.sh scripts/package_linux.sh scripts/release_notes.sh scripts/make_release_zip.sh
           shellcheck -s bash scripts/package_macos.sh scripts/package_windows.sh scripts/check_icons.sh
-      - name: All-platforms zip (fake installers)
+      - name: Release zip (fake installers)
         run: |
           set -eu
           tmp=$(mktemp -d)
@@ -66,15 +66,15 @@ jobs:
           : > "$tmp/dist/JPurrr-8000-$v-Linux-x86_64.tar.gz"
           cp docs/manual/JPurrr-8000-manual.pdf "$tmp/dist/"
           sh scripts/make_release_zip.sh "$tmp/dist" "v$v"
-          mkdir "$tmp/x"; unzip -q "$tmp/dist/JPurrr-8000-$v-all-platforms.zip" -d "$tmp/x"
-          d="$tmp/x/JPurrr-8000-$v"
-          for f in "Windows/JPurrr-8000-$v-Windows-x64-Setup.exe" "macOS/JPurrr-8000-$v-macOS.pkg" "Linux/JPurrr-8000-$v-Linux-x86_64.tar.gz" JPurrr-8000-manual.pdf INSTALL.txt SHA256SUMS.txt LICENSE; do
+          mkdir "$tmp/x"; unzip -q "$tmp/dist/JPurrr-8000-v$v.zip" -d "$tmp/x"
+          d="$tmp/x"
+          for f in "windows/JPurrr-8000-$v-Windows-x64-Setup.exe" "macos/JPurrr-8000-$v-macOS.pkg" "linux/JPurrr-8000-$v-Linux-x86_64.tar.gz" JPurrr-8000-manual.pdf INSTALL.txt SHA256SUMS LICENSE; do
             test -f "$d/$f"
           done
           grep -q "releases/download/v$v/JPurrr-8000-$v-macOS.pkg" "$d/INSTALL.txt"
           if grep -q '@[A-Z]*@' "$d/INSTALL.txt"; then echo "placeholder left in INSTALL.txt" >&2; exit 1; fi
-          (cd "$d" && sha256sum -c SHA256SUMS.txt)
-          sh scripts/release_notes.sh v$v | grep -q "JPurrr-8000-$v-all-platforms.zip"
+          (cd "$d" && sha256sum -c SHA256SUMS)
+          sh scripts/release_notes.sh v$v | grep -q "JPurrr-8000-v$v.zip"
       - name: Installer round trip (fake build tree)
         run: |
           set -eu

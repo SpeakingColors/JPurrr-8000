@@ -23,7 +23,7 @@ JPurrr-8000 is not a copy of a Roland product. It contains no Roland code, ROM o
 
 Close your DAW before you install, then rescan plugins afterwards. Presets and settings are kept when you uninstall.
 
-Every release has `JPurrr-8000-<version>-all-platforms.zip`: one zip with a folder for each system (Windows, macOS, Linux), this manual and an `INSTALL.txt` with the steps below. You can also download just the file for your system from the releases page.
+Every release has `JPurrr-8000-v<version>.zip`: one zip with a folder for each system (windows, macos, linux), this manual and an `INSTALL.txt` with the steps below. You can also download just the file for your system from the releases page.
 
 ## Linux
 
