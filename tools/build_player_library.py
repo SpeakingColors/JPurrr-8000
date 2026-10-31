@@ -102,6 +102,13 @@ PROGS = [  # id, name, tonic, chords (one per bar, 4 or 8), bpm
     ('bm_drive', 'Bm G D A Em Bm G A', ['Bm', 'G', 'D', 'A', 'Em', 'Bm', 'G', 'A'], 138),
     ('csm_neo', 'C#m A E B F#m C#m A B', ['C#m', 'A', 'E', 'B', 'F#m', 'C#m', 'A', 'B'], 138),
     ('c_g_am_f', 'C G Am F (major key anthem)', ['C', 'G', 'Am', 'F'], 138),
+    # progressions of the hand-written melodies in tools/trance_melodies.py (same bars, same key)
+    ('lift_am', 'Am F C G Am F G Am', ['Am', 'F', 'C', 'G', 'Am', 'F', 'G', 'Am'], 138),
+    ('descent_bm', 'Bm G D A Bm G D A', ['Bm', 'G', 'D', 'A', 'Bm', 'G', 'D', 'A'], 138),
+    ('resolve_em', 'Em C Am B Em C Am B', ['Em', 'C', 'Am', 'B', 'Em', 'C', 'Am', 'B'], 138),
+    ('stabs_csm', 'C#m A E B C#m A E B', ['C#m', 'A', 'E', 'B', 'C#m', 'A', 'E', 'B'], 138),
+    ('anthem_c', 'C G Am F C G F G', ['C', 'G', 'Am', 'F', 'C', 'G', 'F', 'G'], 138),
+    ('arp_lift_am', 'F G Am Am F G Am E', ['F', 'G', 'Am', 'Am', 'F', 'G', 'Am', 'E'], 138),
 ]
 
 
@@ -218,7 +225,7 @@ def melody(gid, name, tonic, minor, chords, bpm, bars):
                 ln = 0.25 * n * (0.8 if n == 1 else 0.92)
                 ev.append([b * 4 + step * 0.25, round(ln, 3), m, 110 if accent else 92])
             step += n
-    return dict(id='tr_' + gid, group='Uplifting trance melodies', name=name + ', ' + '-'.join(chords), bpm=bpm, ev=ev, beats=len(bars) * 4), problems
+    return dict(id='tr_' + gid, group='Trance riffs (test patterns)', name=name + ', ' + '-'.join(chords), bpm=bpm, ev=ev, beats=len(bars) * 4), problems
 
 
 def cstr(t):
@@ -262,6 +269,14 @@ def main():
         d, p = melody(*g)
         demos.append(d)
         problems += p
+    from trance_melodies import NEW, build
+    new = []
+    for g in NEW:
+        d, p = build(*g)
+        d['group'] = 'Uplifting trance melodies'
+        new.append(d)
+        problems += p
+    demos = new + demos
     demos += backings()
     imp = json.load(open(os.path.join(ROOT, 'data', 'player_import_supurrsaw.json')))['demos']
     for x in imp:
@@ -281,7 +296,7 @@ def main():
         if d['group'] not in order:
             order.append(d['group'])
     # trance groups first
-    first = ['Uplifting trance melodies', 'Uplifting trance backings']
+    first = ['Uplifting trance melodies', 'Uplifting trance backings', 'Trance riffs (test patterns)']
     order = first + [g for g in order if g not in first]
     lib = dict(format=1, note='Built by tools/build_player_library.py. Events: [beat, length in beats, MIDI note (60 = C4), velocity 1..127].',
                groups=[dict(name=g, items=[d for d in demos if d['group'] == g]) for g in order])
