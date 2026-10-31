@@ -63,7 +63,7 @@ The plugin goes to `/Library/Audio/Plug-Ins/VST3`, the app to `/Applications`, a
 
 # The window
 
-The top bar has the preset name with the arrows and the preset menu, the SOUND and FX tabs, and the buttons Guide, Settings and About & Support. The wooden side cheeks frame the panel.
+The top bar has the preset name with the arrows and the preset menu, the SOUND and FX tabs, and the buttons Guide, the gear (Settings) and About & Support. The wooden side cheeks frame the panel.
 
 - **Knobs and sliders:** drag up and down. Hold Shift for fine steps. The mouse wheel and the arrow keys work too. Double click (or press Enter) to reset to the default.
 - **Bubbles:** hover a control for about one second to see its help bubble. Turn them off in Settings.
@@ -95,7 +95,7 @@ The piano at the bottom of the window (see the picture at the start of this manu
 
 ## The player bar
 
-The PLAYER switch (in the CONTROLLER box on the SOUND page, off by default) shows a bar above the piano. It loops a short piece of music through the current sound, so you can judge a sound without playing: the piece changes with your knobs while it runs. It sends no MIDI out.
+The PLAYER switch (in the VOLUME box on the SOUND page, next to PREVIEW; off by default) shows a bar above the piano. It loops a short piece of music through the current sound, so you can judge a sound without playing: the piece changes with your knobs while it runs. It sends no MIDI out.
 
 ![The SOUND page with the PLAYER bar, a piece playing](img/sound-player.png)
 
@@ -272,11 +272,35 @@ JPurrr-8000 is a MIDI instrument: it receives notes with velocity, pitch bend, c
 
 # Settings
 
-The Settings button opens:
+The gear button in the top bar opens:
+
+![The Settings dialog](img/settings.png)
 
 - **Show info bubbles:** on by default.
 - **Power saving:** pauses meters and displays when the window is hidden.
 - **Colour look:** JP Blue (default), Neon Navy, Purple Soda Pop or PurrOne charcoal. The look is saved with the plugin settings, not with each preset. The wooden cheeks, the logo, the bubbles and the meter colours stay the same in every look.
+- **Sound engine:** three choices for how the oscillators are built. They are plugin settings, like the colour look: they are not saved with a sound, they are heard in the plugin only, and every plugin window you have open follows them. The defaults (Classic, Standard, Auto) keep every sound exactly as it always was. Press Done to apply; the sound changes at the start of the next audio block.
+
+## Sound engine options
+
+- **Oscillator style:** CLASSIC (default) keeps the Super Saw raw, like the original unit: no anti-aliasing, so the highs carry a little digital shimmer, and a high pass at the note pitch keeps that out of the lows. CLEAN corrects every Super Saw oscillator, so it is smoother and quieter in the top octave.
+- **Anti-aliasing:** how the steps of the oscillators are smoothed. STANDARD (default) uses 2 points and is light. HIGH uses 4 points: cleaner highs, a slightly softer top end and a little more CPU. It works on pulse, saw and sync waves, and on the Super Saw in CLEAN style.
+- **Oversampling:** the oscillators run faster inside and the result is filtered, which pushes aliasing out of the audible range. AUTO (default) is 2x below 80 kHz and 1x above, as it always was. 1x is lightest, 4x is cleanest and uses the most CPU. The factor is never pushed past 192 kHz inside, so at 96 kHz the largest is 2x.
+
+Measured with the Super Saw on a high note at 44.1 kHz. Aliasing is how far below the note the loudest alias sits (more negative is cleaner; about -50 dB is the floor of the measurement). CPU is 10 voices, in percent of one core, on the test machine; yours will differ, the order is what counts.
+
+| Setting | Aliasing | CPU |
+|---|---|---|
+| Classic, 1x | -19 dB | 4 |
+| Classic, 2x (Auto) | -29 dB | 6.4 |
+| Classic, 4x | -36 dB | 10.9 |
+| Clean, Standard, 1x | -31.5 dB | 4.3 |
+| Clean, High, 1x | -43 dB | not measured |
+| Clean, Standard, 2x | -50 dB | 6.8 |
+| Clean, High, 2x | -52 dB | 7.4 |
+| Clean, High, 4x | -49 dB | 12.3 |
+
+Classic with Auto is the closest to the original unit as far as it is known: Szabo's analysis of a real JP-8000 reports saws that are not band limited. Use CLEAN with HIGH and 2x when you want it smoother than the hardware. Once CLEAN is on, 4x gains nothing you can measure (all three Clean rows at 2x and 4x sit at the floor of the measurement).
 
 The Guide button shows a short list of the shortcuts. About & Support shows the version, the project links and the Ko-fi page. Support is optional. Nothing is locked and there are no reminders.
 
