@@ -34,7 +34,10 @@ const { open } = require('./mockup_page.js');
     await ev(() => { const J = window.__JP; window.__JPparts.setParts(false); J.setP('km', 0, false); J.setP('ps', 1, false); J.setP('prev', 1, true); });
   }
   for (const [n, f] of Object.entries({ guide: () => __JP.guide(), settings: () => __JP.settings(), about: () => __JP.about(), save: () => __JP.saveDlg(), browser: () => __JP.browser(), export: () => __JP.exportDlg(), import: () => __JP.importDlg(), page1: () => __JP.openPage(1), page2: () => __JP.openPage(2), page4: () => __JP.openPage(4), page6: () => __JP.openPage(6), page7: () => __JP.openPage(7), page8: () => __JP.openPage(8) })) {
-    await p.evaluate(f); await p.waitForTimeout(100); await shot(n); await p.evaluate(() => window.__JP.closeDlg());
+    await p.evaluate(f);
+    // the mockup-only row "Preview sound" does not exist in the plugin: hide it so the Settings dialog is compared like for like
+    if (n === 'settings') await p.evaluate(() => { const c = document.querySelector('#sSnd'); if (c && c.closest('label')) c.closest('label').style.display = 'none'; });
+    await p.waitForTimeout(100); await shot(n); await p.evaluate(() => window.__JP.closeDlg());
   }
   // preset menu
   await p.click('#bMenu'); await p.waitForTimeout(80); await shot('menu'); await p.mouse.click(1500, 600);
