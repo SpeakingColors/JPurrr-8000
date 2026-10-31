@@ -16,7 +16,7 @@ JPurrr-8000 is a one person project, so all three roles are held by the reposito
 - Approver (approves every signing request by hand): [SpeakingColors](https://github.com/SpeakingColors)
 
 ## Privacy
-JPurrr-8000 does not send any information to other networked systems. It makes no network connections of its own.
+JPurrr-8000 does not send any information to other networked systems. It makes no network connections of its own; the only link (Ko-fi, in the About dialog) opens in your browser when you click it.
 
 ## Verifying a download
 Every release lists SHA-256 checksums (`SHA256SUMS.txt`, and `SHA256SUMS` inside the zip).
