@@ -18,6 +18,10 @@ let bad = 0; const ok = (c, msg) => { console.log((c ? 'ok   ' : 'FAIL ') + msg)
   await p.click('#exSrc .chip[data-v="1"]'); await p.click('#bUndo'); ok((await V('o2ext')) === 0, 'undo takes EXT back off');
   await p.click('#bExt'); await ev(() => document.querySelector('#exLvl').focus()); await p.keyboard.press('Control+A'); await p.keyboard.type('+6'); await p.keyboard.press('Enter'); ok((await ev(() => document.querySelector('#exLvl').value)) === '+6 dB', 'LEVEL accepts +6 dB');
   const snap = await ev(() => JSON.stringify(window.__JP.snapshot())); ok(!/exg/.test(snap), 'the level is not part of the sound');
+  ok(await ev(() => document.querySelector('#exIn .chip[data-v="0"]').classList.contains('on')), 'SOURCE starts on SIDECHAIN');
+  await p.click('#exIn .chip[data-v="1"]'); ok(await ev(() => document.querySelector('#exIn .chip[data-v="1"]').classList.contains('on')), 'MAIN INPUT can be chosen');
+  ok(!/exin/.test(await ev(() => JSON.stringify(window.__JP.snapshot()))), 'the source is not part of the sound');
+  await p.click('#exIn .chip[data-v="0"]');
   await p.mouse.click(400, 600); ok(!(await isOpen()), 'a click outside closes the panel');
   await p.click('#bExt'); if (process.argv[2]) await p.screenshot({ path: process.argv[2] + '/extin.png', clip: { x: 0, y: 0, width: 1500, height: 520 } });
   ok(errs.length === 0, 'no console errors ' + JSON.stringify(errs)); await m.browser.close(); console.log(bad ? bad + ' FAILED' : 'all checks passed'); process.exit(bad ? 1 : 0);
