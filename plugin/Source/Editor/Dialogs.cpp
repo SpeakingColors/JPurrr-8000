@@ -568,7 +568,7 @@ void DialogLayer::openSettings() {
         "How the steps of the oscillators are smoothed against aliasing. STANDARD uses 2 points and is light. HIGH uses 4 points: about 11 dB less aliasing on a high Super Saw in CLEAN style (measured at 1x), a slightly softer top end, a little more CPU. Works on pulse, saw and sync waves, and on the Super Saw in CLEAN style.",
         "Runs the oscillators faster inside and filters the result, which pushes aliasing out of the audible range. AUTO is 2x below 80 kHz and 1x above (the sound as it always was). 1x is lightest. 4x is cleanest and uses the most CPU. Measured on 10 voices at 44.1 kHz: 1x about 4 percent of one core, 2x about 6 to 7, 4x about 11 to 12." };
     for (int k = 0; k < 3; ++k) { e[k].cap->setTip(juce::String::fromUTF8(engTips[k])); e[k].sel->setTip(juce::String::fromUTF8(engTips[k])); }
-    auto* hint2 = f.add<Para>(root, std::vector<PR>{ n("Sound engine options belong to the plugin, not to a sound. They are heard in the plugin only; the mockup preview does not change. The defaults keep every sound exactly as it was.") }, true);
+    auto* hint2 = f.add<Para>(root, std::vector<PR>{ n("Sound engine options belong to the plugin, not to a sound. The defaults keep every sound exactly as it was.") }, true);
     f.layoutBody = [=](float w) {
         float y = 0;
         bub->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), 30); y += 30 + kGap;
