@@ -28,6 +28,10 @@ Rough order. Nothing here is promised for a date.
 - Computer keys play like Ableton Live: A to ' for white keys, W E T Y U O P for black keys, Z and X octave down and up, C and V velocity.
 - macOS install page (docs/macos-install.md): a download in Terminal with curl adds no warning.
 
+## Done in 0.2.3
+- Computer keys start at C4 (MIDI 60), like Ableton Live.
+- One zip with everything (JPurrr-8000-v0.2.3.zip): INSTALL.txt, LICENSE, SHA256SUMS, manual PDF and the linux, macos and windows folders. The separate downloads stay.
+
 ## Next
 - Check the three enum orders (OSC1 waveform, Multi-FX type, Delay type) and the SysEx exports on real hardware.
 - Arturia export.
