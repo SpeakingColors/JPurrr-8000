@@ -2,9 +2,9 @@
 # Build the one-file download for a release: all installers, manual, INSTALL.txt, checksums.
 #   scripts/make_release_zip.sh <dist dir> <tag> [out dir]
 # <dist dir> holds the three installers and JPurrr-8000-manual.pdf (as the release workflow collects them).
-# Writes <out dir>/JPurrr-8000-v<version>.zip (out dir defaults to <dist dir>). The files sit at the zip root, in the
-# same layout as the other Studio 87 release zips: INSTALL.txt, LICENSE, SHA256SUMS, the manual, and the folders
-# linux, macos, windows. Windows "Extract all" makes a folder named after the zip, JPurrr-8000-v<version>.
+# Writes <out dir>/JPurrr-8000-v<version>.zip (out dir defaults to <dist dir>). The zip has one top folder,
+# JPurrr-8000-v<version>/, as the SupurrSaw zip does. In it: INSTALL.txt, LICENSE, SHA256SUMS, the manual, and the
+# folders linux, macos, windows.
 # Set SKIP_MACOS=true to build without the macOS package (the macOS build was skipped).
 set -eu
 [ $# -ge 2 ] || { echo "usage: $0 <dist dir> <tag> [out dir]" >&2; exit 2; }
@@ -37,7 +37,7 @@ mkdir -p "$OUT"
 OUT=$(CDPATH='' cd -- "$OUT" && pwd)
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
-D="$STAGE/$NAME"
+D="$STAGE/JPurrr-8000-$TAG"
 mkdir -p "$D/windows" "$D/linux"
 cp "$DIST/$WIN" "$D/windows/"
 cp "$DIST/$LIN" "$D/linux/"
@@ -64,5 +64,5 @@ mv "$STAGE/sums.txt" "$D/SHA256SUMS"
 
 ZIP="$OUT/JPurrr-8000-$TAG.zip"
 rm -f "$ZIP"
-(cd "$D" && zip -X -q -r "$ZIP" .)
+(cd "$STAGE" && zip -X -q -r "$ZIP" "JPurrr-8000-$TAG")
 echo "Wrote $ZIP"

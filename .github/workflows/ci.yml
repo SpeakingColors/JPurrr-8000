@@ -67,7 +67,8 @@ jobs:
           cp docs/manual/JPurrr-8000-manual.pdf "$tmp/dist/"
           sh scripts/make_release_zip.sh "$tmp/dist" "v$v"
           mkdir "$tmp/x"; unzip -q "$tmp/dist/JPurrr-8000-v$v.zip" -d "$tmp/x"
-          d="$tmp/x"
+          d="$tmp/x/JPurrr-8000-v$v"
+          test -d "$d"; test "$(ls "$tmp/x" | wc -l)" = 1
           for f in "windows/JPurrr-8000-$v-Windows-x64-Setup.exe" "macos/JPurrr-8000-$v-macOS.pkg" "linux/JPurrr-8000-$v-Linux-x86_64.tar.gz" JPurrr-8000-manual.pdf INSTALL.txt SHA256SUMS LICENSE; do
             test -f "$d/$f"
           done

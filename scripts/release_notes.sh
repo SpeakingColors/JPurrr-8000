@@ -27,7 +27,7 @@ A free and open source synth in the spirit of the late 90s JP series (VST3 and s
 
 ## Install
 
-Take the zip, or one of the single files above. The zip has a folder per system (windows, macos, linux), the manual and an \`INSTALL.txt\` with these same steps.
+Take the zip, or one of the single files above. The zip has one folder \`JPurrr-8000-v<version>\` with a folder per system (windows, macos, linux), the manual and an \`INSTALL.txt\` with these same steps.
 
 - **Windows:** close your DAW, run the Setup. It puts the VST3 in \`C:\\Program Files\\Common Files\\VST3\` and the standalone app in \`C:\\Program Files\\Studio 87\\JPurrr-8000\`. The setup is not signed, so SmartScreen may say "Windows protected your PC": click **More info**, then **Run anyway**.
 - **macOS:** close your DAW. The .pkg is not signed or notarized by Apple (their program costs 99 US dollars a year, and this project is free), so a file downloaded in the browser is blocked the first time. It does not mean the file is infected: check it with \`SHA256SUMS.txt\`. Easiest, no warning: in Terminal run \`curl -L -o ~/Downloads/JPurrr-8000.pkg https://github.com/SpeakingColors/JPurrr-8000/releases/download/$TAG/JPurrr-8000-$VER-macOS.pkg\` and then \`open ~/Downloads/JPurrr-8000.pkg\`. If you used the browser: **System Settings, Privacy & Security, Open Anyway**, or \`xattr -d com.apple.quarantine <file>.pkg\` in Terminal. On macOS 14 and older right click the file, **Open**, **Open**. Full steps: https://github.com/SpeakingColors/JPurrr-8000/blob/main/docs/macos-install.md. The VST3 goes to \`/Library/Audio/Plug-Ins/VST3\`, the app to \`/Applications\`.
