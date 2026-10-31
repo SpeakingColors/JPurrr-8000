@@ -69,3 +69,7 @@ Not affiliated with or endorsed by Roland or Arturia. All names belong to their 
 ## Support
 
 Free to use. If you like it, you can leave a tip on [Ko-fi](https://ko-fi.com/studio87).
+
+## Code signing policy
+
+See [docs/code-signing-policy.md](docs/code-signing-policy.md). Windows signing is free code signing provided by SignPath.io, certificate by SignPath Foundation, once approved. Until then the Windows installer is unsigned.
