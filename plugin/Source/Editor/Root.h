@@ -53,6 +53,7 @@ public:
     KeyboardStrip* keyStrip() { return strip.get(); }
     void hideValueBubble();
     void hideTip();
+    void showTipBelow(juce::Component& c, const juce::String& text);     // an info bubble below a control of a dialog (v3.9)
     void showMenu(bool show);
     float scale = 1.0f;                                // current editor scale, for the size readout
 

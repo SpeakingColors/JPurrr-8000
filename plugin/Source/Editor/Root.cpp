@@ -510,6 +510,15 @@ void Root::timerCallback() {
     stopTimer(); startTimerHz(20);
 }
 
+void Root::showTipBelow(juce::Component& c, const juce::String& text) {
+    tipBubble->L = &look(); tipBubble->setTip(text, {}, {});
+    const auto b = getLocalArea(&c, c.getLocalBounds()).toFloat();
+    const float nw = (float) tipBubble->getWidth(), nh = (float) tipBubble->getHeight(), H = (float) designHeight();
+    float x = b.getX() + (b.getWidth() - nw) / 2.0f, y = b.getBottom() + 4.0f;
+    x = juce::jlimit(40.0f, juce::jmax(40.0f, (float) kDesignW - 34.0f - nw - 4.0f), x);
+    if (y + nh > H - 30.0f) y = b.getY() - nh - 4.0f;
+    tipBubble->setTopLeftPosition(juce::roundToInt(x), juce::roundToInt(y)); tipBubble->setVisible(true); tipBubble->toFront(false);
+}
 void Root::showValueBubble(juce::Component& c, int idx) { showTextBubble(c, ctl.label(idx) + "  " + ctl.fmt(idx)); }
 void Root::showTextBubble(juce::Component& c, const juce::String& text) {
     valBubble->L = &look();

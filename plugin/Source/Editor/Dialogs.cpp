@@ -87,15 +87,48 @@ private:
     Root& root; String text;
 };
 
+// Info bubble of a dialog control (the mockup's data-tip on a label): shown after about one second of hovering, when bubbles are on.
+class DTip : private juce::Timer {
+public:
+    DTip(Root& r, juce::Component& c) : root(r), owner(c) {}
+    ~DTip() override { stopTimer(); }
+    String text;
+    void enter() { if (text.isNotEmpty()) startTimer(1000); }
+    void leave() { stopTimer(); if (shown) { shown = false; root.hideTip(); } }
+private:
+    void timerCallback() override { stopTimer(); if (Settings::get().bubbles && owner.isShowing()) { shown = true; root.showTipBelow(owner, text); } }
+    Root& root; juce::Component& owner; bool shown = false;
+};
+
 // Caption of a form field: `.dlg label` text.
 class DCap : public juce::Component {
 public:
-    DCap(Root& r, const String& t, const String& extra = {}) : root(r), text(t.toUpperCase()), extra(extra.toUpperCase()) {}
+    DCap(Root& r, const String& t, const String& extra = {}) : root(r), text(t.toUpperCase()), extra(extra.toUpperCase()), tipHover(r, *this) {}
     String text, extra;                                         // extra: the orange value of the parameter pages
+    void setTip(const String& t) { tipHover.text = t; }
+    void mouseEnter(const juce::MouseEvent&) override { tipHover.enter(); }
+    void mouseExit(const juce::MouseEvent&) override { tipHover.leave(); }
+    void mouseDown(const juce::MouseEvent&) override { tipHover.leave(); }
     static constexpr float kH = 26.0f;
     void paint(juce::Graphics& g) override {
         const Look& lk = root.look(); const auto f = fc(16.7, 600, 0.1f); g.setFont(f); g.setColour(lk[layout::lbl2]);
         drawTextAt(g, text, 0, asc(f), 'l');
+    }
+private:
+    Root& root; DTip tipHover;
+};
+
+// `.engh`: a section heading with a rule above it.
+class DHead : public juce::Component {
+public:
+    DHead(Root& r, const String& t) : root(r), text(t.toUpperCase()) {}
+    String text;
+    static float height() { return 1.0f + 10 * Z + nrm(fc(19.5f, 700, 0.12f)); }
+    void paint(juce::Graphics& g) override {
+        const Look& lk = root.look(); const auto f = fc(19.5f, 700, 0.12f);
+        g.setColour(lk[layout::edge]); g.fillRect(Fl(0, 0, (float) getWidth(), 1.0f));
+        g.setFont(f); g.setColour(lk[layout::ttl]);
+        drawTextAt(g, text, 0, 1.0f + 10 * Z + asc(f), 'l');
     }
 private:
     Root& root;
@@ -162,7 +195,8 @@ private:
 // A <select>: the box with its chevron; the popup is a JUCE menu.
 class DSel : public juce::Component {
 public:
-    DSel(Root& r, juce::StringArray items, int sel) : root(r), items(std::move(items)), selected(sel) { setWantsKeyboardFocus(true); setPaintingIsUnclipped(true); }
+    DSel(Root& r, juce::StringArray items, int sel) : root(r), items(std::move(items)), selected(sel), tipHover(r, *this) { setWantsKeyboardFocus(true); setPaintingIsUnclipped(true); }
+    void setTip(const String& t) { tipHover.text = t; }
     std::function<void(int)> onChange; bool ring = false;
     int selected; juce::StringArray items;
     void setSelected(int i) { if (i != selected) { selected = i; repaint(); } }
@@ -181,11 +215,11 @@ public:
         g.setColour(lk[layout::selfg]); g.strokePath(ch, juce::PathStrokeType(1.7f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         if (ring || hasKeyboardFocus(false)) drawRing(g, r, 3 * Z, lk[layout::acc], 2 * Z, 1 * Z);
     }
-    void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); }
-    void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); }
+    void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); tipHover.enter(); }
+    void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); tipHover.leave(); }
     void mouseDown(const juce::MouseEvent& e) override {
         if (e.mods.isPopupMenu()) return;
-        ring = false;
+        ring = false; tipHover.leave();
         juce::PopupMenu m; auto& lf = popupLnF(root.look()); m.setLookAndFeel(&lf);
         for (int k = 0; k < items.size(); ++k) m.addItem(k + 1, items[k], true, k == selected);
         auto opt = juce::PopupMenu::Options().withTargetComponent(this).withMinimumWidth(getWidth()).withMaximumNumColumns(1).withStandardItemHeight(26);
@@ -203,7 +237,7 @@ public:
     }
     void focusLost(FocusChangeType) override { ring = false; repaint(); }
 private:
-    Root& root; bool hover = false;
+    Root& root; bool hover = false; DTip tipHover;
 };
 
 // <input type=range>: Chrome's default look (blue fill, light track, round thumb).
@@ -521,16 +555,38 @@ void DialogLayer::openSettings() {
     int cur = 0; for (int i = 0; i < 4; ++i) if (S.look == ids[i]) cur = i;
     auto* sel = f.add<DSel>(root, juce::StringArray { "JP Blue (default)", "Neon Navy", "Purple Soda Pop", "PurrOne charcoal" }, cur);
     auto* hint = f.add<Para>(root, std::vector<PR>{ n("The look is saved with the plugin settings, not with each preset. Wood cheeks, logo, bubbles and meter colours stay the same in every look.") }, true);
+    // v3.9: the sound engine options (plugin settings, not saved with sounds). The texts are the mockup's.
+    auto* head = f.add<DHead>(root, "Sound engine");
+    struct Eng { DCap* cap; DSel* sel; };
+    static const int osVals[] = { 0, 1, 2, 4 };
+    int osCur = 0; for (int i = 0; i < 4; ++i) if (S.engineOs == osVals[i]) osCur = i;
+    Eng e[3] = {
+        { f.add<DCap>(root, "Oscillator style"), f.add<DSel>(root, juce::StringArray { "Classic (raw Super Saw like the original, default)", "Clean (band limited Super Saw)" }, S.engineStyle == 1 ? 1 : 0) },
+        { f.add<DCap>(root, "Anti-aliasing"), f.add<DSel>(root, juce::StringArray { "Standard (light, default)", "High (4 point, cleaner highs)" }, S.engineAa == 1 ? 1 : 0) },
+        { f.add<DCap>(root, "Oversampling"), f.add<DSel>(root, juce::StringArray { "Auto (2x below 80 kHz, default)", "1x (lightest)", "2x", "4x (cleanest, heaviest)" }, osCur) } };
+    const char* const engTips[3] = { "CLASSIC (default) keeps the Super Saw raw, like the original unit: no anti-aliasing, so the highs carry a little digital shimmer, and a high pass at the note pitch keeps that out of the lows. CLEAN corrects every Super Saw oscillator, so it is smoother and quieter in the top octave.",
+        "How the steps of the oscillators are smoothed against aliasing. STANDARD uses 2 points and is light. HIGH uses 4 points: about 11 dB less aliasing on a high Super Saw in CLEAN style (measured at 1x), a slightly softer top end, a little more CPU. Works on pulse, saw and sync waves, and on the Super Saw in CLEAN style.",
+        "Runs the oscillators faster inside and filters the result, which pushes aliasing out of the audible range. AUTO is 2x below 80 kHz and 1x above (the sound as it always was). 1x is lightest. 4x is cleanest and uses the most CPU. Measured on 10 voices at 44.1 kHz: 1x about 4 percent of one core, 2x about 6 to 7, 4x about 11 to 12." };
+    for (int k = 0; k < 3; ++k) { e[k].cap->setTip(juce::String::fromUTF8(engTips[k])); e[k].sel->setTip(juce::String::fromUTF8(engTips[k])); }
+    auto* hint2 = f.add<Para>(root, std::vector<PR>{ n("Sound engine options belong to the plugin, not to a sound. They are heard in the plugin only; the mockup preview does not change. The defaults keep every sound exactly as it was.") }, true);
     f.layoutBody = [=](float w) {
         float y = 0;
         bub->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), 30); y += 30 + kGap;
         pow->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), 30); y += 30 + kGap;
         cap->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), 26); sel->setBounds(0, juce::roundToInt(y + 26 + 3 * Z), juce::roundToInt(w), 47); y += 26 + 3 * Z + 47 + kGap;
-        hint->setTopLeftPosition(0, juce::roundToInt(y)); y += hint->layoutFor(w);
+        hint->setTopLeftPosition(0, juce::roundToInt(y)); y += hint->layoutFor(w) + kGap;
+        head->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), juce::roundToInt(DHead::height())); y += DHead::height() + kGap;
+        for (int k = 0; k < 3; ++k) {
+            e[k].cap->setBounds(0, juce::roundToInt(y), juce::roundToInt(w), 26); e[k].sel->setBounds(0, juce::roundToInt(y + 26 + 3 * Z), juce::roundToInt(w), 47);
+            y += 26 + 3 * Z + 47 + kGap;
+        }
+        hint2->setTopLeftPosition(0, juce::roundToInt(y)); y += hint2->layoutFor(w);
         return y;
     };
-    auto* done = f.button("Done", true, [this, bub, pow, sel] {
-        auto& s = Settings::get(); s.bubbles = bub->on; s.power = pow->on; s.look = ids[juce::jlimit(0, 3, sel->selected)]; s.save();
+    auto* done = f.button("Done", true, [this, bub, pow, sel, e] {
+        auto& s = Settings::get(); s.bubbles = bub->on; s.power = pow->on; s.look = ids[juce::jlimit(0, 3, sel->selected)];
+        s.engineStyle = e[0].sel->selected == 1 ? 1 : 0; s.engineAa = e[1].sel->selected == 1 ? 1 : 0; s.engineOs = osVals[juce::jlimit(0, 3, e[2].sel->selected)];
+        s.save(); JPurrr8000AudioProcessor::setEngineWord(s.engineStyle, s.engineAa, s.engineOs);
         root.applyLook(s.look); this->close();
     });
     f.button("Close", false, [this] { this->close(); });
