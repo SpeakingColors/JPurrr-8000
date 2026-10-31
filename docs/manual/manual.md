@@ -80,7 +80,7 @@ Every page has its own height at the same width, so nothing is cut off and nothi
 | FX, CHAIN | 961 px | 1135 px |
 | FX, MASTER | 1099 px | 1273 px |
 
-EDIT PARTS (SOUND page only) adds the PARTS band, 175 px more. When you drag the window bigger or smaller, the shape of the current page stays the same.
+EDIT PARTS (SOUND page only) adds the PARTS band, 175 px more. The PLAYER bar (see below) adds 48 px. When you drag the window bigger or smaller, the shape of the current page stays the same.
 
 ## The piano strip
 
@@ -88,9 +88,27 @@ The piano at the bottom of the window (see the picture at the start of this manu
 
 - **Mouse:** press a key to play it, drag across the keys to glide (glissando). Where a black key overlaps a white one, the black key wins.
 - **Computer keys:** they work like the computer MIDI keyboard of Ableton Live. `A S D F G H J K L ; '` play the white keys and `W E T Y U O P` the black keys: 18 notes, from C to the F an octave and a half higher. `Z` and `X` move the octave down and up, `C` and `V` lower and raise the velocity in steps of 20 (20, 40, 60, 80, 100, 120, 127; it starts at 100). At the start `A` plays C4 (MIDI 60), the same as in Ableton Live. A small label over the right end of the keys shows the notes now in use and the velocity (for example KEYS C4 - F5, VEL 100), and a blue bar under those keys shows where they are. The octave can go from A = C-1 to A = C8. Notes you hold when you change the octave end at once. The plugin goes by the letter a key types, so on an AZERTY or QWERTZ keyboard the notes are on the keys that are printed with those letters, not in the QWERTY positions. Typing in a text field never plays a note, and keys with Ctrl, Alt or Cmd are left to the DAW. The mouse always plays at velocity 100.
-- **BEND wheel (left):** drag up or down, or use the arrow keys while it has focus. It springs back to the middle when you let go. The range is BEND UP and BEND DOWN.
+- **BEND UP and BEND DOWN knobs (far left):** set how far the BEND wheel bends, in semitones (0 to +24 up, -24 to 0 down). They are the same two parameters as before, now next to the wheel.
+- **BEND wheel:** drag up or down, or use the arrow keys while it has focus. It springs back to the middle when you let go. The range is BEND UP and BEND DOWN.
 - **MOD wheel:** moves the mod lever (what the CC 1 message moves too, so LFO 2 depth). It stays where you leave it. Double click or Home resets it to 0. The wheels write the same lever values as the BEND / MOD lever display in the lower left of the SOUND page, so both always agree.
 - **PREVIEW** (in the VOLUME box) hides or shows the strip. Hiding it lets go of any held key and makes the window shorter.
+
+## The player bar
+
+The PLAYER switch (in the CONTROLLER box on the SOUND page, off by default) shows a bar above the piano. It loops a short piece of music through the current sound, so you can judge a sound without playing: the piece changes with your knobs while it runs. It sends no MIDI out.
+
+![The SOUND page with the PLAYER bar, a piece playing](img/sound-player.png)
+
+- **PLAY / STOP:** starts the piece from its beginning and loops it until you stop it. Turning the PLAYER switch off stops it too.
+- **Previous and next arrows, and the piece box:** step through the list or click the box to open it. The list is grouped by style (uplifting trance melodies, backings, riffs); the number on each row is the tempo of the piece. Arrow keys, Page Up and Down, Home, End and Enter work in the list, Esc closes it. Files you loaded show at the end under YOUR MIDI FILES (the two latest are kept).
+- **BPM:** the tempo of the loop, 20 to 300. Click and type, drag up or down (Shift for fine steps), scroll the wheel, or double click to go back to the tempo of the piece.
+- **LOCK:** on, choosing another piece keeps your BPM. Off, each piece sets its own tempo.
+- **TRANSPOSE:** moves the whole piece, -24 to +24 semitones. Double click resets it to 0.
+- **LOAD MIDI FILE:** plays a .mid file of your own (format 0 or 1, drums on channel 10 are skipped, up to 8000 notes). Its name and tempo show as the piece name.
+- **EXPORT MIDI:** saves the piece as a .mid file, with the BPM and TRANSPOSE you set, one loop long. Click it and choose where to save, or drag the button into your DAW's arranger. Dragging out of the window depends on your system and DAW (on Linux it often does not work): then use the click.
+- **Position bar:** the long marks are bars, the small marks the notes of the piece, the notes sounding now are lit. BAR shows the bar you are in.
+
+The pieces were written for this plugin. The patterns of the uplifting trance melodies come from measured statistics (see docs/trance-patterns-learned.md); no part of any sample pack is included.
 
 # The Sound page
 
@@ -134,7 +152,7 @@ LFO 1: WAVEFORM (TRI, SAW, SQR, S/H), RATE, FADE (time to reach full depth after
 
 - **PORTAMENTO** with TIME: pitch glides from note to note. **VELOCITY** switch: how hard you play changes the morph destinations.
 - **MONO** and **LEGATO** (one note at a time; legato joins notes smoothly), **UNISON** with UNISON DETUNE (0 to 50 cent), **VOICES** (maximum number of voices, 8 up to 128; more voices use more CPU), **ENV TYPE IN SOLO** (ANALOG lets a new note continue from where the old envelope was), **PATCH GAIN** (0, +6 or +12 dB).
-- **RIBBON / CTRL ASSIGN:** press it, then move a knob or slider. The ribbon and the control lever now move that parameter. **VELOCITY ASSIGN** does the same for velocity (morphing). BEND UP and BEND DOWN set the pitch bend range. On the ribbon, RELATIVE changes the value around where it is, and HOLD keeps it when you let go.
+- **RIBBON / CTRL ASSIGN:** press it, then move a knob or slider. The ribbon and the control lever now move that parameter. **VELOCITY ASSIGN** does the same for velocity (morphing). The PLAYER switch (next to PREVIEW) shows the player bar. BEND UP and BEND DOWN (pitch bend range) are now knobs next to the BEND wheel on the piano strip. On the ribbon, RELATIVE changes the value around where it is, and HOLD keeps it when you let go.
 
 ## Arpeggiator and RPS
 

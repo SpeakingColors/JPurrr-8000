@@ -38,6 +38,9 @@ Rough order. Nothing here is promised for a date.
 - Every new sound is level matched: peak between -12 and -3 dBFS on C2, C4 and C6 (velocity 100), no clipping, no NaN, no DC. `tests/test_factory.cpp` renders the whole bank on those three notes in `sh tests/run.sh` and fails when a sound goes out of range or a name is longer than 16 characters, repeated, or one of the first 51 moved.
 - `node tools/dump_factory.js` rebuilds `data/factory.json` from the mockup's FACTORY list (the sounds are edited in the mockup, then `python3 tools/gen_params.py`).
 
+- Built-in MIDI player (PLAYER switch in the CONTROLLER box): a bar above the piano that loops a piece through the current sound. 162 original pieces in 14 groups (uplifting trance melodies an octave low, backings, riffs), BPM 20 to 300 with LOCK, TRANSPOSE -24 to +24, LOAD MIDI FILE (two files of your own kept), EXPORT MIDI (save dialog or drag into the DAW), position bar. The window grows by 48 px while it is on.
+- BEND UP and BEND DOWN moved from the CONTROLLER box to the keyboard strip, next to the BEND wheel.
+
 ## Next
 - Level the first 51 factory sounds: 48 of them peak below -12 dBFS on at least one of C2, C4 and C6 and Zap Whisker is the quietest (-37 dBFS at its loudest note); they were left untouched in 0.3.0 (the new sounds sit around -9 dBFS, so they are a few dB louder).
 - Check the three enum orders (OSC1 waveform, Multi-FX type, Delay type) and the SysEx exports on real hardware.
