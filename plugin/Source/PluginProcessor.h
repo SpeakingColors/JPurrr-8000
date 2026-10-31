@@ -10,6 +10,7 @@
 #include "jpurrr/keyboard.h"
 #include "jpurrr/parts.h"
 #include "PresetManager.h"
+#include "PlayerHost.h"
 
 // Parameter values are plain integers in the units of jpurrr::kParams (same as the mockup).
 // Params flagged kNoSave in kParams (levers, display buttons, preview) are UI state, not host parameters:
@@ -63,6 +64,8 @@ public:
     // --- the editor's keyboard strip (message thread only; lock-free queue, the audio thread plays them at the start of the next block) ---
     void stripNoteOn(int note, int velocity = 100);
     void stripNoteOff(int note);
+
+    PlayerHost midiPlayer;                           // the built-in MIDI player (editor controls it, the audio thread plays it)
 
     juce::AudioProcessorValueTreeState apvts;
     PresetManager presets;                           // factory + user sounds and the current sound (message thread)

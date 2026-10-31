@@ -106,6 +106,7 @@ void JPurrr8000AudioProcessor::prepareToPlay(double sampleRate, int block) {
     wantedLatency.store(reportedLatency);
     setLatencySamples(reportedLatency);
     for (auto& m : mappers) m.reset();
+    midiPlayer.reset();
 }
 
 int JPurrr8000AudioProcessor::getInt(int idx) const {
@@ -181,12 +182,24 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
         for (int i = 0; i < n2; ++i) play(stripData[(size_t) (s2 + i)]);
         stripFifo.finishedRead(n1 + n2);
     }
+    // the built-in MIDI player: its notes play like the strip's, at their place in the block
+    jpurrr::Player::Out pl[jpurrr::Player::kMaxOut];
+    const int nPl = midiPlayer.process(n, sr, pl, jpurrr::Player::kMaxOut);
+    int iPl = 0;
+    auto playerUpTo = [&](int pos) {
+        for (; iPl < nPl && pl[iPl].offset <= pos; ++iPl) {
+            renderTo(pl[iPl].offset);
+            if (pl[iPl].on) { if (synth.heldVoices() == 0) fx.restartGate(); synth.stripNoteOn(pl[iPl].note, pl[iPl].vel); }
+            else synth.stripNoteOff(pl[iPl].note);
+        }
+    };
     bool wake = false;
     auto pushUpdate = [&](int param, int value) {
         int s1, n1, s2, n2; midiFifo.prepareToWrite(1, s1, n1, s2, n2);
         if (n1 > 0) { midiFifoData[(size_t) s1] = { param, value }; midiFifo.finishedWrite(1); wake = true; }
     };
     for (const auto meta : midi) {
+        playerUpTo(meta.samplePosition);
         renderTo(meta.samplePosition);
         const auto m = meta.getMessage(); const int ch = m.getChannel() - 1;
         if (m.isNoteOn()) { if (synth.heldVoices() == 0) fx.restartGate(); synth.noteOn(ch, m.getNoteNumber(), m.getVelocity()); }
@@ -204,6 +217,7 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
         }
         else if (m.isAllNotesOff() || m.isAllSoundOff()) synth.allNotesOff();
     }
+    playerUpTo(n);
     renderTo(n);
     midi.clear();
     const int want = synth.latencySamples() + soundFx.latencySamples() + fx.latencySamples();
@@ -249,6 +263,10 @@ void JPurrr8000AudioProcessor::getStateInformation(juce::MemoryBlock& dest) {
     state.setProperty("presetGenres", presets.cur.genres.joinIntoString("|"), nullptr);
     state.setProperty("uiWidth", uiWidth, nullptr);
     state.setProperty("editPart", editPart(), nullptr);
+    state.setProperty("playerPiece", midiPlayer.selected() >= 0 ? juce::String(jpurrr::libraryItem(midiPlayer.selected()).id) : juce::String(), nullptr);
+    state.setProperty("playerBpm", midiPlayer.bpm(), nullptr);
+    state.setProperty("playerLock", midiPlayer.bpmLock(), nullptr);
+    state.setProperty("playerTranspose", midiPlayer.transpose(), nullptr);
     for (int p = 0; p < 2; ++p) state.appendChild(partNode(p, partMeta(p), [this, p](int i) { return partValue(p, i); }), nullptr);
     if (auto xml = state.createXml()) copyXmlToBinary(*xml, dest);
 }
@@ -265,6 +283,14 @@ void JPurrr8000AudioProcessor::setStateInformation(const void* data, int size) {
         presets.cur.genres.clear(); presets.cur.genres.addTokens(st.getProperty("presetGenres", "").toString(), "|", ""); presets.cur.genres.removeEmptyStrings();
         uiWidth = (int) st.getProperty("uiWidth", 0);
         presetName = presets.cur.name;
+        {   // the player: its piece, tempo, lock and transpose (a file of your own is not stored; playing never is)
+            midiPlayer.setBpmLock(true);                                   // keep the saved tempo while the piece is chosen
+            const auto id = st.getProperty("playerPiece", "").toString();
+            midiPlayer.select(id.isEmpty() ? -1 : jpurrr::libraryFind(id.toRawUTF8()));
+            midiPlayer.setBpm((double) st.getProperty("playerBpm", 138.0));
+            midiPlayer.setBpmLock((bool) st.getProperty("playerLock", false));
+            midiPlayer.setTranspose((int) st.getProperty("playerTranspose", 0));
+        }
         // the part nodes are not host parameters: take them out before the parameter tree is replaced
         juce::ValueTree pn[2] = { st.getChildWithName("PART0"), st.getChildWithName("PART1") };
         const bool hasParts = pn[0].isValid() && pn[1].isValid();
