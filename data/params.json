@@ -2159,7 +2159,19 @@
    "opts": null,
    "nosave": true,
    "mom": false,
-   "tip": "Preview: shows the on-screen keyboard to play sounds without a MIDI keyboard."
+   "tip": "Preview: shows or hides the keyboard strip with the BEND and MOD wheels, to play sounds without a MIDI keyboard. On by default."
+  },
+  {
+   "id": "player",
+   "t": "w",
+   "label": "PLAYER",
+   "min": 0,
+   "max": 1,
+   "def": 0,
+   "opts": null,
+   "nosave": true,
+   "mom": false,
+   "tip": "Player: shows or hides the player bar above the keyboard. It loops a short piece through the current sound, so you can test the sound without playing. Off by default."
   },
   {
    "id": "aon",
@@ -2219,7 +2231,7 @@
    "opts": null,
    "nosave": false,
    "mom": false,
-   "tip": "Tempo in BPM for the standalone app. In a DAW the host tempo is used."
+   "tip": "Tempo in BPM. In the plugin it follows the host tempo."
   },
   {
    "id": "amd",
