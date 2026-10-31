@@ -516,12 +516,12 @@ bool Root::applyState(const juce::String& s) {
         }
         strip->snapshotState(drag, focus); return true; }
     if (s == "reset") { if (exportWarnApplied) { for (int i = 0; i < 4; ++i) ctl.quiet(Controller::idx(kExportWarnIds[i]), exportWarnOld[i]); ctl.pm.cur.dirty = false; exportWarnApplied = false; }
-        setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); strip->setComputerKeys(48, 100); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
+        setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); strip->setComputerKeys(jpurrr::kCkBaseDefault, 100); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
     if (s.startsWith("sound_parts_")) {                  // test hook: sound_parts_<split|dual|single>[_ps0|_ps2|_ps3][_nokbd]: the PARTS band open on the SOUND page
         juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();
         ctl.quiet(P_prev, t.contains("nokbd") ? 0 : 1); ctl.quiet(P_ps, 1);
         for (auto& k : t) if (k.length() == 3 && k.startsWith("ps")) ctl.quiet(P_ps, k.substring(2).getIntValue());
-        strip->setComputerKeys(48, 100);
+        strip->setComputerKeys(jpurrr::kCkBaseDefault, 100);
         for (auto& k : t) if (k.length() > 1 && std::isdigit((unsigned char) k[1])) { if (k[0] == 'c') strip->setComputerKeys(k.substring(1).getIntValue(), strip->computerVelocity()); else if (k[0] == 'v') strip->setComputerKeys(strip->computerBase(), k.substring(1).getIntValue()); }   // v3.7: cNN, vNN
         ctl.quiet(P_km, t.contains("single") ? 0 : t.contains("dual") ? 1 : 2);
         setPartsOpen(true); showPage(kSound); ctl.msgUntil = 0; return true; }

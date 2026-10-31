@@ -149,7 +149,7 @@ private:
 };
 
 // ------------------------------------------------------------------------------ KEYS / VEL readout (mockup v3.7 #kinfo)
-// A small label over the top right corner of the keys: the notes the computer keys play now ("KEYS C3 - F4") and their velocity ("VEL 100").
+// A small label over the top right corner of the keys: the notes the computer keys play now ("KEYS C4 - F5") and their velocity ("VEL 100").
 // Under the SPLIT handle row it steps down (mockup #keys.sp2). It only takes the mouse where it is drawn (nothing under it plays).
 class InfoW : public juce::Component {
 public:

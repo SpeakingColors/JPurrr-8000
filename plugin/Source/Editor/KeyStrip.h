@@ -36,7 +36,7 @@ public:
     void noteOff(int note);
     void releaseAll();
     bool anyDown() const { return held.count() > 0; }
-    int computerBase() const { return ck.base(); }          // the note A plays (48 = C3 at the start)
+    int computerBase() const { return ck.base(); }          // the note A plays (60 = C4 at the start)
     int computerVelocity() const { return ck.velocity(); }
     void setComputerKeys(int base, int vel);           // test hook (snapshot tool): the octave and velocity of the computer keys
     bool isLit(int note) const { return held.isDown(note); }

@@ -970,11 +970,11 @@ const keyEls={};
 })();
 /* v3.7 computer keys, like Ableton Live's Computer MIDI Keyboard. They use the physical key positions (e.code), so other layouts work too:
    A S D F G H J K L ; ' = the white keys, W E T Y U O P = the black keys (18 notes from C), Z / X = octave down / up, C / V = velocity down / up (steps of 20).
-   The base note starts at C3 (48) and moves in octaves from C-1 to C8 (so the 18 notes stay inside MIDI 0 to 127). */
+   The base note starts at C4 (60, like Ableton Live) and moves in octaves from C-1 to C8 (so the 18 notes stay inside MIDI 0 to 127). */
 const CKEY={KeyA:0,KeyW:1,KeyS:2,KeyE:3,KeyD:4,KeyF:5,KeyT:6,KeyG:7,KeyY:8,KeyH:9,KeyU:10,KeyJ:11,KeyK:12,KeyO:13,KeyL:14,KeyP:15,Semicolon:16,Quote:17};
 const CKCMD={KeyZ:['oct',-1],KeyX:['oct',1],KeyC:['vel',-1],KeyV:['vel',1]};
 const CKVELS=[20,40,60,80,100,120,127];
-var CK={base:48,vel:100,held:new Map()};/* held: key code -> the note it plays, or -1 when its octave was changed under it (it stays silent until let go) */
+var CK={base:60,vel:100,held:new Map()};/* held: key code -> the note it plays, or -1 when its octave was changed under it (it stays silent until let go) */
 function ckUpdate(){const b=CK.base;Object.keys(keyEls).forEach(k=>keyEls[k].classList.toggle('ck',+k>=b&&+k<b+18));
  const i=$('#kinfo');if(i)i.innerHTML=`<span><small>KEYS</small>${noteName(b)} - ${noteName(b+17)}</span><span><small>VEL</small>${CK.vel}</span>`;}
 function ckReleaseAll(){if(typeof CK==='undefined')return;CK.held.forEach(n=>{if(n>=0)noteOff(n);});CK.held.clear();}

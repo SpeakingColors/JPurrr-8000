@@ -33,8 +33,8 @@ TEST(kb_computer_keys_like_ableton) {
 }
 
 TEST(kb_computer_keys_octave_and_velocity_steps) {
-    CHECK(kCkBaseDefault == 48 && kCkBaseMin == 0 && kCkBaseMax == 108);
-    CHECK(ckStepOctave(48, 1) == 60 && ckStepOctave(48, -1) == 36 && ckStepOctave(48, 0) == 48);
+    CHECK(kCkBaseDefault == 60 && kCkBaseMin == 0 && kCkBaseMax == 108);
+    CHECK(ckStepOctave(60, 1) == 72 && ckStepOctave(60, -1) == 48 && ckStepOctave(60, 0) == 60);
     CHECK(ckStepOctave(0, -1) == 0 && ckStepOctave(108, 1) == 108);                     // bounds
     for (int b = kCkBaseMin; b <= kCkBaseMax; b += 12) CHECK(b + kCkSpan - 1 <= 127 && b >= 0);   // the 18 notes always fit MIDI 0..127
     CHECK(kCkBaseMax + 12 + kCkSpan - 1 > 127);                                         // and one more octave would not
@@ -46,6 +46,7 @@ TEST(kb_computer_keys_octave_and_velocity_steps) {
     CHECK(ckStepVelocity(85, 1) == 100 && ckStepVelocity(85, -1) == 60);                  // an odd value joins the nearest step first
     char b[32];
     ckKeysText(48, b, 32); CHECK(std::string(b) == "C3 - F4");
+    ckKeysText(kCkBaseDefault, b, 32); CHECK(std::string(b) == "C4 - F5");   // the start: A = 60 like Ableton Live
     ckKeysText(60, b, 32); CHECK(std::string(b) == "C4 - F5");
     ckKeysText(0, b, 32);  CHECK(std::string(b) == "C-1 - F0");
     ckKeysText(108, b, 32); CHECK(std::string(b) == "C8 - F9");
@@ -77,21 +78,21 @@ TEST(kb_computer_keys_octave_change_hands_off_the_held_notes) {
     ComputerKeys ck; Log lg; std::vector<int> sounding;
     auto on = [&](int n, int v) { lg.on.push_back({ n, v }); sounding.push_back(n); };
     auto off = [&](int n) { auto it = std::find(sounding.begin(), sounding.end(), n); CHECK(it != sounding.end()); if (it != sounding.end()) sounding.erase(it); lg.off.push_back(n); };
-    ck.press('a', 'a', on, off); ck.press('d', 'd', on, off);                      // C3 and E3 held
+    ck.press('a', 'a', on, off); ck.press('d', 'd', on, off);                      // C4 and E4 held
     CHECK(sounding.size() == 2);
     CHECK(ck.press('x', 'x', on, off));                                            // octave up: the old notes end first
-    CHECK(ck.base() == 60 && sounding.empty() && lg.off.size() == 2);
-    ck.press('s', 's', on, off);                                                    // new octave: D4
-    CHECK(sounding.size() == 1 && sounding[0] == 62);
+    CHECK(ck.base() == 72 && sounding.empty() && lg.off.size() == 2);
+    ck.press('s', 's', on, off);                                                    // new octave: D5
+    CHECK(sounding.size() == 1 && sounding[0] == 74);
     ck.release('a', off); ck.release('d', off);                                     // the old keys come up: nothing more to end
     CHECK(sounding.size() == 1 && lg.off.size() == 2);
-    ck.press('a', 'a', on, off);                                                    // pressed again: C4 plays
-    CHECK(sounding.size() == 2 && sounding[1] == 60);
+    ck.press('a', 'a', on, off);                                                    // pressed again: C5 plays
+    CHECK(sounding.size() == 2 && sounding[1] == 72);
     ck.release('s', off); ck.release('a', off); ck.release('x', off);
     CHECK(sounding.empty() && ck.keysDown() == 0);
-    // octave down twice: 60 -> 48 -> 36
+    // octave down twice: 72 -> 60 -> 48
     ck.press('q', 'z', on, off); ck.release('q', off); ck.press('q', 'z', on, off); ck.release('q', off);
-    CHECK(ck.base() == 36);
+    CHECK(ck.base() == 48);
 }
 
 TEST(kb_computer_keys_auto_repeat_and_bounds) {

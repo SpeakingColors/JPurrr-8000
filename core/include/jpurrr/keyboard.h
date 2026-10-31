@@ -13,9 +13,9 @@ constexpr int kKeyChannel = 15;                           // channel index the s
 // ---- computer keys, like Ableton Live's Computer MIDI Keyboard (mockup v3.7: CKEY, CKCMD, ckDown, ckUp).
 // A S D F G H J K L ; ' are the white keys, W E T Y U O P the black keys: 18 notes from the base note (A = base).
 // Z / X move the octave down / up, C / V lower / raise the velocity in steps of 20 (Live: "intervals of twenty").
-// The base note starts at 48 = C3 (the name the strip prints on its keys, C4 = 60) and moves in whole octaves from 0 (C-1) to 108 (C8),
+// The base note starts at 60 = C4 (the name the strip prints on its keys, C4 = 60; Ableton Live's A key also sends 60) and moves in whole octaves from 0 (C-1) to 108 (C8),
 // so the 18 notes always stay inside MIDI 0..127.
-constexpr int kCkSpan = 18, kCkBaseDefault = 48, kCkBaseMin = 0, kCkBaseMax = 108;
+constexpr int kCkSpan = 18, kCkBaseDefault = 60, kCkBaseMin = 0, kCkBaseMax = 108;
 enum class CkCmd { None, Note, OctaveDown, OctaveUp, VelocityDown, VelocityUp };
 struct CkAction { CkCmd cmd = CkCmd::None; int offset = 0; };      // offset: 0..17 above the base for a note
 // What a typed character means; upper case counts as lower case. Letters are matched as typed (QWERTY positions, see ComputerKeys).
@@ -23,7 +23,7 @@ CkAction computerKeyAction(uint32_t c);
 int ckStepOctave(int base, int dir);                               // base moved one octave up (+1) or down (-1), clamped to kCkBaseMin..kCkBaseMax
 int ckStepVelocity(int vel, int dir);                              // next step of 20, 40, 60, 80, 100, 120, 127 (clamped); any other value moves to the nearest step first
 int ckNoteName(int note, char* out, int cap);                      // "C3", "C#4", "C-1": 60 = C4 (as the strip prints it)
-// "C3 - F4": text of the KEYS readout for a base note.
+// "C4 - F5": text of the KEYS readout for a base note.
 int ckKeysText(int base, char* out, int cap);
 
 // The computer keys that are down. A key plays the note it had when it went down; Z / X first release every note of the old octave (the keys stay

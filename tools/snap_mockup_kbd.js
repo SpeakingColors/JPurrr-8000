@@ -2,7 +2,7 @@
 // Usage: node tools/snap_mockup_kbd.js <outdir> [state...]
 // State names: kbd_<sound|chain|master>_n60_n64_b40_m90_dragb_focusm  (nNN = key held, bNN = BEND value -64..63, mNN = MOD 0..127,
 // dragb / dragm = that wheel looks dragged, focusb / focusm = that wheel has keyboard focus,
-//   v3.7: cNN = the note the computer key A plays (48 at the start, whole octaves), vNN = computer key velocity (20..127): set with the Z X C V keys like a user).
+//   v3.7: cNN = the note the computer key A plays (60 at the start, whole octaves), vNN = computer key velocity (20..127): set with the Z X C V keys like a user).
 const path = require('path'), fs = require('fs');
 const { open } = require('./mockup_page.js');
 const DEFAULT = ['kbd_sound_n60_n61_n64_n66_n72', 'kbd_sound_b40_m90', 'kbd_sound_b63_m127', 'kbd_chain_n48_n55_n59_b-30_m64', 'kbd_master_n36_n96_dragb_b-64_m20',
@@ -21,7 +21,7 @@ async function ckSet(p, c, v) {
   const m = await open(); const p = m.page;
   for (const s of states) {
     const t = s.split('_').filter(Boolean);
-    const spec = { page: t[1], notes: [], b: 0, m: 0, drag: '', focus: '', c: 48, v: 100 };
+    const spec = { page: t[1], notes: [], b: 0, m: 0, drag: '', focus: '', c: 60, v: 100 };
     for (const k of t.slice(2)) {
       if (/^n\d+$/.test(k)) spec.notes.push(+k.slice(1)); else if (/^b-?\d+$/.test(k)) spec.b = +k.slice(1); else if (/^m\d+$/.test(k)) spec.m = +k.slice(1); else if (/^c\d+$/.test(k)) spec.c = +k.slice(1); else if (/^v\d+$/.test(k)) spec.v = +k.slice(1);
       else if (k === 'dragb' || k === 'dragm') spec.drag = k; else if (k === 'focusb' || k === 'focusm') spec.focus = k;
