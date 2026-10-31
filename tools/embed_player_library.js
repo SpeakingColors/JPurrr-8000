@@ -1,10 +1,10 @@
 // Embeds the player library (data/player_library.json) into a mockup page as a compact JSON block, so the HTML file stays self-contained.
-// Usage: node tools/embed_player_library.js [mockup.html]       (default docs/mockups/JPurrr-8000-mockup-v3.8.html)
+// Usage: node tools/embed_player_library.js [mockup.html]       (default docs/mockups/JPurrr-8000-mockup-v3.9.html)
 // The block sits between the lines <!--player-lib-begin--> and <!--player-lib-end--> of the page and is replaced on every run.
 // Compact format: {"f":1,"g":[{"n":"group name","p":[["piece name",bpm,loopBeats,[beat,len,note,vel, beat,len,note,vel, ...]], ...]}, ...]}
 const fs = require('fs'), path = require('path');
 const ROOT = path.resolve(__dirname, '..');
-const file = path.resolve(process.argv[2] || path.join(ROOT, 'docs/mockups/JPurrr-8000-mockup-v3.8.html'));
+const file = path.resolve(process.argv[2] || path.join(ROOT, 'docs/mockups/JPurrr-8000-mockup-v3.9.html'));
 const lib = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/player_library.json'), 'utf8'));
 const r = v => Math.round(v * 1000) / 1000;
 const out = { f: 1, g: lib.groups.map(g => ({ n: g.name, p: g.items.map(it => [it.name, it.bpm, it.beats, [].concat(...it.ev.map(e => [r(e[0]), r(e[1]), e[2], e[3]]))]) })) };

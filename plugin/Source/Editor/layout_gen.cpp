@@ -1561,10 +1561,9 @@ const Line chrome_lines[] = {
   {"A001 \302\267 factory",648.f,97.52f,34.f},
   {"SOUND",792.52f,56.42f,35.5f},
   {"FX",886.94f,21.2f,35.5f},
-  {"GUIDE",2544.17f,43.55f,34.f},
-  {"SETTINGS",2621.72f,71.3f,34.f},
+  {"GUIDE",2609.47f,43.55f,34.f},
   {"ABOUT & SUPPORT",2727.02f,135.98f,34.f},
-  {"Studio 87 \302\267 JPurrr-8000 v3.8 design mockup",46.f,324.63f,1100.f},
+  {"Studio 87 \302\267 JPurrr-8000 v3.9 design mockup",46.f,324.38f,1100.f},
   {"2920 \303\227 1105 px \302\267 100%",2715.13f,158.88f,1100.f}
 };
 const Text chrome_texts[] = {
@@ -1577,11 +1576,10 @@ const Text chrome_texts[] = {
   {"pinfo",{kCond,16.7f,400,0.08f,false},'l',8,0xff9fb0dc,{648.f,17.f,97.52f,20.f},{chrome_lines+6,1}},
   {"tSound",{kCond,21.3f,600,0.06f,false},'c',-1,0xff10141a,{775.52f,12.f,90.42f,30.f},{chrome_lines+7,1}},
   {"tFx",{kCond,21.3f,600,0.06f,false},'c',7,0xffe9eef6,{869.94f,12.f,55.2f,30.f},{chrome_lines+8,1}},
-  {"bGuide",{kCond,18.4f,600,0.06f,false},'c',7,0xffe9eef6,{2533.17f,13.f,65.55f,28.f},{chrome_lines+9,1}},
-  {"bSet",{kCond,18.4f,600,0.06f,false},'c',7,0xffe9eef6,{2610.72f,13.f,93.3f,28.f},{chrome_lines+10,1}},
-  {"bAbout",{kCond,18.4f,600,0.06f,false},'c',7,0xffe9eef6,{2716.02f,13.f,157.98f,28.f},{chrome_lines+11,1}},
-  {"",{kCond,16.7f,500,0.1f,false},'l',8,0xff9fb0dc,{46.f,1083.f,324.63f,20.f},{chrome_lines+12,1}},
-  {"sizeRO",{kCond,16.7f,500,0.1f,false},'l',8,0xff9fb0dc,{2715.13f,1083.f,158.88f,20.f},{chrome_lines+13,1}}
+  {"bGuide",{kCond,18.4f,600,0.06f,false},'c',7,0xffe9eef6,{2598.47f,13.f,65.55f,28.f},{chrome_lines+9,1}},
+  {"bAbout",{kCond,18.4f,600,0.06f,false},'c',7,0xffe9eef6,{2716.02f,13.f,157.98f,28.f},{chrome_lines+10,1}},
+  {"",{kCond,16.7f,500,0.1f,false},'l',8,0xff9fb0dc,{46.f,1083.f,324.38f,20.f},{chrome_lines+11,1}},
+  {"sizeRO",{kCond,16.7f,500,0.1f,false},'l',8,0xff9fb0dc,{2715.13f,1083.f,158.88f,20.f},{chrome_lines+12,1}}
 };
 const Tip chrome_tips[] = {
   {{268.f,13.f,28.f,28.f},"Previous preset.",""},
@@ -1589,8 +1587,8 @@ const Tip chrome_tips[] = {
   {{614.f,13.f,28.f,28.f},"Preset menu: Save, Rename, Delete, Export, Import. A right click in the top bar opens it too. Click the preset name to browse.",""},
   {{775.52f,12.f,90.42f,30.f},"Sound page: the synth front panel.",""},
   {{869.94f,12.f,55.2f,30.f},"FX page: trance gate, the MIX READY chain and the MASTER tools (our own twist).",""},
-  {{2533.17f,13.f,65.55f,28.f},"Quick guide and shortcuts.",""},
-  {{2610.72f,13.f,93.3f,28.f},"Settings: bubbles, power saving, colour look.",""},
+  {{2598.47f,13.f,65.55f,28.f},"Quick guide and shortcuts.",""},
+  {{2676.02f,13.f,28.f,28.f},"Settings (gear): info bubbles, power saving, colour look and the sound engine options: oscillator style, anti-aliasing and oversampling.",""},
   {{2716.02f,13.f,157.98f,28.f},"About, support and install notes.",""},
   {{302.f,12.f,272.f,30.f},"Preset name. Click it to open the preset browser. Double click to rename. Saving or renaming a factory sound makes your own copy.",""}
 };
@@ -1600,14 +1598,14 @@ const HBtn chrome_hbtns[] = {
   {"bMenu",{614.f,13.f,28.f,28.f},"\342\230\260",false,true},
   {"tSound",{775.52f,12.f,90.42f,30.f},"Sound",true,false},
   {"tFx",{869.94f,12.f,55.2f,30.f},"FX",true,false},
-  {"bGuide",{2533.17f,13.f,65.55f,28.f},"Guide",false,false},
-  {"bSet",{2610.72f,13.f,93.3f,28.f},"Settings",false,false},
+  {"bGuide",{2598.47f,13.f,65.55f,28.f},"Guide",false,false},
+  {"bSet",{2676.02f,13.f,28.f,28.f},"",false,true},
   {"bAbout",{2716.02f,13.f,157.98f,28.f},"About & Support",false,false}
 };
 const Cat chrome_cats[] = {
   {{46.f,8.f,38.f,38.f}}
 };
-const Page chrome_page = {0,0,0.f,Span<Sec>{nullptr,0},Span<Text>{chrome_texts,14},Span<Knob>{nullptr,0},Span<Slider>{nullptr,0},Span<Switch>{nullptr,0},Span<Opts>{nullptr,0},Span<Select>{nullptr,0},Span<Canvas>{nullptr,0},Span<Tip>{chrome_tips,9},Span<HBtn>{chrome_hbtns,8},Span<Rect>{nullptr,0},Span<VText>{nullptr,0},Span<Cat>{chrome_cats,1},Span<BlockBtn>{nullptr,0},false,{}};
+const Page chrome_page = {0,0,0.f,Span<Sec>{nullptr,0},Span<Text>{chrome_texts,13},Span<Knob>{nullptr,0},Span<Slider>{nullptr,0},Span<Switch>{nullptr,0},Span<Opts>{nullptr,0},Span<Select>{nullptr,0},Span<Canvas>{nullptr,0},Span<Tip>{chrome_tips,9},Span<HBtn>{chrome_hbtns,8},Span<Rect>{nullptr,0},Span<VText>{nullptr,0},Span<Cat>{chrome_cats,1},Span<BlockBtn>{nullptr,0},false,{}};
 const Line strip_lines[] = {
   {"BEND UP",62.42f,59.f,38.69f},
   {"BEND DOWN",51.f,81.86f,112.f},
@@ -1724,7 +1722,7 @@ namespace {
 const Page kPages[kNumPages] = {sound_page, chain_page, master_page};
 const Page kChrome = chrome_page;
 const int kChromeH = 1105;
-const Rect kHdr = {34.f,0.f,2852.f,56.f}, kFtr = {34.f,1079.f,2852.f,26.f}, kCheekL = {0.f,0.f,34.f,1105.f}, kCheekR = {2886.f,0.f,34.f,1105.f}, kPname = {302.f,12.f,272.f,30.f}, kPinfo = {648.f,17.f,97.52f,20.f}, kMsg = {937.14f,27.f,1584.03f,0.f};
+const Rect kHdr = {34.f,0.f,2852.f,56.f}, kFtr = {34.f,1079.f,2852.f,26.f}, kCheekL = {0.f,0.f,34.f,1105.f}, kCheekR = {2886.f,0.f,34.f,1105.f}, kPname = {302.f,12.f,272.f,30.f}, kPinfo = {648.f,17.f,97.52f,20.f}, kMsg = {937.14f,27.f,1649.33f,0.f};
 const char* const kLookIds[kNumLooks] = {"jp","navy","soda","purr"};
 const uint32_t kLooks[kNumLooks][kNumToks] = {
   {0xff232b58,0xff1a2250,0xff121843,0xff0a0f2c,0xff3b4a8e,0x14ffffff,0xfff2a43a,0xffe9eef6,0xff9fb0dc,0xff0d0f12,0xff3a3f47,0xfff4f6fa,0xff0b0c0e,0xffff3b30,0xff4d1c1c,0xfff2a43a,0xff6cc9f5,0xff0d1a10,0xff8dff80,0xff2c5a2a,0xff0f1430,0xffe9eef6,0xff0c1230,0xffe9eef6,0xff080d22,0xff7fd0ff,0x2e7fd0ff,0xff1c2748,0xfff2a43a,0xfff2a43a,0xff17204a,0xff090e24,0xfff6f8fb},

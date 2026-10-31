@@ -1,9 +1,9 @@
-// Reference screenshots of the mockup's built-in MIDI player (v3.8), at design scale 1, for the plugin comparison.
-// Usage: JP_MOCKUP=v3.8 node tools/snap_mockup_player.js <outdir>      (the default file of mockup_page.js is v3.5, so JP_MOCKUP is set here when it is not)
+// Reference screenshots of the mockup's built-in MIDI player (v3.9), at design scale 1, for the plugin comparison.
+// Usage: JP_MOCKUP=v3.9 node tools/snap_mockup_player.js <outdir>      (the default file of mockup_page.js is v3.5, so JP_MOCKUP is set here when it is not)
 // Writes sound_player.png chain_player.png master_player.png (PLAYER and PREVIEW on, the piece playing: playhead at beat 21),
 //   sound_player_menu.png (piece list open), sound_player_nokbd.png (PREVIEW off: the bar sits at the bottom), sound_parts_split_player.png (PARTS band + player bar),
 //   and chain_player_nokbd.png master_player_nokbd.png sound_player_stopped.png sound_player_lock.png sound_player_midi.png (a loaded MIDI file, name and BPM shown).
-if (!process.env.JP_MOCKUP) process.env.JP_MOCKUP = 'v3.8';
+if (!process.env.JP_MOCKUP) process.env.JP_MOCKUP = 'v3.9';
 const path = require('path'), fs = require('fs');
 const { open } = require('./mockup_page.js');
 // A tiny standard MIDI file (format 0, 480 ticks, 96 BPM, a C minor arpeggio over two bars) for the "load a file" screenshot.

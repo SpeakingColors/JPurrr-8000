@@ -1,6 +1,6 @@
-// Checks the built-in MIDI player of mockup v3.8 in headless Chromium: window heights per page, PLAY / STOP through the preview synth, LOCK, BPM and TRANSPOSE boxes,
+// Checks the built-in MIDI player of mockup v3.9 in headless Chromium: window heights per page, PLAY / STOP through the preview synth, LOCK, BPM and TRANSPOSE boxes,
 // the piece menu, loading a MIDI file, no console errors. Usage: node tools/check_mockup_player.js     (exit code 1 when a check fails)
-if (!process.env.JP_MOCKUP) process.env.JP_MOCKUP = 'v3.8';
+if (!process.env.JP_MOCKUP) process.env.JP_MOCKUP = 'v3.9';
 const { open } = require('./mockup_page.js');
 let bad = 0; const ok = (c, msg) => { console.log((c ? 'ok   ' : 'FAIL ') + msg); if (!c) bad++; };
 function tinyMidi() { const ev = []; const vl = v => { const o = [v & 127]; while ((v >>= 7)) o.unshift((v & 127) | 128); return o; }; const t = (d, ...b) => ev.push(...vl(d), ...b);
