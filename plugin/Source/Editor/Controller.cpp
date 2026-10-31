@@ -21,11 +21,15 @@ void Settings::load() {
     if (!jpurrr::sysexDeviceNumberValid(exportDevice)) exportDevice = jpurrr::kSysexDeviceNumberDefault;
     exportDestination = j.getProperty("exportDestination", "edit").toString();
     int slot = 0; if (exportDestination != "edit" && !jpurrr::parseUserPatchName(exportDestination.toStdString(), slot)) exportDestination = "edit";
+    engineStyle = (int) j.getProperty("engineStyle", 0); if (engineStyle != 0 && engineStyle != 1) engineStyle = 0;
+    engineAa = (int) j.getProperty("engineAa", 0); if (engineAa != 0 && engineAa != 1) engineAa = 0;
+    engineOs = (int) j.getProperty("engineOs", 0); if (!validEngineOs(engineOs)) engineOs = 0;
 }
 void Settings::save() const {
     if (noSave) return;
     auto* o = new juce::DynamicObject(); o->setProperty("bubbles", bubbles); o->setProperty("power", power); o->setProperty("look", look);
     o->setProperty("exportFormat", exportFormat); o->setProperty("exportDevice", exportDevice); o->setProperty("exportDestination", exportDestination);
+    o->setProperty("engineStyle", engineStyle); o->setProperty("engineAa", engineAa); o->setProperty("engineOs", engineOs);
     auto f = settingsFile(); f.getParentDirectory().createDirectory(); f.replaceWithText(juce::JSON::toString(juce::var(o)));
 }
 

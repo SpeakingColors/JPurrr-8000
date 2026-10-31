@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "Editor/EditorFactory.h"
+#include "Editor/Controller.h"
 using namespace jpurrr;
 
 static juce::String optText(int idx, int v) {
@@ -26,6 +27,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout JPurrr8000AudioProcessor::ma
     return layout;
 }
 
+// ------------------------------------------------------------------ sound engine options
+namespace {
+std::atomic<int>& engineWord() { static std::atomic<int> w { 0 }; return w; }
+}
+int JPurrr8000AudioProcessor::packEngine(int style, int aa, int os) {
+    const int code = os == 1 ? 1 : os == 2 ? 2 : os == 4 ? 3 : 0;
+    return (style == 1 ? 1 : 0) | ((aa == 1 ? 1 : 0) << 1) | (code << 2);
+}
+jpurrr::EngineOptions JPurrr8000AudioProcessor::unpackEngine(int w) {
+    jpurrr::EngineOptions o; static const int osOf[4] = { 0, 1, 2, 4 };
+    o.style = w & 1; o.antiAlias = (w >> 1) & 1; o.oversampling = osOf[(w >> 2) & 3]; return o;
+}
+void JPurrr8000AudioProcessor::setEngineWord(int style, int aa, int os) { engineWord().store(packEngine(style, aa, os)); }
+void JPurrr8000AudioProcessor::loadEngineFromSettings() {
+    static std::atomic<bool> done { false };
+    if (done.exchange(true)) return;
+    const auto& s = jp::Settings::get(); setEngineWord(s.engineStyle, s.engineAa, s.engineOs);
+}
+
 JPurrr8000AudioProcessor::JPurrr8000AudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "JPURRR", makeLayout()) {
@@ -34,6 +54,7 @@ JPurrr8000AudioProcessor::JPurrr8000AudioProcessor()
         hostParams[(size_t) i] = dynamic_cast<juce::RangedAudioParameter*>(apvts.getParameter(kParams[i].id));
     }
     synth.setLive(&live); fx.setLive(&live);
+    loadEngineFromSettings(); appliedEngineWord = engineWord().load(); synth.setEngineOptions(unpackEngine(appliedEngineWord));
     presetName = presets.cur.name;
     initParts();
     hostParams[(size_t) P_km]->addListener(this); hostParams[(size_t) P_ps]->addListener(this);
@@ -146,6 +167,7 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
         for (int p = 0; p < 2; ++p) for (int i = 0; i < kNumParams; ++i) st[p][i] = partVals[p][(size_t) i].load(std::memory_order_relaxed);
         jpurrr::composePartVectors(vals, editPartA.load(), st, lastPv);
     }
+    if (const int w = engineWord().load(std::memory_order_relaxed); w != appliedEngineWord) { appliedEngineWord = w; synth.setEngineOptions(unpackEngine(w)); }
     synth.setParams(lastPv[0]); synth.setPartParams(0, lastPv[0]); synth.setPartParams(1, lastPv[1]);
     soundFx.setParams(lastPv[0]); fx.setParams(vals);
     // Tempo: the host's when it gives one, else the ARPEGGIATOR TEMPO knob (Standalone has a play head without a tempo).

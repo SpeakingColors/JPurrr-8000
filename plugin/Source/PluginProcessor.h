@@ -65,6 +65,14 @@ public:
     void stripNoteOn(int note, int velocity = 100);
     void stripNoteOff(int note);
 
+    // --- sound engine options (gear menu). Plugin wide: every instance in the process follows the same word, the audio thread applies a
+    // change at the start of its next block. The word is packed: bit 0 style, bit 1 anti-aliasing, bits 2 and 3 the oversampling code (0 auto, 1 1x, 2 2x, 3 4x).
+    static int packEngine(int style, int aa, int os);
+    static jpurrr::EngineOptions unpackEngine(int word);
+    static void setEngineWord(int style, int aa, int os);          // message thread: the editor's Done button
+    static void loadEngineFromSettings();                          // reads settings.json once per process (every constructor calls it)
+    jpurrr::EngineOptions appliedEngineOptions() const { return synth.engineOptions(); }       // for tests: what the synth runs now (read when not processing)
+
     PlayerHost midiPlayer;                           // the built-in MIDI player (editor controls it, the audio thread plays it)
 
     juce::AudioProcessorValueTreeState apvts;
@@ -95,6 +103,7 @@ private:
     std::atomic<bool> stripPanic { false };                            // a note off did not fit in the FIFO: release everything
     void pushStrip(StripEvent e);
     std::atomic<int> wantedLatency { 0 };
+    int appliedEngineWord = -1;                                                     // audio thread
     int reportedLatency = 0;
     static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout();
     std::array<juce::RangedAudioParameter*, jpurrr::kNumParams> hostParams {};

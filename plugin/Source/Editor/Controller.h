@@ -16,6 +16,11 @@ struct Settings {                       // saved with the plugin settings, not w
     // Export dialog: the last choices. exportFormat "json" | "8080" | "8000"; exportDestination "edit" (edit buffer) or a user slot "A11".."B88"
     juce::String exportFormat { "json" }, exportDestination { "edit" };
     int exportDevice = 17;                                          // Device ID as the synth shows it, 17 to 32
+    // Sound engine (gear menu, v3.9): plugin settings, not saved with sounds. Defaults keep every sound exactly as it was.
+    int engineStyle = 0;                                            // 0 Classic (raw Super Saw like the original), 1 Clean
+    int engineAa = 0;                                               // 0 Standard (2 point), 1 High (4 point)
+    int engineOs = 0;                                               // oversampling: 0 Auto, 1, 2 or 4
+    static bool validEngineOs(int v) { return v == 0 || v == 1 || v == 2 || v == 4; }
     static inline bool noSave = false;                              // test tools: never write settings.json
     static Settings& get();
     void load(); void save() const;
