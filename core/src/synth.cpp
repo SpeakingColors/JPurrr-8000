@@ -55,6 +55,7 @@ const double kArpStep[6] = { 1.0, 2.0 / 3.0, 0.5, 1.0 / 3.0, 0.25, 0.125 };   //
 
 struct Synth::Impl {
     double sr = 48000.0; int maxBlock = 512; int osFactor = 2; bool prepared = false;
+    EngineOptions eng;
     Live* live = nullptr;
     std::vector<Voice> voices;
     Part parts[2];
@@ -89,11 +90,22 @@ struct Synth::Impl {
     std::vector<float> tmpL, tmpR;
 
     // ------------------------------------------------------------ setup
+    // AUTO keeps the behaviour from before the option existed: 2x below 80 kHz, else 1x. The original unit's internal rate
+    // is not known (the service notes only show a 67.7376 MHz clock, 1536 x 44.1 kHz).
+    int effectiveOversampling() const {
+        int f = eng.oversampling == 4 ? 4 : eng.oversampling == 2 ? 2 : eng.oversampling == 1 ? 1 : (sr < 80000.0 ? 2 : 1);
+        while (f > 1 && sr * f > 192000.0) f /= 2;
+        return f;
+    }
+    void applyEngine() {
+        osFactor = effectiveOversampling();
+        for (auto& v : voices) v.setEngine(osFactor, eng.style == 0, eng.antiAlias == 1);
+    }
     void prepare(double s, int mb) {
         sr = s; maxBlock = std::max(1, mb);
-        osFactor = sr < 80000.0 ? 2 : 1;                   // the hardware probably ran at 88.2 kHz inside (unverified)
+        osFactor = effectiveOversampling();
         voices.assign(kPool, Voice());
-        for (auto& v : voices) v.init(sr, osFactor);
+        for (auto& v : voices) { v.init(sr, osFactor); v.setEngine(osFactor, eng.style == 0, eng.antiAlias == 1); }
         duckStep = (float) (1.0 / (0.0015 * sr));
         smoothA = 1.f - std::exp(-(float) kControlBlock / (float) (sr * 0.008));
         bendA = 1.f - std::exp(-(float) kControlBlock / (float) (sr * 0.004));
@@ -577,5 +589,14 @@ void Synth::process(float* l, float* r, int n) { impl_->process(l, r, n); }
 int Synth::activeVoices() const { int c = 0; for (const auto& v : impl_->voices) if (v.st != VState::Idle) ++c; return c; }
 int Synth::heldVoices() const { int c = 0; for (const auto& v : impl_->voices) if (v.st == VState::Held) ++c; return c; }
 int Synth::oversampling() const { return impl_->osFactor; }
+void Synth::setEngineOptions(const EngineOptions& o) {
+    EngineOptions c;
+    c.style = o.style == 1 ? 1 : 0; c.antiAlias = o.antiAlias == 1 ? 1 : 0;
+    c.oversampling = (o.oversampling == 1 || o.oversampling == 2 || o.oversampling == 4) ? o.oversampling : 0;
+    if (c == impl_->eng) return;
+    impl_->eng = c;
+    if (impl_->prepared) impl_->applyEngine();
+}
+EngineOptions Synth::engineOptions() const { return impl_->eng; }
 
 }  // namespace jpurrr

@@ -93,9 +93,20 @@ void Voice::init(double hostSr, int osFac) {
     reset();
 }
 
+void Voice::setEngine(int osFac, bool rawSuperSaw, bool highAA_) {
+    const bool rateChanged = osFac != osFactor;
+    osFactor = osFac; osr = sr * osFac; rawSS = rawSuperSaw; highAA = highAA_;
+    bo1.hi = bo2.hi = highAA_;
+    for (auto& b : bs) b.hi = highAA_;
+    dec.reset(); dec2.reset(); bo1.reset(); bo2.reset();
+    for (auto& b : bs) b.reset();
+    if (rateChanged) needSnap = true;            // the phase increments depend on the oscillator rate
+}
+
 void Voice::reset() {
     st = VState::Idle; sustained = false; solo = false;
-    aenv.kill(); fenv.kill(); filt.reset(); dec.reset(); bo1.reset(); bo2.reset();
+    aenv.kill(); fenv.kill(); filt.reset(); dec.reset(); dec2.reset(); bo1.reset(); bo2.reset();
+    for (auto& b : bs) b.reset();
     lastY2 = fbState = fbOut = ssHp = 0.f; nz1[0] = nz1[1] = nz2[0] = nz2[1] = 0.f;
     declick = 0.f; fadeG = 1.f; ampG = dAmpG = 0.f;
 }
@@ -107,7 +118,8 @@ void Voice::start(const PatchParams& P, int partIdx, int ch_, int note_, int vel
     rng.seed(seed);
     tgtSemis = note_;
     noteSemis = glideFrom ? fromSemis : (double) note_;
-    filt.reset(); dec.reset(); bo1.reset(); bo2.reset();
+    filt.reset(); dec.reset(); dec2.reset(); bo1.reset(); bo2.reset();
+    for (auto& b : bs) b.reset();
     lastY2 = fbState = fbOut = ssHp = 0.f; nz1[0] = nz1[1] = nz2[0] = nz2[1] = 0.f;
     aenv.setTimes(sr, P.aA, P.aD, P.aS, P.aR); fenv.setTimes(sr, P.fA, P.fD, P.fS, P.fR);
     aenv.gate(false); fenv.gate(false);
@@ -340,11 +352,23 @@ inline float Voice::oscStep() {
     switch (kind1) {
         case 0: {
             float sum = 0.f;
-            for (int k = 0; k < 7; ++k) {
-                double p = phSaw[k] + incSaw[k];
-                if (p >= 1.0) { p -= 1.0; if (k == 3) { mWrap = true; mT = (float) (p / incSaw[3]); } }
-                phSaw[k] = p;
-                sum += ssGain[k] * (float) (2.0 * p - 1.0);
+            if (rawSS) {                       // CLASSIC: raw saws, no anti-aliasing (the original unit has none; Szabo 2010)
+                for (int k = 0; k < 7; ++k) {
+                    double p = phSaw[k] + incSaw[k];
+                    if (p >= 1.0) { p -= 1.0; if (k == 3) { mWrap = true; mT = (float) (p / incSaw[3]); } }
+                    phSaw[k] = p;
+                    sum += ssGain[k] * (float) (2.0 * p - 1.0);
+                }
+            } else {                           // CLEAN: every saw gets its steps corrected
+                for (int k = 0; k < 7; ++k) {
+                    double p = phSaw[k] + incSaw[k];
+                    bool wr = false;
+                    if (p >= 1.0) { p -= 1.0; wr = true; if (k == 3) { mWrap = true; mT = (float) (p / incSaw[3]); } }
+                    phSaw[k] = p;
+                    float v = ssGain[k] * (float) (2.0 * p - 1.0);
+                    if (wr) bs[k].step(-2.f * ssGain[k], (float) (p / incSaw[k]), v);
+                    sum += bs[k].push(v);
+                }
             }
             ssHp += ssHpA * (sum - ssHp);
             y1 = sum - ssHp;
@@ -403,7 +427,11 @@ void Voice::render(int n, float* L, float* R) {
         const float ae = aenv.tick();
         fenv.tick();
         float x;
-        if (osFactor == 2) { const float a = oscStep(); const float b = oscStep(); x = dec.push(a, b, h); }
+        if (osFactor == 4) {
+            const float a = oscStep(), b = oscStep(), c = oscStep(), d = oscStep();
+            const float s0 = dec2.push(a, b, h), s1 = dec2.push(c, d, h);
+            x = dec.push(s0, s1, h);
+        } else if (osFactor == 2) { const float a = oscStep(); const float b = oscStep(); x = dec.push(a, b, h); }
         else x = oscStep();
         // Tiny noise seed so a fully resonant filter starts to ring on its own (about -112 dBFS).
         float y = filt.process(x + 2.5e-6f * rng.bi(), g, kf, ftype, p24);

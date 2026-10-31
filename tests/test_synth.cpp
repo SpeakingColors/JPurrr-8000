@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <ctime>
 #include <cmath>
+#include <complex>
 #include <cstdint>
 #include <cstring>
 #include <random>
@@ -634,4 +635,93 @@ TEST(synth_manual_split_arpeggiates_only_the_lower_part) {
         CHECK(live.arpSteps.load() > 4);
         CHECK(rig.s.heldVoices() >= 2);                                         // the other part holds the key at once
     }
+}
+
+// ================================================================ engine options (gear menu)
+namespace {
+void fftInPlace(std::vector<std::complex<double>>& a) {
+    const size_t n = a.size();
+    for (size_t i = 1, j = 0; i < n; ++i) { size_t bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) std::swap(a[i], a[j]); }
+    for (size_t len = 2; len <= n; len <<= 1) {
+        const double ang = -2.0 * 3.14159265358979323846 / (double) len; const std::complex<double> wl(std::cos(ang), std::sin(ang));
+        for (size_t i = 0; i < n; i += len) { std::complex<double> w(1); for (size_t k = 0; k < len / 2; ++k) { auto u = a[i + k], t = a[i + k + len / 2] * w; a[i + k] = u + t; a[i + k + len / 2] = u - t; w *= wl; } }
+    }
+}
+// Super Saw without detune plays one harmonic series. The strongest partial that is NOT on that series, against the fundamental, in dB,
+// below maxHz. `n_` selects the note, `opt` the engine options.
+double superSawAliasDb(const EngineOptions& opt, double sr, int note, double maxHz, float* peakOut = nullptr) {
+    Rig rig(sr, 0);
+    rig.set(P_o1w, 0); rig.set(P_o1c1, 0); rig.set(P_o1c2, 127); rig.set(P_ob, -64);
+    rig.set(P_fc, 127); rig.set(P_fr, 0); rig.set(P_fe, 0); rig.set(P_ol, 0);
+    rig.s.setEngineOptions(opt);
+    rig.s.noteOn(0, note, 100);
+    std::vector<float> o; const float pk = rig.run(16000 + 32768, &o);
+    if (peakOut) *peakOut = pk;
+    const size_t n = 32768, start = 16000;
+    std::vector<std::complex<double>> a(n);
+    for (size_t i = 0; i < n; ++i) {
+        const double t = 2 * 3.14159265358979323846 * (double) i / (double) n;
+        const double w = 0.35875 - 0.48829 * std::cos(t) + 0.14128 * std::cos(2 * t) - 0.01168 * std::cos(3 * t);
+        a[i] = o[start + i] * w;
+    }
+    fftInPlace(a);
+    const double f0 = 440.0 * std::pow(2.0, (note - 69) / 12.0), bin = sr / (double) n;
+    double fund = 0, worst = 0;
+    for (size_t k = 1; k < n / 2; ++k) {
+        const double f = (double) k * bin, m = std::abs(a[k]);
+        if (f > maxHz) break;
+        bool harm = false; for (int h = 1; h * f0 < maxHz + f0; ++h) if (std::fabs(f - h * f0) < 12 * bin) harm = true;
+        if (std::fabs(f - f0) < 4 * bin) fund = std::max(fund, m);
+        if (!harm && f > 0.8 * f0) worst = std::max(worst, m);
+    }
+    return 20 * std::log10(worst / fund + 1e-12);
+}
+}  // namespace
+
+TEST(synth_engine_default_options_are_unchanged) {
+    EngineOptions d; CHECK(d.style == 0 && d.antiAlias == 0 && d.oversampling == 0);
+    Rig a(44100.0, 5), b(44100.0, 5);
+    b.s.setEngineOptions(d);
+    CHECK(a.s.oversampling() == 2 && b.s.oversampling() == 2);
+    Rig c(96000.0, 5); CHECK(c.s.oversampling() == 1);
+    std::vector<float> x, y;
+    a.s.noteOn(0, 60, 100); a.run(4000, &x); b.s.noteOn(0, 60, 100); b.run(4000, &y);
+    CHECK(x.size() == y.size() && std::memcmp(x.data(), y.data(), x.size() * sizeof(float)) == 0);
+}
+
+TEST(synth_engine_oversampling_factors) {
+    for (double sr : { 44100.0, 48000.0, 96000.0, 192000.0 }) {
+        Rig r(sr, 5);
+        const int want[5][2] = { { 0, sr < 80000.0 ? 2 : 1 }, { 1, 1 }, { 2, sr * 2 > 192000.0 ? 1 : 2 }, { 4, sr * 4 <= 192000.0 ? 4 : sr * 2 <= 192000.0 ? 2 : 1 }, { 3, sr < 80000.0 ? 2 : 1 } };
+        for (auto& w : want) { EngineOptions o; o.oversampling = w[0]; r.s.setEngineOptions(o); CHECK(r.s.oversampling() == w[1]); }
+        EngineOptions bad; bad.style = 7; bad.antiAlias = -3; bad.oversampling = 9; r.s.setEngineOptions(bad);
+        const EngineOptions g = r.s.engineOptions(); CHECK(g.style == 0 && g.antiAlias == 0 && g.oversampling == 0);
+    }
+}
+
+TEST(synth_engine_options_sound_finite_and_switchable_while_playing) {
+    Rig rig(44100.0, 5); std::mt19937 rng(3);
+    rig.s.noteOn(0, 55, 100); rig.s.noteOn(0, 67, 100); rig.s.noteOn(0, 74, 100);
+    std::vector<float> o;
+    for (int i = 0; i < 40; ++i) {
+        EngineOptions e; e.style = (int) (rng() % 2); e.antiAlias = (int) (rng() % 2); e.oversampling = (int) (rng() % 5);
+        if (e.oversampling == 3) e.oversampling = 4;
+        rig.s.setEngineOptions(e); rig.run(700, &o);
+    }
+    CHECK(finiteBounded(o, 2.0f));
+}
+
+TEST(synth_engine_aliasing_options) {
+    const double sr = 44100.0; const int note = 100;     // 2637 Hz: partials above 8 kHz fold back
+    auto db = [&](int style, int aa, int os) { EngineOptions e; e.style = style; e.antiAlias = aa; e.oversampling = os; return superSawAliasDb(e, sr, note, 0.41 * sr); };
+    const double c1 = db(0, 0, 1), c2 = db(0, 0, 2), c4 = db(0, 0, 4), k1 = db(1, 0, 1), h1 = db(1, 1, 1), k2 = db(1, 0, 2), h2 = db(1, 1, 2), h4 = db(1, 1, 4);
+    std::printf("    Super Saw alias level (dB below the fundamental), note %d at %.0f Hz\n", note, sr);
+    std::printf("      classic 1x %.1f   classic 2x %.1f   classic 4x %.1f\n", c1, c2, c4);
+    std::printf("      clean std 1x %.1f   clean high 1x %.1f   clean std 2x %.1f   clean high 2x %.1f   clean high 4x %.1f\n", k1, h1, k2, h2, h4);
+    CHECK(c2 < c1 - 3.0);          // oversampling helps the raw saws
+    CHECK(c4 < c2 - 3.0);
+    CHECK(k1 < c1 - 10.0);         // anti-aliased saws are far cleaner than raw saws at the same rate
+    CHECK(h1 < k1 - 3.0);          // the 4 point correction is cleaner than the 2 point one
+    CHECK(h2 < k2);
+    CHECK(h4 < k1 - 10.0);         // 4x does not get worse in a way that matters (the measurement floor is about -50 dB)
 }

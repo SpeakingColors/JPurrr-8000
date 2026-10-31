@@ -81,6 +81,10 @@ struct Voice {
     const dsp::HalfbandCoefs* hc = nullptr;
     void init(double hostSr, int osFac);
     void reset();
+    // Engine options (see EngineOptions in synth.h). Safe between blocks: resets the decimators and snaps the increments.
+    void setEngine(int osFac, bool rawSuperSaw, bool highAA);
+    bool rawSS = true;            // Super Saw without anti-aliasing (the original unit has none)
+    bool highAA = false;
 
     // events
     void start(const PatchParams& P, int partIdx, int ch_, int note_, int vel_, uint32_t age_, uint32_t seed,
@@ -104,7 +108,8 @@ struct Voice {
     // oscillators (phases in 0..1)
     double phSaw[7] = {}, ph1 = 0.0, ph2 = 0.0;
     double incSaw[7] = {}, dSaw[7] = {}, inc1 = 0.0, d1 = 0.0, inc2 = 0.0, d2 = 0.0;
-    dsp::BlepOut bo1, bo2;
+    dsp::BlepOut bo1, bo2, bs[7];   // bs: the seven Super Saw oscillators in CLEAN style
+    dsp::Decimator2 dec2;           // first stage of the 4x oversampling (the second stage is dec)
     float lastY2 = 0.f, fbState = 0.f, fbOut = 0.f, ssHp = 0.f;
     float nz1[2] = {}, nz2[2] = {};            // noise filter states (osc 1, osc 2)
     dsp::Rng rng;

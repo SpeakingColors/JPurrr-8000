@@ -60,16 +60,34 @@ struct Rng {
 inline float blepAfter(float t) { return 2.f * t - t * t - 1.f; }
 inline float blepBefore(float t) { return t * t; }
 
-// One sample delayed output so a step found in this sample can also correct the previous one.
+// Corrects steps in the output of an oscillator. Two orders (engine option ANTI-ALIASING):
+//  standard: the 2 point polynomial above, output delayed by 1 sample.
+//  high: the step is smoothed by a cubic B-spline (4 samples wide), output delayed by 2 samples. The residual for a step of
+//  height 1 that happened t samples ago (0 <= t < 1), at the samples n+1, n, n-1, n-2 (n = the current one), is
+//     n+1: -(1-t)^4/24     n: 2t/3 - t^3/3 + t^4/8 - 1/2     n-1: 2u/3 - u^3/3 - u^4/8 + 1/2 (u = t-1)     n-2: t^4/24
+//  The kernel falls off faster (sinc^4 against sinc^2): less aliasing in the top octave, a slightly softer top end.
 struct BlepOut {
-    float prev = 0.f;
-    // Adds a step of height j that happened tfrac samples before the end of the current sample interval start.
+    float p1 = 0.f, p2 = 0.f, pend = 0.f, fut = 0.f;
+    bool hi = false;
+    // Adds a step of height j that happened tfrac samples before the current sample.
     inline void step(float j, float tfrac, float& cur) {
-        prev += j * 0.5f * blepBefore(tfrac);
-        cur += j * 0.5f * blepAfter(tfrac);
+        if (!hi) {
+            p1 += j * 0.5f * blepBefore(tfrac);
+            cur += j * 0.5f * blepAfter(tfrac);
+            return;
+        }
+        const float t = tfrac, t2 = t * t, t3 = t2 * t, t4 = t2 * t2, u = t - 1.f, u2 = u * u, u3 = u2 * u, u4 = u2 * u2, w = 1.f - t, w2 = w * w;
+        fut += j * (-(w2 * w2) * (1.f / 24.f));
+        cur += j * (t * (2.f / 3.f) - t3 * (1.f / 3.f) + t4 * 0.125f - 0.5f);
+        p1 += j * (u * (2.f / 3.f) - u3 * (1.f / 3.f) - u4 * 0.125f + 0.5f);
+        p2 += j * (t4 * (1.f / 24.f));
     }
-    inline float push(float cur) { const float o = prev; prev = cur; return o; }
-    void reset() { prev = 0.f; }
+    inline float push(float cur) {
+        if (!hi) { const float o = p1; p1 = cur; return o; }
+        cur += pend; pend = fut; fut = 0.f;
+        const float o = p2; p2 = p1; p1 = cur; return o;
+    }
+    void reset() { p1 = p2 = pend = fut = 0.f; }
 };
 
 // ---------- half band decimator, 2:1 ----------
