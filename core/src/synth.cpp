@@ -484,13 +484,14 @@ struct Synth::Impl {
             L[i] = softLimit(l); R[i] = softLimit(r);
         }
     }
+    const float* extIn = nullptr;                 // external input of the block being processed (EXT on OSC 2)
     void renderChunk(float* L, float* R, int m) {
         std::memset(L, 0, sizeof(float) * (size_t) m); std::memset(R, 0, sizeof(float) * (size_t) m);
         int done = 0;
         while (done < m) {
             if (cbPos == 0) controlBlock();
             const int k = std::min(m - done, kControlBlock - cbPos);
-            for (auto& v : voices) if (v.st != VState::Idle) v.render(k, L + done, R + done);
+            for (auto& v : voices) if (v.st != VState::Idle) v.render(k, L + done, R + done, extIn != nullptr ? extIn + done : nullptr);
             masterStage(L + done, R + done, k);
             if (playing) beatPos += k * bpm() / 60.0 / sr;
             cbPos += k; if (cbPos >= kControlBlock) cbPos = 0;
@@ -513,8 +514,10 @@ struct Synth::Impl {
             renderChunk(L, R, m);
             arpAdvance(m);
             L += m; R += m; n -= m;
+            if (extIn != nullptr) extIn += m;
         }
         arpFire();
+        extIn = nullptr;                          // the pointer is only good for this block
         if (live) {
             int act = 0; for (const auto& v : voices) if (v.st != VState::Idle) ++act;
             live->activeVoices.store(act, std::memory_order_relaxed);
@@ -586,6 +589,7 @@ void Synth::setTransport(bool playing, double ppq) {
 }
 void Synth::setLive(Live* l) { impl_->live = l; }
 void Synth::process(float* l, float* r, int n) { impl_->process(l, r, n); }
+void Synth::setExternalInput(const float* m) { impl_->extIn = m; }
 int Synth::activeVoices() const { int c = 0; for (const auto& v : impl_->voices) if (v.st != VState::Idle) ++c; return c; }
 int Synth::heldVoices() const { int c = 0; for (const auto& v : impl_->voices) if (v.st == VState::Held) ++c; return c; }
 int Synth::oversampling() const { return impl_->osFactor; }

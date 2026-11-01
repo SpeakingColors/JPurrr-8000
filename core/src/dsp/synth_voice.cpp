@@ -56,6 +56,7 @@ void PatchParams::derive(const int* v, float partDetuneCents) {
     if (o2w == 4 && !v[P_o2ss]) o2w = 1;             // SUPER SAW on OSC 2 only with the EXTRA switch on, else SAW (mockup rule)
     od = v[P_od]; ft = v[P_ft]; f24 = v[P_f24] != 0; ap = v[P_ap];
     ring = v[P_ring] != 0; sync = v[P_sync] != 0 && o2w != 3 && o2w != 4;   // no hard sync onto NOISE or the 7 saw stack
+    o2ext = v[P_o2ext] != 0;                                                // EXT: OSC 2 plays the external input instead of its wave
     mono = v[P_mono] != 0; leg = v[P_leg] != 0; uni = v[P_uni] != 0; porta = v[P_pon] != 0;
     // FEEDBACK OSC is mono only and cannot be used with unison (mockup rule).
     if (o1w == 3) { uni = false; if (!leg) mono = true; }
@@ -204,7 +205,7 @@ void Voice::control(const PatchParams& P, const BlockCtl& C, bool snap) {
         if (snap) { cur = target; d = 0.0; } else d = (target - cur) / kControlBlock;
     };
 
-    kind1 = P.o1w; kind2 = P.o2w;
+    kind1 = P.o1w; kind2 = P.o2ext ? 8 : P.o2w;                             // 8: the external input is the OSC 2 source
     const float c11 = P.s[PatchParams::S_o1c1], c12 = P.s[PatchParams::S_o1c2];
     const float c21 = P.s[PatchParams::S_o2c1], c22 = P.s[PatchParams::S_o2c2];
 
@@ -416,6 +417,7 @@ inline float Voice::oscStep() {
     if (mix2 > 0.f || ringOn || xmodOct != 0.f) {
         bool w2; float t2;
         switch (kind2) {
+            case 8: y2 = extCur; break;          // EXT: the external input, through the same balance, ring, filter and envelopes
             case 4: {
                 float sum = 0.f;
                 if (rawSS) {                   // CLASSIC: raw saws, like the OSC 1 stack
@@ -459,13 +461,14 @@ inline float Voice::oscStep() {
     return mix1 * y1 + mix2 * y2;
 }
 
-void Voice::render(int n, float* L, float* R) {
+void Voice::render(int n, float* L, float* R, const float* ext) {
     const HalfbandCoefs& h = *hc;
     for (int i = 0; i < n; ++i) {
         for (int k = 0; k < 7; ++k) { incSaw[k] += dSaw[k]; incSaw2[k] += dSaw2[k]; }
         inc1 += d1; inc2 += d2; g += dg; kf += dkf; ampG += dAmpG; pl += dpl; pr += dpr;
         const float ae = aenv.tick();
         fenv.tick();
+        extCur = ext != nullptr ? ext[i] : 0.f;    // held for every oversampled step of this host sample
         float x;
         if (osFactor == 4) {
             const float a = oscStep(), b = oscStep(), c = oscStep(), d = oscStep();

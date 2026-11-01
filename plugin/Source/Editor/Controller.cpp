@@ -24,12 +24,15 @@ void Settings::load() {
     engineStyle = (int) j.getProperty("engineStyle", 0); if (engineStyle != 0 && engineStyle != 1) engineStyle = 0;
     engineAa = (int) j.getProperty("engineAa", 0); if (engineAa != 0 && engineAa != 1) engineAa = 0;
     engineOs = (int) j.getProperty("engineOs", 0); if (!validEngineOs(engineOs)) engineOs = 0;
+    extIn = (int) j.getProperty("extIn", 0); if (extIn != 0 && extIn != 1) extIn = 0;
+    extGain = (int) j.getProperty("extGain", 0); extGain = juce::jlimit(-24, 24, extGain);
 }
 void Settings::save() const {
     if (noSave) return;
     auto* o = new juce::DynamicObject(); o->setProperty("bubbles", bubbles); o->setProperty("power", power); o->setProperty("look", look);
     o->setProperty("exportFormat", exportFormat); o->setProperty("exportDevice", exportDevice); o->setProperty("exportDestination", exportDestination);
     o->setProperty("engineStyle", engineStyle); o->setProperty("engineAa", engineAa); o->setProperty("engineOs", engineOs);
+    o->setProperty("extIn", extIn); o->setProperty("extGain", extGain);
     auto f = settingsFile(); f.getParentDirectory().createDirectory(); f.replaceWithText(juce::JSON::toString(juce::var(o)));
 }
 

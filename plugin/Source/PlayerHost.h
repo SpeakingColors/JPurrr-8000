@@ -3,6 +3,7 @@
 #include <atomic>
 #include <memory>
 #include "jpurrr/player.h"
+#include "jpurrr/melody_gen.h"
 
 // The built-in MIDI player seen from the plugin: the message thread (editor) sets what to play, the audio thread asks for the note events of each block.
 // A piece is a library piece (tables compiled into the core) or one MIDI file the user loaded (copied into one of two fixed buffers, so the audio
@@ -20,6 +21,17 @@ public:
     double pieceBpm() const;                                         // the tempo the piece itself asks for
     jpurrr::PlayView view() const;                                   // the notes of the piece, for the display (message thread)
     // up to two files of your own are kept, in the order they were loaded (oldest first); choosing one makes it the piece
+    // generated melodies (the GEN panel): the last kGenMax stay in the piece list under "Generated melodies"
+    static constexpr int kGenMax = 8;
+    int addGenerated(const jpurrr::MelodyGenResult& g);              // message thread; returns the slot, or -1 when it could not be kept
+    int genCount() const;
+    int genSlotAt(int k) const;                                      // slot of the k-th generated piece (oldest first), or -1
+    juce::String genName(int slot) const { return gens[slot].name; }
+    double genBpm(int slot) const { return gens[slot].bpm; }
+    bool genSelected(int slot) const { return selRaw.load() == -10 - slot; }
+    bool genLoaded() const { return selRaw.load() <= -10; }
+    const jpurrr::MelodyGenResult* genInfo(int slot) const { return genMeta[slot].get(); }
+    void selectGen(int slot);
     int userCount() const;
     int userSlotAt(int k) const;                                     // slot (0 or 1) of the k-th file, or -1
     juce::String userName(int slot) const { return slots[slot].name; }
@@ -46,8 +58,10 @@ public:
 private:
     struct Slot { std::unique_ptr<jpurrr::PlayEvent[]> ev; int n = 0; double beats = 4.0; double bpm = 120.0; juce::String name; int seq = 0; };   // name, bpm, seq: message thread only
     Slot slots[2];
+    Slot gens[kGenMax];
+    std::unique_ptr<jpurrr::MelodyGenResult> genMeta[kGenMax];       // message thread only (for the GEN panel info line)
     int seqNow = 0;                                                  // message thread: counts the loads
-    std::atomic<int> selRaw { -1 };                                  // >= 0 library index, -1 none, -2 / -3 = user slot 0 / 1
+    std::atomic<int> selRaw { -1 };                                  // >= 0 library index, -1 none, -2 / -3 = user slot 0 / 1, -10 - g = generated slot g
     std::atomic<int> selLib { -1 };
     std::atomic<int> gen { 0 }, ack { 0 };
     std::atomic<bool> playing { false }, lock { false };

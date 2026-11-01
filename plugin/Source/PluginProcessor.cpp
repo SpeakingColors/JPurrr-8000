@@ -47,7 +47,9 @@ void JPurrr8000AudioProcessor::loadEngineFromSettings() {
 }
 
 JPurrr8000AudioProcessor::JPurrr8000AudioProcessor()
-    : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+    : AudioProcessor(BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), false)
+                         .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+                         .withInput("Sidechain", juce::AudioChannelSet::stereo(), false)),
       apvts(*this, nullptr, "JPURRR", makeLayout()) {
     for (int i = 0; i < kNumParams; ++i) {
         uiVal[(size_t) i].store(kParams[i].def);
@@ -55,6 +57,7 @@ JPurrr8000AudioProcessor::JPurrr8000AudioProcessor()
     }
     synth.setLive(&live); fx.setLive(&live);
     loadEngineFromSettings(); appliedEngineWord = engineWord().load(); synth.setEngineOptions(unpackEngine(appliedEngineWord));
+    { const auto& s = jp::Settings::get(); setExtInput(s.extIn, s.extGain); }
     presetName = presets.cur.name;
     initParts();
     hostParams[(size_t) P_km]->addListener(this); hostParams[(size_t) P_ps]->addListener(this);
@@ -116,12 +119,18 @@ void JPurrr8000AudioProcessor::mirrorPartValue(int idx, int value) {
 void JPurrr8000AudioProcessor::markPartDirty(int part) { if (part == editPart()) presets.cur.dirty = true; else partMetas[juce::jlimit(0, 1, part)].dirty = true; }
 
 bool JPurrr8000AudioProcessor::isBusesLayoutSupported(const BusesLayout& l) const {
-    return l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
+    if (l.getMainOutputChannelSet() != juce::AudioChannelSet::stereo()) return false;
+    for (int b = 0; b < l.inputBuses.size(); ++b) {                 // each input (main or sidechain): off, mono or stereo
+        const auto& c = l.inputBuses.getReference(b);
+        if (!(c.isDisabled() || c == juce::AudioChannelSet::mono() || c == juce::AudioChannelSet::stereo())) return false;
+    }
+    return true;
 }
 
 void JPurrr8000AudioProcessor::prepareToPlay(double sampleRate, int block) {
     sr = sampleRate; jpurrr::midiMapInit();
     synth.prepare(sampleRate, block); soundFx.prepare(sampleRate, block); fx.prepare(sampleRate, block);
+    extBuf.setSize(1, juce::jmax(16, block));
     int vals[kNumParams]; getAll(vals); fx.setParams(vals);
     reportedLatency = synth.latencySamples() + soundFx.latencySamples() + fx.latencySamples();
     wantedLatency.store(reportedLatency);
@@ -180,7 +189,32 @@ void JPurrr8000AudioProcessor::processBlock(juce::AudioBuffer<float>& buf, juce:
         synth.setTempo(bpm); soundFx.setTempo(bpm); fx.setTempo(bpm);
         synth.setTransport(playing, ppq); fx.setTransport(playing, ppq);
     }
-    float* l = buf.getWritePointer(0); float* r = buf.getNumChannels() > 1 ? buf.getWritePointer(1) : l;
+    // external input for the EXT switch on OSC 2: copied (and trimmed) before the synth overwrites the buffer
+    {
+        const int w = extWord.load(std::memory_order_relaxed);
+        const float g = juce::Decibels::decibelsToGain((float) (std::int8_t) (w & 255));
+        const int busIdx = ((w >> 8) & 1) ? 0 : 1;                  // 0 the main input, 1 the sidechain
+        const float* inL = nullptr; const float* inR = nullptr;
+        if (busIdx < getBusCount(true)) if (auto* bus = getBus(true, busIdx); bus != nullptr && bus->isEnabled()) {
+            auto bb = getBusBuffer(buf, true, busIdx);
+            if (bb.getNumChannels() > 0) { inL = bb.getReadPointer(0); inR = bb.getNumChannels() > 1 ? bb.getReadPointer(1) : inL; }
+        }
+        float pkL = 0.f, pkR = 0.f;
+        if (inL != nullptr && extBuf.getNumSamples() >= n) {
+            float* m = extBuf.getWritePointer(0);
+            for (int i = 0; i < n; ++i) {
+                const float a = inL[i] * g, b = inR[i] * g;
+                pkL = juce::jmax(pkL, std::fabs(a)); pkR = juce::jmax(pkR, std::fabs(b));
+                m[i] = 0.5f * (a + b);
+            }
+            synth.setExternalInput(m);
+        }
+        const float fall = (float) std::pow(10.0, -1.5 * n / sr);   // the panel meter falls at about 30 dB a second
+        extMeterL.store(juce::jmax(pkL, extMeterL.load(std::memory_order_relaxed) * fall), std::memory_order_relaxed);
+        extMeterR.store(juce::jmax(pkR, extMeterR.load(std::memory_order_relaxed) * fall), std::memory_order_relaxed);
+    }
+    auto outBus = getBusBuffer(buf, false, 0);
+    float* l = outBus.getWritePointer(0); float* r = outBus.getNumChannels() > 1 ? outBus.getWritePointer(1) : l;
     int done = 0;
     auto renderTo = [&](int end) {
         if (end > done) {

@@ -21,6 +21,9 @@ struct Settings {                       // saved with the plugin settings, not w
     int engineAa = 0;                                               // 0 Standard (2 point), 1 High (4 point)
     int engineOs = 0;                                               // oversampling: 0 Auto, 1, 2 or 4
     static bool validEngineOs(int v) { return v == 0 || v == 1 || v == 2 || v == 4; }
+    // External input (EXT IN panel, v3.11): where the audio comes from and its level. Plugin settings, not saved with sounds.
+    int extIn = 0;                                                  // 0 the sidechain input (the DAW picks the track), 1 the main input
+    int extGain = 0;                                                // level trim in dB, -24 to +24
     static inline bool noSave = false;                              // test tools: never write settings.json
     static Settings& get();
     void load(); void save() const;

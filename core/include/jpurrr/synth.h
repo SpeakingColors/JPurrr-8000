@@ -44,6 +44,9 @@ public:
     void setTempo(double bpm);
     void setTransport(bool playing, double ppqPosition);
     void setLive(Live* live);                      // optional readouts for the editor, may stay null
+    // External input for the EXT switch on OSC 2: a mono buffer the NEXT process(n) reads (n samples, level already set by the
+    // caller). The pointer is forgotten after that call, so set it before every block; null means no input.
+    void setExternalInput(const float* mono);
     void process(float* left, float* right, int n); // overwrites the buffers
     int latencySamples() const { return 0; }       // the oscillator decimator delays every voice by about 0.5 ms; not reported
     // Introspection for tests and the editor.

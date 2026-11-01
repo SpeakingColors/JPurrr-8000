@@ -75,6 +75,13 @@ public:
 
     PlayerHost midiPlayer;                           // the built-in MIDI player (editor controls it, the audio thread plays it)
 
+    // --- external input (the EXT switch on OSC 2). Source and level are plugin settings (the EXT IN panel sets them); the audio
+    // thread reads them as one packed word. The meters show the audio arriving after LEVEL, for the panel. ---
+    void setExtInput(int source, int gainDb) { extWord.store(((source != 0 ? 1 : 0) << 8) | (juce::jlimit(-24, 24, gainDb) & 255)); }
+    int extSource() const { return (extWord.load() >> 8) & 1; }
+    int extGainDb() const { return (int) (std::int8_t) (extWord.load() & 255); }
+    std::atomic<float> extMeterL { 0.f }, extMeterR { 0.f };
+
     juce::AudioProcessorValueTreeState apvts;
     PresetManager presets;                           // factory + user sounds and the current sound (message thread)
     jpurrr::Live live;                               // readouts for the editor displays (audio thread writes)
@@ -103,6 +110,8 @@ private:
     std::atomic<bool> stripPanic { false };                            // a note off did not fit in the FIFO: release everything
     void pushStrip(StripEvent e);
     std::atomic<int> wantedLatency { 0 };
+    std::atomic<int> extWord { 0 };
+    juce::AudioBuffer<float> extBuf;                                                // mono external input of the block (audio thread)
     int appliedEngineWord = -1;                                                     // audio thread
     int reportedLatency = 0;
     static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout();

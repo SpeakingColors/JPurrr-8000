@@ -33,7 +33,7 @@ struct PatchParams {
     };
     float s[S_count] = {};
     int o1w = 0, o2w = 0, od = 0, ft = 2, ap = 0, l1w = 0, pgSel = 0;
-    bool f24 = true, ring = false, sync = false, mono = false, leg = false, uni = false, porta = false;
+    bool f24 = true, ring = false, sync = false, mono = false, leg = false, uni = false, porta = false, o2ext = false;
     bool velMorph = false, analogEnv = false, l1sync = false;
     float aA = 0.002f, aD = 0.1f, aS = 0.8f, aR = 0.1f;       // seconds / level
     float fA = 0.002f, fD = 0.1f, fS = 0.5f, fR = 0.1f;
@@ -47,8 +47,8 @@ struct PatchParams {
     void derive(const int* v, float partDetuneCents);
     // Fields that rebuild the signal path (waves, filter type and slope, ring, sync, pan mode, LFO wave): changing them
     // while notes sound would click, so the engine ducks the output around the change. (o2w has 3 bits since the OSC 2 SUPER SAW extra.)
-    int structKey() const { return o1w | (o2w << 3) | (od << 6) | (ft << 8) | (ap << 10) | (l1w << 12) | ((f24 ? 1 : 0) << 14) | ((ring ? 1 : 0) << 15) | ((sync ? 1 : 0) << 16); }
-    void copyStruct(const PatchParams& t) { o1w = t.o1w; o2w = t.o2w; od = t.od; ft = t.ft; ap = t.ap; l1w = t.l1w; f24 = t.f24; ring = t.ring; sync = t.sync; }
+    int structKey() const { return o1w | (o2w << 3) | (od << 6) | (ft << 8) | (ap << 10) | (l1w << 12) | ((f24 ? 1 : 0) << 14) | ((ring ? 1 : 0) << 15) | ((sync ? 1 : 0) << 16) | ((o2ext ? 1 : 0) << 17); }
+    void copyStruct(const PatchParams& t) { o1w = t.o1w; o2w = t.o2w; od = t.od; ft = t.ft; ap = t.ap; l1w = t.l1w; f24 = t.f24; ring = t.ring; sync = t.sync; o2ext = t.o2ext; }
     // Moves s[] toward target.s and copies the other fields (not the structural ones unless applyStruct).
     void smoothToward(const PatchParams& target, float a, bool applyStruct = true);
 };
@@ -97,8 +97,8 @@ struct Voice {
 
     // per control block
     void control(const PatchParams& P, const BlockCtl& C, bool snap);
-    // adds n samples to L and R
-    void render(int n, float* L, float* R);
+    // adds n samples to L and R; ext: the external input (mono, n host samples) for OSC 2's EXT switch, may be null
+    void render(int n, float* L, float* R, const float* ext);
 
     float level() const { return aenv.level; }
 
@@ -125,6 +125,7 @@ struct Voice {
     float ssGain[7] = {}; float ssHpA = 0.f;
     float ss2Gain[7] = {}; float ssHpA2 = 0.f;  // OSC 2 SUPER SAW gains and high pass
     float pw1 = 0.5f, pw2 = 0.5f;
+    float extCur = 0.f;                         // external input sample of the host sample being rendered (EXT on OSC 2)
     float w1Saw = 1.f, w1Tri = 0.f, w1Sin = 0.f, w2Saw = 1.f, w2Tri = 0.f, w2Sin = 0.f;
     float triModA = 0.f, fbBeta = 0.f, fbLp = 0.5f;
     float noiseA1 = 0.f, noiseK1 = 1.f, noiseG1 = 0.5f, noiseA2 = 0.f, noiseK2 = 1.f, noiseG2 = 0.5f, nzG1 = 0.f, nzG2 = 0.f;
