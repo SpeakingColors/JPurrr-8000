@@ -53,7 +53,9 @@ TEST(melody_gen_valid_and_deterministic) {
         CHECK(a.ok);
         if (!a.ok) continue;
         const auto b = melodyGenerate(seed, key, mode, style);
-        CHECK(a.n == b.n && std::memcmp(a.ev, b.ev, sizeof(PlayEvent) * (size_t) a.n) == 0 && std::strcmp(a.name, b.name) == 0);
+        bool same = a.n == b.n && std::strcmp(a.name, b.name) == 0;      // field by field: the structs have padding
+        for (int k = 0; same && k < a.n; ++k) same = a.ev[k].beat == b.ev[k].beat && a.ev[k].len == b.ev[k].len && a.ev[k].note == b.ev[k].note && a.ev[k].vel == b.ev[k].vel;
+        CHECK(same);
         CHECK(a.n >= 14 && a.n <= 136);
         CHECK(a.beats == 32.0);
         CHECK(a.bpm >= 136 && a.bpm <= 140);

@@ -345,6 +345,7 @@ TEST(io_sysex_roundtrip_values) {
     for (int it = 0; it < 300; ++it) {
         Patch a = (it < factoryCount()) ? factoryPatch(it) : randomMappedPatch(rng);
         a.v[P_o2wide] = 0;
+        if (a.v[P_o2w] == 4) a.v[P_o2w] = 1;                 // OSC 2 SUPER SAW is not on the wire: it is written as SAW (own test below)
         auto ex = patchToSysexIndex(a, SysexModel::JP8080, 0x10, it % 128);
         CHECK(ex.ok);
         auto im = sysexToPatches(ex.bytes);

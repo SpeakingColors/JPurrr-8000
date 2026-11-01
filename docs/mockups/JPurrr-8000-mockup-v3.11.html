@@ -561,8 +561,8 @@ HD('sp','Split Point',NOTE128,60);
 HD('adst','Arp Destination (Dual)',['LOWER & UPPER','LOWER','UPPER'],0);
 HD('apt','Arp Beat Pattern',BEATS,4);
 HD('its','Indv Trig Switch',['OFF','ON'],0,'Individual trigger: a MIDI note triggers the envelopes while the sound is played from another source.');
-HD('itd','Indv Trig Dest',['FILTER','AMP','FILTER & AMP'],2);
-HD('itc','Indv Trig Src CH',Array.from({length:16},(_,i)=>''+(i+1)),0);
+HD('itd','Indv Trig Dest',['FILTER','AMP','FILTER & AMP'],0);
+HD('itc','Indv Trig Src CH',Array.from({length:16},(_,i)=>''+(i+1)),14);
 HD('itn','Indv Trig Src Note',NOTE128.concat(['ALL']),128);
 /* VOICE MOD */
 HD('vma','Algorithm',['SOLID','SMOOTH','WIDE','FLT BANK WIDE','FLT BANK NARROW'],0);
