@@ -228,11 +228,20 @@ void SwitchW::mouseUp(const juce::MouseEvent& e) {
 
 // =========================================================================================== options
 OptionsW::OptionsW(Ctx& c, int i, const Opts& oo, juce::Array<const Text*> l) : Ctrl(c), idx(i), o(oo), labels(l) { setMouseCursor(juce::MouseCursor::PointingHandCursor); }
-void OptionsW::refresh() { const int v = x.c.get(idx); if (v != cached) { cached = v; repaint(); } }
+void OptionsW::applyBounds() {
+    const Rect& r = active().r; const int x0 = juce::roundToInt(r.x), y0 = juce::roundToInt(r.y);
+    setBounds(x0, y0, juce::roundToInt(r.x + r.w) - x0, juce::roundToInt(r.y + r.h) - y0);
+}
+void OptionsW::refresh() {
+    const bool a = alt != nullptr && useAlt && useAlt();
+    if (a != altOn) { altOn = a; applyBounds(); hot = -1; repaint(); }
+    const int v = x.c.get(idx); if (v != cached) { cached = v; repaint(); }
+}
 int OptionsW::hit(juce::Point<int> p) const {
-    for (int k = 0; k < o.opts.n; ++k) {
-        const auto& r = o.opts[k].r;
-        if (juce::Rectangle<float>(r.x - o.r.x, r.y - o.r.y, r.w, r.h).contains(p.toFloat())) return k;
+    const Opts& oo = active();
+    for (int k = 0; k < oo.opts.n; ++k) {
+        const auto& r = oo.opts[k].r;
+        if (juce::Rectangle<float>(r.x - oo.r.x, r.y - oo.r.y, r.w, r.h).contains(p.toFloat())) return k;
     }
     return -1;
 }
@@ -240,19 +249,21 @@ void OptionsW::mouseMove(const juce::MouseEvent& e) { const int h = hit(e.getPos
 void OptionsW::mouseDown(const juce::MouseEvent& e) {
     if (e.mods.isPopupMenu()) return;
     const int k = hit(e.getPosition()); if (k < 0) return;
-    x.hideTip(); x.c.begin(idx); x.c.user(idx, o.opts[k].v); x.c.end(idx); refresh();
+    x.hideTip(); x.c.begin(idx); x.c.user(idx, active().opts[k].v); x.c.end(idx); refresh();
 }
 void OptionsW::paint(juce::Graphics& g) {
-    const Look& L = x.L(); const int cur = x.c.get(idx);
-    for (int k = 0; k < o.opts.n; ++k) {
-        const auto& op = o.opts[k];
-        const juce::Rectangle<float> r(op.r.x - o.r.x, op.r.y - o.r.y, op.r.w, op.r.h);
+    const Look& L = x.L(); const int cur = x.c.get(idx); const Opts& oo = active();
+    for (int k = 0; k < oo.opts.n; ++k) {
+        const auto& op = oo.opts[k];
+        const juce::Rectangle<float> r(op.r.x - oo.r.x, op.r.y - oo.r.y, op.r.w, op.r.h);
         if (k == hot) { g.setColour(L[hi]); g.fillRoundedRectangle(r, 2.0f); }
-        drawLed(g, juce::Rectangle<float>(op.led.x - o.r.x, op.led.y - o.r.y, op.led.w, op.led.h), op.v == cur, L);
-        if (k < labels.size() && labels[k] != nullptr) {
-            const Text& t = *labels[k]; const Line& ln = t.lines[0];
-            g.setColour(t.tok >= 0 ? L.c[t.tok] : juce::Colour((juce::uint32) t.col)); g.setFont(fontOf(t.f));
-            drawTextAt(g, ln.t, ln.x - o.r.x, ln.base - o.r.y, 'l');
+        drawLed(g, juce::Rectangle<float>(op.led.x - oo.r.x, op.led.y - oo.r.y, op.led.w, op.led.h), op.v == cur, L);
+        const layout::Text* t = k < labels.size() ? labels[k] : nullptr;
+        if (t == nullptr && altOn && labels.size() > 0) t = labels[0];                    // the fifth row has no caption of its own in the page: same font and colour
+        if (t != nullptr) {
+            const Line& ln = altOn && altLab != nullptr ? altLab[k] : t->lines[0];
+            g.setColour(t->tok >= 0 ? L.c[t->tok] : juce::Colour((juce::uint32) t->col)); g.setFont(fontOf(t->f));
+            drawTextAt(g, ln.t, ln.x - oo.r.x, ln.base - oo.r.y, 'l');
         }
     }
 }
@@ -370,14 +381,43 @@ void LcdW::paint(juce::Graphics& g) {
 
 // =========================================================================================== header buttons
 HBtnW::HBtnW(Ctx& c, const HBtn& bb, const Text* t, float shiftY) : Ctrl(c), b(bb), txt(t), dy(shiftY) { setMouseCursor(juce::MouseCursor::PointingHandCursor); }
-void HBtnW::refresh() { const bool o = isOn && isOn(); if (o != on) { on = o; repaint(); } }
+void HBtnW::refresh() {
+    const bool o = isOn && isOn(), e = !isEnabled || isEnabled(), l = ledOn && ledOn(), bd = accentBorder && accentBorder();
+    if (o != on || e != enabled || l != led || bd != bord) { on = o; enabled = e; led = l; bord = bd; repaint(); }
+}
 void HBtnW::paint(juce::Graphics& g) {
     const Look& L = x.L(); auto r = getLocalBounds().toFloat();
+    if (!enabled) g.beginTransparencyLayer(0.35f);
+    struct EndLayer { juce::Graphics& g; bool on; ~EndLayer() { if (on) g.endTransparencyLayer(); } } endLayer { g, !enabled };
     auto bg = on ? L[acc] : L[btnbg];
-    if (hover && !on) bg = bg.brighter(0.25f);
+    if (hover && !on && enabled) bg = bg.brighter(0.25f);
     g.setColour(bg); g.fillRoundedRectangle(r, 4.0f);
     g.setColour(L[hi]); g.fillRect(juce::Rectangle<float>(1, 1, r.getWidth() - 2, 1));
-    g.setColour(on ? L[acc] : L[btnbd]); g.drawRoundedRectangle(r.reduced(0.5f), 4.0f, 1.0f);
+    g.setColour(on || bord ? L[acc] : L[btnbd]); g.drawRoundedRectangle(r.reduced(0.5f), 4.0f, 1.0f);
+    if (std::strcmp(b.id, "bUndo") == 0 || std::strcmp(b.id, "bRedo") == 0) {        // v3.11: svg 20 x 20, stroke 2, round caps and joins
+        const bool undo = b.id[1] == 'U';
+        juce::Path q;
+        if (undo) {                                         // M7 4 3 8l4 4 M3 8h8.5 a4.5 4.5 0 0 1 0 9 H8
+            q.startNewSubPath(7, 4); q.lineTo(3, 8); q.lineTo(7, 12); q.startNewSubPath(3, 8); q.lineTo(11.5f, 8);
+            q.addCentredArc(11.5f, 12.5f, 4.5f, 4.5f, 0.0f, 0.0f, juce::MathConstants<float>::pi, false);   // right half, clockwise from the top to the bottom
+            q.lineTo(8, 17);
+        } else {                                            // M13 4l4 4-4 4 M17 8H8.5 a4.5 4.5 0 0 0 0 9 H12
+            q.startNewSubPath(13, 4); q.lineTo(17, 8); q.lineTo(13, 12); q.startNewSubPath(17, 8); q.lineTo(8.5f, 8);
+            q.addCentredArc(8.5f, 12.5f, 4.5f, 4.5f, 0.0f, 0.0f, -juce::MathConstants<float>::pi, false);
+            q.lineTo(12, 17);
+        }
+        g.setColour(L[lbl]);
+        g.strokePath(q, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), juce::AffineTransform::translation(r.getCentreX() - 10.0f, r.getCentreY() - 10.0f));
+        return;
+    }
+    if (std::strcmp(b.id, "bExt") == 0 && txt != nullptr) {                          // v3.11: caption, then a 9 px dot 8 px to its right (lit while the EXT switch is on)
+        const Line& ln = txt->lines[0];
+        g.setColour(L[lbl]); g.setFont(fontOf(txt->f)); drawTextAt(g, ln.t, ln.x - (float) getX(), ln.base - (float) getY() + dy, 'l');
+        const juce::Rectangle<float> dot(ln.x + ln.w + 8.0f - (float) getX(), r.getCentreY() - 4.5f, 9.0f, 9.0f);
+        g.setColour(led ? L[acc] : L[btnbd]); g.fillEllipse(dot);
+        if (!led) { g.setColour(juce::Colours::black.withAlpha(0.4f)); g.drawEllipse(dot.reduced(0.5f), 1.0f); }
+        return;
+    }
     if (std::strcmp(b.t, "...") == 0) {                      // the three dots of the block preset menu button (svg 18 px, circles r 1.7 at +-5.5)
         g.setColour(L[lbl]); const float cx = r.getCentreX(), cy = r.getCentreY();
         for (int k = -1; k <= 1; ++k) g.fillEllipse(cx + (float) k * 5.5f - 1.7f, cy - 1.7f, 3.4f, 3.4f);

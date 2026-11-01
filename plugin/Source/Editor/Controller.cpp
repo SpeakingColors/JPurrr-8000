@@ -26,6 +26,8 @@ void Settings::load() {
     engineOs = (int) j.getProperty("engineOs", 0); if (!validEngineOs(engineOs)) engineOs = 0;
     extIn = (int) j.getProperty("extIn", 0); if (extIn != 0 && extIn != 1) extIn = 0;
     extGain = (int) j.getProperty("extGain", 0); extGain = juce::jlimit(-24, 24, extGain);
+    genKey = juce::jlimit(-1, 11, (int) j.getProperty("genKey", -1)); genMode = juce::jlimit(0, 2, (int) j.getProperty("genMode", 0));
+    genStyle = juce::jlimit(0, 5, (int) j.getProperty("genStyle", 0)); genSeed = juce::jlimit(0, 16777215, (int) j.getProperty("genSeed", 0));
 }
 void Settings::save() const {
     if (noSave) return;
@@ -33,6 +35,7 @@ void Settings::save() const {
     o->setProperty("exportFormat", exportFormat); o->setProperty("exportDevice", exportDevice); o->setProperty("exportDestination", exportDestination);
     o->setProperty("engineStyle", engineStyle); o->setProperty("engineAa", engineAa); o->setProperty("engineOs", engineOs);
     o->setProperty("extIn", extIn); o->setProperty("extGain", extGain);
+    o->setProperty("genKey", genKey); o->setProperty("genMode", genMode); o->setProperty("genStyle", genStyle); o->setProperty("genSeed", genSeed);
     auto f = settingsFile(); f.getParentDirectory().createDirectory(); f.replaceWithText(juce::JSON::toString(juce::var(o)));
 }
 
@@ -89,8 +92,9 @@ void Controller::deps(int i) {
     }
     if (i == P_uni && get(P_uni) && get(P_o1w) == 3) { proc.setInt(P_uni, 0); say("Unison cannot be used with FEEDBACK OSC"); }
     if ((i == P_mono || i == P_leg) && get(i)) proc.setInt(i == P_mono ? P_leg : P_mono, 0);   // exclusive
+    if (i == P_o2ss && !get(P_o2ss) && get(P_o2w) == 4) { proc.setInt(P_o2w, 1); say("EXTRA is off, so OSC 2 is now SAW"); }
     if (i == P_m2s) { /* m2d is a proxy of m2dp/m2df/m2da: nothing to copy */ }
-    if (i == P_km || i == P_ps) { if (proc.syncEditPart()) afterLoad(); }        // mockup partsSwitch: the panel shows the patch of the edited part
+    if (i == P_km || i == P_ps) { if (proc.syncEditPart()) { afterLoad(); histClear(); } }        // mockup partsSwitch: the panel shows the patch of the edited part
     if (i == P_mono || i == P_leg || i == P_uni || i == P_vc) { lcd2Override.clear(); lcd2Until = 0; }
 }
 
@@ -105,6 +109,7 @@ void Controller::quiet(int i, int v) {
 void Controller::user(int i, int v) {
     const ParamDef& d = kParams[i];
     v = juce::jlimit(d.min, d.max, v);
+    if (v != get(i)) histNote(i);
     if (i == P_gpt && v > 0 && i < kNumParams) {
         // choosing a built in gate pattern sets the 16 steps (mockup GPATS)
         static const char* const pats[8] = { "xxx.xx.xxx.xx.x.", "x.xx.x.xx.xx.x.x", "x.x.x.x.x.x.x.x.", "..x...x...x...x.", "x..x..x..x..x...", "x..x..x.x..x..x.", "xxx.xxx.xxx.xxx.", "x.x.xxxxx.x.xxxx" };
@@ -123,6 +128,7 @@ void Controller::mirror(int i, int v) {                 // PANEL SELECT BOTH: an
     proc.mirrorPartValue(i == P_m2d ? P_m2dp + juce::jlimit(0, 2, proc.getInt(P_m2s)) : i, v);
 }
 void Controller::fromDisplay(int i, int v) {
+    if (juce::jlimit(kParams[i].min, kParams[i].max, v) != get(i)) histNote(i);
     quiet(i, v);
     if (isSaved(i)) mirror(i, juce::jlimit(kParams[i].min, kParams[i].max, v));
     if (i == P_rib) ribbonApply();
@@ -188,6 +194,42 @@ void Controller::ribbonApply() {
     quiet(ribT, (int) std::lround(v));
 }
 
+// ---- undo and redo (mockup v3.11: histNote, histGo, histUi)
+bool Controller::histOk(int i) { return !(kParams[i].flags & kNoSave) && i != P_km && i != P_ps && i != P_sp && i != P_pdet; }
+Controller::HistE Controller::histSnap(const juce::String& lab) const {
+    HistE e; e.lab = lab;
+    for (int i = 0; i < kNumParams; ++i) e.s[(size_t) i] = histOk(i) && i != P_m2d ? proc.getInt(i) : 0;
+    return e;
+}
+void Controller::histNote(int i) {
+    if (hBusy || !histOk(i)) return;
+    const juce::uint32 now = juce::Time::getMillisecondCounter();
+    if (hId == i && now - hT < 900) { hT = now; return; }
+    hu.push_back(histSnap(label(i))); if (hu.size() > 100) hu.erase(hu.begin());
+    hr.clear(); hId = i; hT = now;
+}
+void Controller::histClear() { hu.clear(); hr.clear(); hId = -1; }
+bool Controller::histGo(std::vector<HistE>& from, std::vector<HistE>& to, const char* word) {
+    if (from.empty()) return false;
+    const HistE e = from.back(); from.pop_back();
+    to.push_back(histSnap(e.lab));
+    hBusy = true;
+    for (int i = 0; i < kNumParams; ++i) {
+        if (!histOk(i) || i == P_m2d) continue;
+        if (proc.getInt(i) != e.s[(size_t) i]) { proc.setInt(i, e.s[(size_t) i]); mirror(i, e.s[(size_t) i]); }
+    }
+    afterLoad(); hBusy = false;
+    hId = -1; markDirty(); say(juce::String(word) + ": " + e.lab);
+    return true;
+}
+juce::String Controller::undoTip() const {
+    if (hu.empty()) return "Undo: nothing to undo yet. Every change you make is kept here, so you can go back to an earlier setting (Ctrl+Z).";
+    return "Undo: goes back to the setting before your last change (" + hu.back().lab + "). " + juce::String((int) hu.size()) + " step" + (hu.size() > 1 ? "s" : "") + " kept. Ctrl+Z also works.";
+}
+juce::String Controller::redoTip() const {
+    if (hr.empty()) return "Redo: nothing to redo. After an undo, this brings the change back (Ctrl+Y).";
+    return "Redo: brings back the change you just undid (" + hr.back().lab + "). Ctrl+Y or Ctrl+Shift+Z also work.";
+}
 void Controller::markDirty() { if (!pm.cur.dirty) pm.cur.dirty = true; }
 
 void Controller::afterLoad() {
@@ -219,6 +261,7 @@ void Controller::loadInto(int li, int part) {
     if (upper) for (int i = 0; i < kNumParams; ++i) if (isSaved(i) && jpurrr::partClassOf(i) == jpurrr::PartClass::Glob) proc.setInt(i, e.v[(size_t) i]);
     proc.loadPartToPanel();
     afterLoad();
+    histClear();
     pm.pushHistory(e);
 }
 void Controller::stepPart(int part, int d) {

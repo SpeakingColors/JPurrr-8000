@@ -11,6 +11,7 @@ class Bubble;
 class KeyboardStrip;
 class PartsBand;
 class PlayerBar;
+class FloatPanel;
 
 class Root : public juce::Component, private juce::Timer {
 public:
@@ -55,6 +56,11 @@ public:
     void hideTip();
     void showTipBelow(juce::Component& c, const juce::String& text);     // an info bubble below a control of a dialog (v3.9)
     void showMenu(bool show);
+    void toggleExt();                                  // v3.11: the EXT IN panel under the EXT IN button
+    void toggleGen();                                  // v3.10: the melody generator panel above the PLAYER bar
+    void closePanels();
+    FloatPanel* extPanelPtr() { return extPanel.get(); }
+    FloatPanel* genPanelPtr() { return genPanel.get(); }
     float scale = 1.0f;                                // current editor scale, for the size readout
 
 private:
@@ -75,6 +81,7 @@ private:
     std::unique_ptr<KeyboardStrip> strip;
     std::unique_ptr<PartsBand> band;
     std::unique_ptr<PlayerBar> player;
+    std::unique_ptr<FloatPanel> extPanel, genPanel;
     bool partsOpenFlag = false;
     float stripYNow() const;
     float barYNow() const;                             // top of the PLAYER bar (where the strip starts when the bar is off)

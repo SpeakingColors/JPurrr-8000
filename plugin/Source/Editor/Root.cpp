@@ -2,6 +2,7 @@
 #include "KeyStrip.h"
 #include "PartsBand.h"
 #include "PlayerBar.h"
+#include "Panels.h"
 #include "../PluginProcessor.h"
 #include "BlockPresets.h"
 using namespace jp;
@@ -194,6 +195,9 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
         if (id == "bPrev") w->onClick = [this] { ctl.step(-1); };
         else if (id == "bNext") w->onClick = [this] { ctl.step(1); };
         else if (id == "bMenu") w->onClick = [this] { showMenu(!menu->isVisible()); };
+        else if (id == "bUndo") { w->onClick = [this] { ctl.undo(); }; w->isEnabled = [this] { return ctl.canUndo(); }; w->dynTip = [this] { return ctl.undoTip(); }; }
+        else if (id == "bRedo") { w->onClick = [this] { ctl.redo(); }; w->isEnabled = [this] { return ctl.canRedo(); }; w->dynTip = [this] { return ctl.redoTip(); }; }
+        else if (id == "bExt") { w->onClick = [this] { toggleExt(); }; w->ledOn = [this] { return ctl.get(P_o2ext) != 0; }; w->accentBorder = [this] { return extPanel && extPanel->isOpen(); }; }
         else if (id == "tSound") { w->isOn = [this] { return page == kSound; }; w->onClick = [this] { showPage(kSound); }; }
         else if (id == "tFx") { w->isOn = [this] { return page != kSound; }; w->onClick = [this] { showPage(lastFx); }; }
         else if (id == "bGuide") w->onClick = [this] { ctl.openGuide(); };
@@ -216,6 +220,18 @@ Root::Root(JPurrr8000AudioProcessor& p) : proc(p), ctl(p), ctx { ctl } {
     player->showBubble = [this](juce::Component& c, const juce::String& t) { showTextBubble(c, t); };
     player->hideBubble = [this] { hideValueBubble(); };
     player->hideTip = [this] { hideTip(); };
+
+    player->onGenClick = [this] { toggleGen(); };
+    player->genOpenQuery = [this] { return genPanel && genPanel->isOpen(); };
+    extPanel = std::make_unique<FloatPanel>(FloatPanel::kExt, p, ctx); genPanel = std::make_unique<FloatPanel>(FloatPanel::kGen, p, ctx);
+    for (auto* fp : { extPanel.get(), genPanel.get() }) {
+        addChildComponent(*fp);
+        fp->showTip = [this](juce::Component& c, const juce::String& t) { showTipBelow(c, t); };
+        fp->hideTip = [this] { tipBubble->setVisible(false); };
+        fp->showBubble = [this](juce::Component& c, const juce::String& t) { showTextBubble(c, t); };
+        fp->hideBubble = [this] { hideValueBubble(); };
+    }
+    genPanel->onGenerated = [this] { if (player) player->repaint(); };
 
     band = std::make_unique<PartsBand>(p, ctx); addChildComponent(*band); band->place();
     band->openBrowser = [this](int part) { dialogs->openBrowser(part); };
@@ -334,6 +350,8 @@ void Root::tick(double now) {
     if (strip->isVisible()) strip->refresh();
     if (player->isVisible()) player->refresh();
     for (auto* h : header) h->refresh();
+    if (extPanel->isOpen()) extPanel->refresh();
+    if (genPanel->isOpen()) { if (!playerShown()) genPanel->close(); else genPanel->refresh(); }
     pages[page]->tickDisplays(now);
     dialogs->refresh();
     const auto info = ctl.info(), msg = ctl.message(), title = ctl.title();
@@ -451,6 +469,13 @@ void Root::mouseMove(const juce::MouseEvent& e) {
 void Root::mouseExit(const juce::MouseEvent&) { hideTip(); hoverTip = nullptr; tipDone = nullptr; }
 void Root::mouseDown(const juce::MouseEvent& e) {
     hideTip();
+    {   // a press anywhere else closes the EXT IN and generator panels (their own buttons toggle them)
+        auto inside = [&](FloatPanel* fp) { return e.eventComponent == fp || fp->isParentOf(e.eventComponent); };
+        const juce::String cid = e.eventComponent != nullptr ? e.eventComponent->getComponentID() : juce::String();
+        auto* hb = dynamic_cast<HBtnW*>(e.eventComponent);
+        if (extPanel->isOpen() && !inside(extPanel.get()) && !(hb != nullptr && juce::String(hb->b.id) == "bExt")) extPanel->close();
+        if (genPanel->isOpen() && !inside(genPanel.get()) && cid != "plGen") genPanel->close();
+    }
     if (player->menuOpen() && !player->menuOwns(e.eventComponent)) player->closeMenu();       // a press anywhere else closes the piece list
     if (menu->isVisible() && !e.eventComponent->isParentOf(menu.get()) && e.eventComponent != menu.get()) {
         auto p = e.getEventRelativeTo(this).position;
@@ -468,6 +493,14 @@ void Root::mouseDown(const juce::MouseEvent& e) {
 void Root::mouseUp(const juce::MouseEvent&) {}
 void Root::mouseDrag(const juce::MouseEvent&) { hideTip(); }
 bool Root::keyPressed(const juce::KeyPress& k) {
+    if (k == juce::KeyPress::escapeKey && (extPanel->isOpen() || genPanel->isOpen())) { closePanels(); return true; }
+    if (k.getModifiers().isCommandDown() && !k.getModifiers().isAltDown() && !dialogs->isOpen()) {      // v3.11: Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo (not while a text box has the keyboard)
+        if (dynamic_cast<juce::TextEditor*>(juce::Component::getCurrentlyFocusedComponent()) == nullptr) {
+            const int c = k.getKeyCode();
+            if (c == 'Z' || c == 'z') { if (k.getModifiers().isShiftDown()) ctl.redo(); else ctl.undo(); return true; }
+            if (c == 'Y' || c == 'y') { ctl.redo(); return true; }
+        }
+    }
     if (k == juce::KeyPress::escapeKey && mpMenu->isVisible()) { hideBlockMenu(); return true; }
     if (k == juce::KeyPress::escapeKey && menu->isVisible()) { menu->setVisible(false); return true; }
     if (dialogs->isOpen() && dialogs->keyPressed(k)) return true;
@@ -477,6 +510,29 @@ bool Root::keyStateChanged(bool) { strip->keyStateChanged(); return false; }
 void Root::mouseDoubleClick(const juce::MouseEvent& e) {
     const auto p = e.getEventRelativeTo(this).position;
     if ((p.x < kCheekL.w || p.x >= kCheekR.x) && onDefaultSize) onDefaultSize();   // the mockup: double click a wood cheek for 100%
+}
+
+void Root::closePanels() { if (extPanel) extPanel->close(); if (genPanel) genPanel->close(); }
+void Root::toggleExt() {
+    if (extPanel->isOpen()) { extPanel->close(); return; }
+    closePanels(); if (player) player->closeMenu(); hideTip();
+    HBtnW* b = nullptr; for (auto* h : header) if (juce::String(h->b.id) == "bExt") b = h;
+    if (b == nullptr) return;
+    const float W = (float) kDesignW, pw = extPanel->geo().r.w;
+    const float left = juce::jmax(10.0f, juce::jmin((float) b->getX() - 20.0f, W - 34.0f - pw - 4.0f));
+    extPanel->open({ juce::roundToInt(left), b->getBottom() + 8 });
+    if (b) b->repaint();
+}
+void Root::toggleGen() {
+    if (genPanel->isOpen()) { genPanel->close(); if (player) player->repaint(); return; }
+    if (!playerShown()) return;
+    closePanels(); player->closeMenu(); hideTip();
+    auto& S = Settings::get(); if (S.genSeed <= 0) S.genSeed = 1 + juce::Random::getSystemRandom().nextInt(16777215);
+    const float W = (float) kDesignW, pw = genPanel->geo().r.w, ph = genPanel->geo().r.h;
+    const auto gb = player->genButtonRect();
+    const float left = juce::jmax(40.0f, juce::jmin(gb.getX() - 120.0f, W - 34.0f - pw - 4.0f));
+    genPanel->open({ juce::roundToInt(left), juce::roundToInt(barYNow() - ph - 6.0f) });
+    player->repaint();
 }
 
 void Root::showMenu(bool show) {
@@ -494,6 +550,7 @@ void Root::timerCallback() {
     if (juce::Time::getMillisecondCounter() - hoverSince < 1000) return;
     const Tip& t = *hoverTip;
     juce::String text = juce::String::fromUTF8(t.tip), bold, rest;
+    for (auto* h : header) if (h->dynTip && h->getBounds().toFloat().contains(t.r.x + t.r.w / 2.0f, t.r.y + t.r.h / 2.0f)) text = h->dynTip();     // undo and redo name the change
     const juce::String fid = t.forId;
     if (fid == "o1c1" || fid == "o1c2") {
         const int o1 = ctl.get(P_o1w);
@@ -568,7 +625,18 @@ bool Root::applyState(const juce::String& s) {
         layoutStrip(); syncHeight();
         if (t.contains("menu")) player->openMenu();
         return true; }
-    if (s == "reset") { if (exportWarnApplied) { for (int i = 0; i < 4; ++i) ctl.quiet(Controller::idx(kExportWarnIds[i]), exportWarnOld[i]); ctl.pm.cur.dirty = false; exportWarnApplied = false; }
+    if (s.startsWith("v311_")) {                         // test hooks (v3.10 / v3.11): v311_extra (OSC 2 EXTRA on, SUPER SAW), v311_extin (EXT on, panel open), v311_gen (PLAYER on, generator panel open), v311_undo, v311_redo
+        applyState("reset"); showPage(kSound);
+        if (s == "v311_extra") { ctl.quiet(P_o2ss, 1); ctl.quiet(P_o2w, 4); }
+        else if (s == "v311_extin") { ctl.quiet(P_o2ext, 1); Settings::get().extGain = 6; proc.setExtInput(Settings::get().extIn, 6); layoutStrip(); toggleExt(); }
+        else if (s == "v311_gen") {
+            applyState("sound_player");
+            auto& S = Settings::get(); S.genSeed = 12345; S.genKey = 9; S.genMode = 0; S.genStyle = 1; genPanel->generate(false); player->demo(-1, 21.0f); toggleGen();
+        }
+        else if (s == "v311_undo" || s == "v311_redo") { ctl.user(P_o2r, 5); if (s == "v311_redo") ctl.undo(); }
+        if (s != "v311_redo") ctl.msgUntil = 0;
+        return true; }
+    if (s == "reset") { closePanels(); ctl.quiet(P_o2w, kParams[P_o2w].def); ctl.quiet(P_o2ss, 0); ctl.quiet(P_o2r, kParams[P_o2r].def); ctl.quiet(P_o2ext, 0); ctl.histClear(); Settings::get().extGain = 0; Settings::get().genSeed = 0; Settings::get().genKey = -1; Settings::get().genMode = 0; Settings::get().genStyle = 0; proc.setExtInput(0, 0); if (exportWarnApplied) { for (int i = 0; i < 4; ++i) ctl.quiet(Controller::idx(kExportWarnIds[i]), exportWarnOld[i]); ctl.pm.cur.dirty = false; exportWarnApplied = false; }
         player->closeMenu(); player->stopDemo(); proc.midiPlayer.setBpmLock(false); proc.midiPlayer.setTranspose(0); ctl.quiet(P_player, 0); setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); strip->setComputerKeys(jpurrr::kCkBaseDefault, 100); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
     if (s.startsWith("sound_parts_")) {                  // test hook: sound_parts_<split|dual|single>[_ps0|_ps2|_ps3][_nokbd]: the PARTS band open on the SOUND page
         juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();

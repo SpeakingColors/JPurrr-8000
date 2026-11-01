@@ -55,7 +55,10 @@ PageView::PageView(Ctx& ctx, int pi, DisplayEnv& e) : page(kPages[pi]), index(pi
         c->setBounds(x0, y0, juce::roundToInt(r.x + r.w) - x0, juce::roundToInt(r.y + r.h) - y0);
         comps.add(c); addAndMakeVisible(c);
     };
-    for (auto& k : page.knobs) { auto* w = new KnobW(x, paramIndexById(k.id)); ctrls.add(w); place(w, k.r); }
+    for (auto& k : page.knobs) {
+        auto* w = new KnobW(x, paramIndexById(k.id)); ctrls.add(w); place(w, k.r);
+        if (juce::String(k.id) == "o2r" || juce::String(k.id) == "o2f") o2Moved.add({ w, k.r });     // v3.11 EXTRA: RANGE and FINE move down with the fifth row
+    }
     for (auto& s : page.sliders) { auto* w = new SliderW(x, paramIndexById(s.id), s.hh, s.tk); ctrls.add(w); place(w, s.r); }
     for (auto& s : page.switches) {
         const int pi2 = paramIndexById(s.id);
@@ -63,7 +66,10 @@ PageView::PageView(Ctx& ctx, int pi, DisplayEnv& e) : page(kPages[pi]), index(pi
         if (juce::String(s.id) == "bBrowse") w->onPress = [this] { if (x.c.openBrowser) x.c.openBrowser(); };
         ctrls.add(w); place(w, s.r);
     }
-    for (int oi = 0; oi < page.opts.n; ++oi) { auto* w = new OptionsW(x, paramIndexById(page.opts[oi].id), page.opts[oi], optLabels[oi]); ctrls.add(w); place(w, page.opts[oi].r); }
+    for (int oi = 0; oi < page.opts.n; ++oi) {
+        auto* w = new OptionsW(x, paramIndexById(page.opts[oi].id), page.opts[oi], optLabels[oi]); ctrls.add(w); place(w, page.opts[oi].r);
+        if (juce::String(page.opts[oi].id) == "o2w") { w->alt = &kO2x.opts; w->altLab = kO2x.lab; w->useAlt = [this] { return x.c.get(P_o2ss) != 0; }; }     // v3.11 EXTRA: five rows
+    }
     for (auto& s : page.selects) {
         int pidx = -1, mp = -1;
         if (juce::String(s.mp).isNotEmpty()) { for (int m = 0; m < kNumMp; ++m) if (juce::String(kMp[m].key) == s.mp) mp = m; }
@@ -110,11 +116,20 @@ const Text* PageView::findText(const char* id) const {
 
 void PageView::refresh() {
     for (auto* c : ctrls) c->refresh();
+    if (index == kSound) {
+        const bool ss = x.c.get(P_o2ss) != 0;
+        if (ss != o2ssOn) {
+            o2ssOn = ss;
+            for (auto& m : o2Moved) { const float dy = ss ? kO2x.dy : 0.0f; const int x0 = juce::roundToInt(m.r.x), y0 = juce::roundToInt(m.r.y + dy);
+                m.c->setBounds(x0, y0, juce::roundToInt(m.r.x + m.r.w) - x0, juce::roundToInt(m.r.y + dy + m.r.h) - y0); }
+            repaint();
+        }
+    }
     auto set = [&](const char* k, const juce::String& v) { auto it = dyn.find(k); if (it == dyn.end() || it->second != v) { dyn[k] = v; repaint(); } };
     if (index == kSound) {
         const int o1 = x.c.get(P_o1w), o2 = x.c.get(P_o2w);
         set("lb_o1c1", kO1L[juce::jlimit(0, 6, o1)][0]); set("lb_o1c2", kO1L[juce::jlimit(0, 6, o1)][1]);
-        set("lb_o2c1", kO2L[juce::jlimit(0, 3, o2)][0]); set("lb_o2c2", kO2L[juce::jlimit(0, 3, o2)][1]);
+        set("lb_o2c1", kO2L[juce::jlimit(0, 4, o2)][0]); set("lb_o2c2", kO2L[juce::jlimit(0, 4, o2)][1]);
         set("lb_vmc1", kVmc[juce::jlimit(0, 26, x.c.get(P_vc1))]); set("lb_vmc2", kVmc[juce::jlimit(0, 26, x.c.get(P_vc2))]);
         set("osv", x.c.fmt(P_os)); set("kshv", x.c.fmt(P_ksh));
         if (o1Display) set("o1info", o1Display->infoText(0));
@@ -125,13 +140,15 @@ void PageView::tickDisplays(double) { for (auto* d : displays) d->tick(); }
 void PageView::lookChanged() { for (auto* c : ctrls) c->lookChanged(); repaint(); }
 
 const Tip* PageView::tipAt(juce::Point<float> p) const {
-    const Tip* best = nullptr; float bestA = 1e12f;
+    const Tip* best = nullptr; float bestA = 1e12f; bool shifted = false;
     for (auto& t : page.tips) {
-        if (p.x >= t.r.x && p.x <= t.r.x + t.r.w && p.y >= t.r.y && p.y <= t.r.y + t.r.h) {
-            const float a = t.r.w * t.r.h; if (a <= bestA) { best = &t; bestA = a; }
+        Rect r = t.r; bool mv = false;
+        if (o2ssOn && index == kSound) { const juce::String f = t.forId; if (f == "o2r" || f == "o2f") { r.y += kO2x.tipDy; r.h += kO2x.tipDh; mv = true; } }
+        if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) {
+            const float a = r.w * r.h; if (a <= bestA) { best = &t; bestA = a; shifted = mv; if (mv) shiftTip = { r, t.tip, t.forId }; }
         }
     }
-    return best;
+    return shifted ? &shiftTip : best;
 }
 
 void PageView::drawText(juce::Graphics& g, const Text& t, const juce::String* ov) {
@@ -168,7 +185,10 @@ void PageView::paint(juce::Graphics& g) {
         if (skipText[(size_t) i]) continue;
         const Text& t = page.texts[i];
         auto it = dyn.find(t.id);
+        const juce::String tid = t.id; const bool mv = o2ssOn && (tid == "lb_o2r" || tid == "lb_o2f");      // v3.11 EXTRA: these two captions move down
+        if (mv) { g.saveState(); g.addTransform(juce::AffineTransform::translation(0.0f, kO2x.dy)); }
         drawText(g, t, (t.id[0] != 0 && it != dyn.end()) ? &it->second : nullptr);
+        if (mv) g.restoreState();
     }
     for (auto& v : page.vtexts) {
         // writing-mode vertical-rl rotated 180: reads bottom to top

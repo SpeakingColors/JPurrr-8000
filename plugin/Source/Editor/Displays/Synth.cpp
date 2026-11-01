@@ -10,7 +10,7 @@ const double K7[7] = { -0.11002313f, -0.06288439f, -0.01952356f, 0.0f, 0.0199122
 const char* const O1W[7] = { "SUPER SAW", "TRIANGLE MOD", "NOISE", "FEEDBACK OSC", "SQUARE (PWM)", "SAW", "TRIANGLE" };
 const char* const O1L[7][2] = { { "DETUNE", "MIX" }, { "OFFSET", "LFO1 DEPTH" }, { "CUTOFF FREQ", "RESONANCE" }, { "HARMONICS", "FEEDBACK AMT" },
                                 { "PULSE WIDTH", "PWM DEPTH" }, { "SHAPE", "LFO1 DEPTH" }, { "SHAPE", "LFO1 DEPTH" } };
-const char* const O2L[4][2] = { { "PULSE WIDTH", "PWM DEPTH" }, { "SHAPE", "LFO1 DEPTH" }, { "SHAPE", "LFO1 DEPTH" }, { "CUTOFF FREQ", "RESONANCE" } };
+const char* const O2L[5][2] = { { "PULSE WIDTH", "PWM DEPTH" }, { "SHAPE", "LFO1 DEPTH" }, { "SHAPE", "LFO1 DEPTH" }, { "CUTOFF FREQ", "RESONANCE" }, { "DETUNE", "MIX" } };
 
 template <class T> T sawW(T p) { return 1 - 2 * fr_(p); }
 template <class T> T triW(T p) { p = fr_(p); return p < T(0.5) ? p * 4 - 1 : 3 - p * 4; }
@@ -20,6 +20,26 @@ const std::array<float, 64>& nzTab() {
 }
 float noiseAt(double ph, double t) { return nzTab()[(size_t) std::floor(fr_(ph * 1.7 + t * 3) * 63)]; }
 int rnd(float x) { return (int) std::floor(x + 0.5f); }
+
+// The 7 saw stack of the SUPER SAW (OSC 1, and OSC 2 behind EXTRA): the mockup's o1Wave(0, ...). crd = curveD(DETUNE / 127), m = MIX / 127.
+void superSawGains(double m, double& gc, double& gs) { gc = -0.55366 * m + 0.99785; gs = -0.73764 * m * m + 1.2841 * m + 0.044372; }
+double superSawAt(double ph, double t, double crd, double gc, double gs) {
+    double sum = 0, tot = 0;   // double: the saw edges sit on pixel borders, float shifts them visibly
+    for (int i = 0; i < 7; ++i) { const double g = i == 3 ? gc : gs; const double k = 1 + (double) K7[i] * crd * 3; const double p = (double) ph * k + (double) t * k; sum += g * (1 - 2 * (p - std::floor(p))); tot += g; }
+    return sum / std::max(0.5, tot * 0.62);
+}
+// The detune bars of the SUPER SAW (param view): seven lines at their detune in cents, the centre saw in the accent colour.
+void superSawBars(Ctx& x, float w, float h, float cr, double gc, double gs) {
+    x.strokeStyle(x.pal.grid); x.lineWidth = 1; x.line(0, h - 14.5f, w, h - 14.5f);
+    const float R = 215;
+    for (int i = 0; i < 7; ++i) {
+        const float ct = 1200 * std::log2(1 + K7[i] * cr); const float px = w / 2 + ct / R * (w / 2 - 8);
+        const float g = (float) (i == 3 ? gc : gs); const float bh = std::max(1.0f, g * (h - 30));
+        x.fillStyle(i == 3 ? x.pal.acc : x.pal.line); x.fillRect(px - 1, h - 14 - bh, 2, bh);
+    }
+    x.fillStyle(x.pal.txt); x.mono(15.5f); x.textAlign(0);
+    x.fillText("-250", 14, h - 3); x.fillText("0", w / 2, h - 3); x.fillText("+250 ct", w - 20, h - 3);
+}
 
 // Last note, like the mockup's LV.last, rebuilt from the note counters of env.live.
 struct LastNote {
@@ -127,13 +147,9 @@ public:
         const int wv = juce::jlimit(0, 6, v(P_o1w)); const bool param = paramView();
         const double c1 = v(P_o1c1), c2 = v(P_o1c2);
         const double crd = curveD((double) v(P_o1c1) / 127.0); const float cr = (float) crd; const double m = c2 / 127.0, n = c1 / 127.0;
-        const double gc = -0.55366 * m + 0.99785, gs = -0.73764 * m * m + 1.2841 * m + 0.044372;
+        double gc = 0, gs = 0; superSawGains(m, gc, gs);
         auto wave = [&](double ph, double t) -> double {
-            if (wv == 0) {
-                double sum = 0, tot = 0;   // double: the saw edges sit on pixel borders, float shifts them visibly
-                for (int i = 0; i < 7; ++i) { const double g = i == 3 ? gc : gs; const double k = 1 + (double) K7[i] * crd * 3; const double p = (double) ph * k + (double) t * k; sum += g * (1 - 2 * (p - std::floor(p))); tot += g; }
-                return sum / std::max(0.5, tot * 0.62);
-            }
+            if (wv == 0) return superSawAt(ph, t, crd, gc, gs);
             if (wv == 1) return triW(ph) * (1 - n * 0.5) + std::sin(ph * 6.283185307179586 * 3) * n * 0.4;
             if (wv == 2) return noiseAt(ph, t);
             if (wv == 3) return std::sin(ph * 6.283185307179586 + std::sin(ph * 12.566370614359172) * m * 3) * (0.4 + n * 0.6);
@@ -142,17 +158,10 @@ public:
             return triW(ph);
         };
         if (!param) { waveView(x, w, h, [&](double ph, int, double t) { return wave(ph, t); }); return; }
-        x.strokeStyle(x.pal.grid); x.lineWidth = 1; x.line(0, h - 14.5f, w, h - 14.5f);
         if (wv == 0) {
-            const float R = 215;
-            for (int i = 0; i < 7; ++i) {
-                const float ct = 1200 * std::log2(1 + K7[i] * cr); const float px = w / 2 + ct / R * (w / 2 - 8);
-                const float g = i == 3 ? gc : gs; const float bh = std::max(1.0f, g * (h - 30));
-                x.fillStyle(i == 3 ? x.pal.acc : x.pal.line); x.fillRect(px - 1, h - 14 - bh, 2, bh);
-            }
-            x.fillStyle(x.pal.txt); x.mono(15.5f); x.textAlign(0);
-            x.fillText("-250", 14, h - 3); x.fillText("0", w / 2, h - 3); x.fillText("+250 ct", w - 20, h - 3);
+            superSawBars(x, w, h, cr, gc, gs);
         } else {
+            x.strokeStyle(x.pal.grid); x.lineWidth = 1; x.line(0, h - 14.5f, w, h - 14.5f);
             shapeView(x, w, h, [&](double ph) { return wave(ph, 0.0); }, wv == 4 ? n : -1.0f, wv == 4 ? m : 0.0f);
         }
     }
@@ -164,15 +173,18 @@ public:
     explicit O2(DisplayEnv& e) : OscBase(e, 104, 140) {}
     void touched(int idx) override { if (idx == P_o2c1 || idx == P_o2c2) bump(); }
     void draw(Ctx& x, float w, float h) override {
-        const int wv = juce::jlimit(0, 3, v(P_o2w)); const bool param = paramView();
+        const int wv = juce::jlimit(0, 4, v(P_o2w)); const bool param = paramView();
         const double c1 = v(P_o2c1) / 127.0, c2 = v(P_o2c2) / 127.0;
+        const double crd = curveD(c1); double gc = 0, gs = 0; superSawGains(c2, gc, gs);
         auto wave = [&](double ph, double t) -> double {
+            if (wv == 4) return superSawAt(ph, t, crd, gc, gs);   // EXTRA: the same 7 saw stack as OSC 1
             if (wv == 0) { const double d = 0.1 + c1 * 0.8 + std::sin(t * 6) * c2 * 0.3; return fr_(ph) < clampv(d, 0.05, 0.95) ? 1.0 : -1.0; }
             if (wv == 1) return sawW(ph);
             if (wv == 2) return triW(ph);
             return noiseAt(ph, t);
         };
         if (!param) { waveView(x, w, h, [&](double ph, int, double t) { return wave(ph, t); }); return; }
+        if (wv == 4) { superSawBars(x, w, h, (float) crd, gc, gs); return; }
         shapeView(x, w, h, [&](double ph) { return wave(ph, 0.0); }, wv == 0 ? c1 : -1.0f, wv == 0 ? c2 : 0.0f);
         x.fillStyle(x.pal.txt); x.mono(15.5f); x.textAlign(-1);
         x.fillText(juce::String(O2L[wv][0]) + " " + juce::String(v(P_o2c1)) + juce::String::fromUTF8(" \xC2\xB7 ") + O2L[wv][1] + " " + juce::String(v(P_o2c2)), 3, h - 3);

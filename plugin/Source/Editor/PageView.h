@@ -26,6 +26,8 @@ private:
     Display* o1Display = nullptr; Display* mbDisplay = nullptr;
     std::vector<char> skipText;
     std::map<juce::String, juce::String> dyn;
+    struct Moved { juce::Component* c; layout::Rect r; };
+    juce::Array<Moved> o2Moved; bool o2ssOn = false; mutable layout::Tip shiftTip { { 0, 0, 0, 0 }, "", "" };     // v3.11: OSC 2 EXTRA moves RANGE and FINE down
     void drawText(juce::Graphics& g, const layout::Text& t, const juce::String* override);
 };
 

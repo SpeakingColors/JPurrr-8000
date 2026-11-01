@@ -120,7 +120,7 @@ def FN(o): return F(o)
 pm = PL['menu']
 plmenu = '{%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s}' % (f(pm['w']), f(pm['border']), f(pm['radius']), f(pm['gh']), f(pm['gpad']), f(pm['rh']), f(pm['rpadL']), f(pm['rpadR']), f(pm['rgap']),
     F(pm['gf']), F(pm['gsf']), F(pm['rf']), F(pm['rsf']), f(pm['above']), f(pm['minTop']), f(pm['maxH']), f(pm['minH']), f(pm['left']))
-ptips = [(k, PI[k]) for k in ['play', 'prev', 'sel', 'next', 'bpmG', 'lockG', 'trG', 'load', 'exp', 'posG']]
+ptips = [(k, PI[k]) for k in ['play', 'prev', 'sel', 'next', 'bpmG', 'lockG', 'trG', 'load', 'exp', 'posG', 'gen']]
 w('namespace {')
 w('const Tip player_tips[] = {%s};' % ','.join('{%s,%s,""}' % (R(v['rect']), cs(v['tip'])) for k, v in ptips))
 w('}')
@@ -135,7 +135,7 @@ fields = [
     R(PI['bpmG']['rect']), R(PI['bpm']['rect']), f(PI['bpm']['base']), PLL(PI['bpmL']['line']),
     R(PI['lockG']['rect']), R(PI['lock']['rect']), R(PI['lock']['led']), PLL(PI['lockL']['line']),
     R(PI['trG']['rect']), R(PI['tr']['rect']), f(PI['tr']['base']), PLL(PI['trL']['line']),
-    R(PI['load']['rect']), R(PI['exp']['rect']), PLL(PI['load']['line']), PLL(PI['exp']['line']),
+    R(PI['load']['rect']), R(PI['exp']['rect']), PLL(PI['load']['line']), PLL(PI['exp']['line']), R(PI['gen']['rect']), R(PI['gen']['icon']), PLL(PI['gen']['lbl']['line']),
     R(PI['posG']['rect']), R(PI['pos']['rect']), R(PI['posT']['rect']), PLL(PI['posT']['small']['line']), PLL({'x': PI['posT']['val']['x'], 'w': PI['posT']['val']['w'], 'base': PI['posT']['val']['base']}), str(PI['pos']['cw']), str(PI['pos']['ch']),
     '{%s}' % ','.join(R(PI['sep%d' % k]['rect']) for k in range(4)), plmenu, 'Span<Tip>{player_tips,%d}' % len(ptips)]
 w('const PlayerGeo kPlayer = {%s};' % ','.join(fields))
@@ -211,7 +211,30 @@ for t in qk: w('  {%s,%d,qvi_%s,qvv_%s},' % (cs(t), len(qv[t]), t, t))
 w('};')
 w('const int kNumQvals = %d;' % len(qk))
 w('const char* const kO1L[7][2] = {%s};' % ','.join('{%s,%s}' % (cs(a), cs(b)) for a, b in d['dyn']['o1l']))
-w('const char* const kO2L[4][2] = {%s};' % ','.join('{%s,%s}' % (cs(a), cs(b)) for a, b in d['dyn']['o2l']))
+# v3.11: OSC 2 EXTRA on: five-row waveform list (SUPER SAW on top), RANGE and FINE (knobs, labels, tips) move down by dy
+X2 = d['o2x']
+w('namespace {')
+w('const Opt o2x_opts[] = {%s};' % ','.join('{%d,%s,%s}' % (o['v'], R(o['r']), R(o['led'])) for o in X2['opts']['opts']))
+w('}')
+w('const O2x kO2x = {{"o2w",%s,Span<Opt>{o2x_opts,%d}},{%s},%s,%s,%s};' % (R(X2['opts']['rect']), len(X2['opts']['opts']),
+    ','.join('{%s,%s,%s,%s}' % (cs(l['t']), f(l['x']), f(l['w']), f(l['base'])) for l in X2['lab']), f(X2['dy']), f(X2['tipDy']), f(X2['tipDh'])))
+# v3.11: the EXT IN and melody generator panels
+TOKS = ['pnl', 'pnl2', 'pnl3', 'edge', 'sbd', 'hi', 'ttl', 'lbl', 'lbl2', 'knob', 'knobhi', 'ind', 'cap', 'led', 'ledoff', 'acc', 'acc2', 'lcdbg', 'lcdfg', 'lcdoff', 'hdr', 'hdrfg']
+ZR = {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+def pnl_line(l):
+    return '{%s,%s,%s,%s,%s,%s,(signed char)%s,%s}' % (cs(l['id']), cs(l['t']), f(l['x']), f(l['w']), f(l['base']), F(l['f']), l['tok'] if l['tok'] in TOKS else 'lbl', R(l['el'] or ZR))
+def pnl_box(b):
+    ln = b.get('line') or {'x': 0, 'w': 0, 'base': 0}
+    return '{\'%s\',%s,%d,%s,%s,%s,%s,%s,%s,%s,%d,%d}' % ({'chip': 'c', 'nbx': 'n', 'btn': 'b', 'canvas': 'v'}[b['k']], cs(b['id']), b.get('v', 0), R(b['rect']), cs(b.get('tip', '')), F(b['f']) if b.get('f') else '{kBody,16.f,500,0.f,false}',
+        cs(b.get('text', '')), PLL(ln), R(b.get('icon') or ZR), f(b.get('base', 0)), b.get('cw', 0), b.get('ch', 0))
+for nm, key in (('Ext', 'ext'), ('Gen', 'gen')):
+    pg = d['panels'][key]
+    w('namespace {')
+    w('const PnLine pn%s_lines[] = {%s};' % (nm, ',\n  '.join(pnl_line(l) for l in pg['lines'])))
+    w('const PnBox pn%s_boxes[] = {%s};' % (nm, ',\n  '.join(pnl_box(b) for b in pg['boxes'])))
+    w('}')
+    w('const PnGeo kPn%s = {%s,{%s,%s,%s,1.f},Span<PnLine>{pn%s_lines,%d},Span<PnBox>{pn%s_boxes,%d}};' % (nm, R(pg['rect']), f(pg['sep']['x']), f(pg['sep']['y']), f(pg['sep']['w']), nm, len(pg['lines']), nm, len(pg['boxes'])))
+w('const char* const kO2L[%d][2] = {%s};' % (len(d['dyn']['o2l']), ','.join('{%s,%s}' % (cs(a), cs(b)) for a, b in d['dyn']['o2l'])))
 w('const char* const kVmc[27] = {%s};' % ','.join(cs(x) for x in d['dyn']['vmc']))
 w('const int kStartSlots[] = {%s};' % ','.join(str(m['slot']) for m in d['dyn']['factoryMeta'] if m['start']))
 w('const int kNumStartSlots = %d;' % sum(1 for m in d['dyn']['factoryMeta'] if m['start']))

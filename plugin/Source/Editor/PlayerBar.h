@@ -18,6 +18,7 @@ public:
     void refresh();                                    // 30 Hz: follow the host (piece, tempo, lock, transpose, playing), animate the position bar
     void lookChanged();
     const layout::Tip* tipAt(juce::Point<float> rootPoint);   // tip of the element under a point in editor (design) coordinates, or nullptr
+    juce::Rectangle<float> genButtonRect() const;      // GEN in design coordinates (window x, bar y), for placing the panel
     juce::Component& menuComponent();                  // the piece list: a child of the editor root (it opens upwards, outside the bar)
     bool menuOpen() const;
     void closeMenu();
@@ -27,6 +28,8 @@ public:
 
     std::function<void(juce::Component&, const juce::String&)> showBubble;   // value bubble under a component
     std::function<void()> hideBubble, hideTip;
+    std::function<void()> onGenClick;                  // v3.10: the GEN button (Root opens or closes the generator panel)
+    std::function<bool()> genOpenQuery;                // the generator panel is open: GEN is lit
 
     // test hooks (snapshot and checks)
     void demo(int libraryIndex, float beat);           // show the playing state with the playhead at beat, without sound and without a timer (the mockup's __JPplayer.demo)
@@ -43,7 +46,7 @@ public:
 
 private:
     friend class PlBtn; friend class PlSel; friend class PlNum; friend class PlLock; friend class PlPos; friend class PlMenu;
-    std::unique_ptr<PlBtn> play, prev, next, load, exp;
+    std::unique_ptr<PlBtn> play, prev, next, gen, load, exp;
     std::unique_ptr<PlSel> sel;
     std::unique_ptr<PlNum> bpm, tr;
     std::unique_ptr<PlLock> lock;

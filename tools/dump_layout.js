@@ -169,13 +169,63 @@ function dumpPlayer() {
   items.push(it('lockG', grp('#plLock'))); items.push(it('lock', $1('#plLock'), { led: rr($1('#plLock .led').getBoundingClientRect()) })); items.push(it('lockL', grp('#plLock').querySelector('.pl-l')));
   items.push(it('trG', grp('#plTr'))); items.push(it('trL', grp('#plTr').querySelector('.pl-l')));
   items.push(it('tr', $1('#plTr'), { base: inputBase($1('#plTr')) }));
-  items.push(it('load', $1('#plLoad'))); items.push(it('exp', $1('#plExp')));
+  items.push(it('gen', $1('#plGen'), { icon: rr($1('#plGen svg').getBoundingClientRect()), lbl: it('lbl', $1('#plGen span')) })); items.push(it('load', $1('#plLoad'))); items.push(it('exp', $1('#plExp')));
   const pc = $1('#plPos'); items.push(it('posG', grp('#plPos'))); items.push(it('pos', pc, { cw: +pc.dataset.w, ch: +pc.dataset.h }));
   const pt = $1('#plPosT'), sm = pt.querySelector('small'), vn = [...pt.childNodes].find(n => n.nodeType === 3);
   const vrg = document.createRange(); vrg.setStart(vn, 0); vrg.setEnd(vn, vn.nodeValue.length); const vr = vrg.getBoundingClientRect();
   items.push(it('posT', pt, { small: it('small', sm), val: { x: +(vr.left - W0.left).toFixed(2), y: +(vr.top - B0.top).toFixed(2), w: +vr.width.toFixed(2), h: +vr.height.toFixed(2), f: fontOf(pt), base: +(vr.top - B0.top + Math.round(met(pt)[0])).toFixed(2) } }));
   const cs = getComputedStyle(bar);
   return { rect: rr(B0), h: +B0.height.toFixed(2), radius: parseFloat(cs.borderTopLeftRadius), items };
+}
+// v3.11: the EXT IN panel (#extP) and the melody generator panel (#plGenP). Geometry relative to the panel's own top left corner (border box).
+// Text runs (one entry per wrapped line, with the baseline), chips, number boxes, the NEW MELODY button, the signal meter canvas and the header rule.
+function dumpPanel(sel) {
+  const pn = document.querySelector(sel), P0 = pn.getBoundingClientRect();
+  const rel = r => ({ x: +(r.left - P0.left).toFixed(2), y: +(r.top - P0.top).toFixed(2), w: +r.width.toFixed(2), h: +r.height.toFixed(2) });
+  const cvs = document.createElement('canvas').getContext('2d');
+  const fontOf = el => { const cs = getComputedStyle(el); const fam = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim();
+    return { fam, size: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight), ls: cs.letterSpacing === 'normal' ? 0 : +(parseFloat(cs.letterSpacing) / parseFloat(cs.fontSize)).toFixed(4), italic: false }; };
+  const met = el => { const cs = getComputedStyle(el); const fam = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim(); cvs.font = `${cs.fontWeight} ${cs.fontSize} "${fam}"`; const m = cvs.measureText('Hx'); return [m.fontBoundingBoxAscent, m.fontBoundingBoxDescent]; };
+  const win = document.querySelector('#win'); const probe = document.createElement('i'); win.appendChild(probe);
+  const toks = ['acc', 'ttl', 'lbl', 'lbl2', 'lcdfg', 'hdrfg'];
+  const looks4 = ['jp', 'navy', 'soda', 'purr'];
+  const setLook = l => { if (l === 'jp') win.removeAttribute('data-look'); else win.dataset.look = l; };
+  const tokOf = el => {   // the token whose colour equals the element's colour in all four looks
+    const cols = looks4.map(l => { setLook(l); return getComputedStyle(el).color; });
+    for (const t of toks) { const ok = looks4.every((l, i) => { setLook(l); probe.style.color = `var(--${t})`; return getComputedStyle(probe).color === cols[i]; }); if (ok) { setLook('jp'); return t; } }
+    setLook('jp'); return '';
+  };
+  const tipOf = el => { const t = el.closest('[data-tip]'); return t ? t.dataset.tip : ''; };
+  const runs = (node, up) => {   // wrapped lines of one text node
+    const s = node.nodeValue, rg = document.createRange(), lines = []; let cur = null;
+    for (let i = 0; i < s.length; i++) { rg.setStart(node, i); rg.setEnd(node, i + 1); const rs = rg.getClientRects(); if (!rs.length) continue; const r = rs[0];
+      if (r.width === 0 && s[i] === ' ') continue;
+      if (!cur || Math.abs(r.top - cur.top) > 3) { cur = { top: r.top, left: r.left, right: r.right, t: '' }; lines.push(cur); }
+      cur.t += s[i]; cur.left = Math.min(cur.left, r.left); cur.right = Math.max(cur.right, r.right); }
+    return lines;
+  };
+  const out = { rect: rel(P0), lines: [], boxes: [], sep: null, pad: 0 };
+  const hd = pn.querySelector('.pgh'); if (hd) { const r = hd.getBoundingClientRect(); out.sep = { x: +(r.left - P0.left).toFixed(2), y: +(r.bottom - P0.top - 1).toFixed(2), w: +r.width.toFixed(2) }; }
+  pn.querySelectorAll('.chip').forEach(c => {
+    const n = [...c.childNodes].find(n => n.nodeType === 3 && n.nodeValue.trim()), l = runs(n)[0], [asc] = met(c);
+    out.boxes.push({ k: 'chip', id: c.parentElement.id, v: +c.dataset.v, rect: rel(c.getBoundingClientRect()), tip: tipOf(c), f: fontOf(c), text: n.nodeValue.trim(),
+      line: { t: n.nodeValue.trim(), x: +(l.left - P0.left).toFixed(2), w: +(l.right - l.left).toFixed(2), base: +(l.top - P0.top + Math.round(asc)).toFixed(2) } });
+  });
+  pn.querySelectorAll('.nbx').forEach(i => { const [a, d] = met(i), r = i.getBoundingClientRect();
+    out.boxes.push({ k: 'nbx', id: i.id, rect: rel(r), tip: tipOf(i), f: fontOf(i), base: +(r.top - P0.top + r.height / 2 + (Math.round(a) - Math.round(d)) / 2).toFixed(2) }); });
+  pn.querySelectorAll('button.hb').forEach(b => { const sp = b.querySelector('span'), n = [...sp.childNodes].find(n => n.nodeType === 3), l = runs(n)[0], [asc] = met(sp);
+    out.boxes.push({ k: 'btn', id: b.id, rect: rel(b.getBoundingClientRect()), tip: tipOf(b), f: fontOf(sp), icon: rel(b.querySelector('svg').getBoundingClientRect()),
+      line: { t: n.nodeValue.trim(), x: +(l.left - P0.left).toFixed(2), w: +(l.right - l.left).toFixed(2), base: +(l.top - P0.top + Math.round(asc)).toFixed(2) } }); });
+  pn.querySelectorAll('canvas').forEach(c => out.boxes.push({ k: 'canvas', id: c.id, rect: rel(c.getBoundingClientRect()), tip: tipOf(c), cw: +c.dataset.w, ch: +c.dataset.h }));
+  const tw = document.createTreeWalker(pn, NodeFilter.SHOW_TEXT);
+  for (let n; (n = tw.nextNode());) {
+    if (!n.nodeValue.trim()) continue; const el = n.parentElement;
+    if (el.closest('.chip,button,.nbx,canvas,svg,script,style')) continue;
+    const [asc] = met(el), f = fontOf(el), tok = tokOf(el), dyn = el.id || '';
+    runs(n).forEach(l => out.lines.push({ id: dyn, t: n.nodeValue.trim().length && runs(n).length === 1 ? n.nodeValue.trim() : l.t.trim(), x: +(l.left - P0.left).toFixed(2), w: +(l.right - l.left).toFixed(2), base: +(l.top - P0.top + Math.round(asc)).toFixed(2), f, tok, el: dyn ? rel(el.getBoundingClientRect()) : null }));
+  }
+  probe.remove();
+  return out;
 }
 // the piece menu (#plMenu): constants of its CSS, dumped with the menu open
 function dumpPlayerMenu() {
@@ -250,6 +300,21 @@ function dumpPlayerMenu() {
   await p.evaluate(() => { window.__JP.fxSub(2); }); await p.waitForTimeout(100);
   await cap('master');
   await p.evaluate(() => { window.__JP.fxSub(1); window.__JP.showPage('sound'); });
+
+  // v3.11: OSC 2 EXTRA on (o2ss = 1): the waveform list gets a 5th row (SUPER SAW at the top) and RANGE / FINE move down. Only what differs is kept.
+  await p.evaluate(() => { window.__JP.setP('o2ss', 1, false); }); await p.waitForTimeout(150);
+  { const on = await p.evaluate(walk), off = pages.sound;
+    const g = (a, k, id) => a.find(i => i.k === k && i.id === id);
+    const ow = g(on, 'opts', 'o2w'), kr = g(on, 'knob', 'o2r'), kr0 = g(off, 'knob', 'o2r'), lr = g(on, 'text', 'lb_o2r'), lr0 = g(off, 'text', 'lb_o2r');
+    const dy = +(kr.rect.y - kr0.rect.y).toFixed(2), dyl = +(lr.lines[0].y - lr0.lines[0].y).toFixed(2);
+    if (Math.abs(dy - dyl) > 0.01) console.error('EXTRA: knob and label shift differ', dy, dyl);
+    for (const id of ['o2f']) { const a = g(on, 'knob', id), b = g(off, 'knob', id); if (Math.abs(a.rect.y - b.rect.y - dy) > 0.01) console.error('EXTRA: knob', id, 'shift differs'); }
+    const lab = ow.opts.map(o => { const r = o.r, t = on.find(i => i.k === 'text' && i.lines[0].x >= r.x - 1 && i.lines[0].x <= r.x + r.w && i.lines[0].base >= r.y && i.lines[0].base <= r.y + r.h); return t ? { t: t.lines[0].t, x: t.lines[0].x, w: t.lines[0].w, base: t.lines[0].base } : null; });
+    if (lab.some(l => !l)) console.error('EXTRA: an option label is missing');
+    out.o2x = { opts: { rect: ow.rect, opts: ow.opts }, lab, dy, tipDy: +(g(on, 'tip', 'o2r') ? 0 : 0) };
+    const t1 = on.find(i => i.k === 'tip' && i.for === 'o2r'), t0 = off.find(i => i.k === 'tip' && i.for === 'o2r'); out.o2x.tipDy = +(t1.rect.y - t0.rect.y).toFixed(2); out.o2x.tipDh = +(t1.rect.h - t0.rect.h).toFixed(2);
+  }
+  await p.evaluate(() => { window.__JP.setP('o2ss', 0, false); }); await p.waitForTimeout(100);
 
   // page sizes: measured in cap(). pageH = content only (PREVIEW off), pageHk = with the keyboard strip. Check the strip sits 8 px under the panels.
   for (const [name, items] of Object.entries(pages)) {
@@ -338,6 +403,16 @@ function dumpPlayerMenu() {
   await p.evaluate(() => { __JP.setP('player', 1, false); }); await p.waitForTimeout(200);
   out.player = await p.evaluate(dumpPlayer);
   out.player.menu = await p.evaluate(dumpPlayerMenu);
+  // v3.11: the two panels (opened one at a time), with their anchors: left = max(..) rules are applied by the plugin
+  await p.evaluate(() => { __JPext.open(); }); await p.waitForTimeout(150);
+  out.panels = { ext: await p.evaluate(dumpPanel, '#extP') };
+  out.panels.extPos = await p.evaluate(() => { const W0 = document.querySelector('#win').getBoundingClientRect(), b = document.querySelector('#bExt').getBoundingClientRect(), pe = document.querySelector('#extP').getBoundingClientRect(); return { left: +(pe.left - W0.left).toFixed(2), top: +(pe.top - W0.top).toFixed(2), btnLeft: +(b.left - W0.left).toFixed(2), btnBottom: +(b.bottom - W0.top).toFixed(2) }; });
+  await p.evaluate(() => { __JPext.close(); __JPplayer.openGen(); document.querySelector('#pgInfo').textContent = 'Am F C G ... , ANTHEM, 120 notes, 138 BPM'; }); await p.waitForTimeout(150);
+  out.panels.gen = await p.evaluate(dumpPanel, '#plGenP');
+  await p.evaluate(() => { __JPplayer.regen(); });
+  out.panels.genPos = await p.evaluate(() => { const W0 = document.querySelector('#win').getBoundingClientRect(), b = document.querySelector('#plGen').getBoundingClientRect(), bar = document.querySelector('#plr').getBoundingClientRect(), pe = document.querySelector('#plGenP').getBoundingClientRect(); return { left: +(pe.left - W0.left).toFixed(2), top: +(pe.top - W0.top).toFixed(2), btnLeft: +(b.left - W0.left).toFixed(2), barTop: +(bar.top - W0.top).toFixed(2), gap: +(bar.top - pe.bottom).toFixed(2) }; });
+  await p.evaluate(() => { __JPplayer.closeGen(); });
+
   out.player.playOn = await p.evaluate(() => { __JPplayer.demo(21); const pl = document.querySelector('#plPlay'), B0 = document.querySelector('#plr').getBoundingClientRect(), W0 = document.querySelector('#win').getBoundingClientRect();
     const rr = r => ({ x: +(r.left - W0.left).toFixed(2), y: +(r.top - B0.top).toFixed(2), w: +r.width.toFixed(2), h: +r.height.toFixed(2) }), sp = pl.querySelector('span'), n = [...sp.childNodes].find(n => n.nodeType === 3), rg = document.createRange(); rg.setStart(n, 0); rg.setEnd(n, n.nodeValue.length); const tr = rg.getBoundingClientRect();
     const r = { icon: rr(pl.querySelector('.i-stop').getBoundingClientRect()), lbl: rr(sp.getBoundingClientRect()), t: n.nodeValue, x: +(tr.left - W0.left).toFixed(2), w: +tr.width.toFixed(2) }; __JPplayer.stop(); return r; });

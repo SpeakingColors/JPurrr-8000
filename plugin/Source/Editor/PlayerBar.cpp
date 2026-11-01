@@ -40,7 +40,7 @@ namespace jp {
 // ============================================================================================== buttons (.hb: PLAY, previous, next, LOAD MIDI FILE, EXPORT MIDI)
 class PlBtn : public juce::Component {
 public:
-    enum Kind { kPlay, kPrev, kNext, kText };
+    enum Kind { kPlay, kPrev, kNext, kText, kGen };
     PlBtn(PlayerBar& b, Kind k, const Rect& r, juce::String id, juce::String text = {}) : bar(b), kind(k), rect(r), txt(std::move(text)) {
         setComponentID(id); setMouseCursor(juce::MouseCursor::PointingHandCursor); setWantsKeyboardFocus(true); setMouseClickGrabsKeyboardFocus(false);
         setBounds(localBounds(r));
@@ -50,7 +50,7 @@ public:
     void paint(juce::Graphics& g) override {
         toBarFrame(g, *this);
         const Look& L = bar.L(); const auto r = snapR(rect);
-        const bool on = kind == kPlay && bar.playingShown();
+        const bool on = (kind == kPlay && bar.playingShown()) || (kind == kGen && bar.genOpenQuery && bar.genOpenQuery());
         auto bg = on ? L[acc] : L[btnbg];
         if (hover && !on) bg = bg.brighter(0.25f);
         g.setColour(bg); g.fillRoundedRectangle(r, 4.0f);
@@ -64,6 +64,11 @@ public:
             icon(on ? 1 : 0, on ? kPlayer.stopIcon : kPlayer.playIcon);
             const PlLine& l = on ? kPlayer.stopL : kPlayer.playL;
             g.setFont(fontOf(kPlayer.play)); drawTextAt(g, on ? "STOP" : "PLAY", l.x, l.base, 'l');
+        } else if (kind == kGen) {                              // v3.10: the die (svg 14 x 14) and GEN
+            static const juce::Path die = [] { juce::Path p, o; p.addRoundedRectangle(1.5f, 1.5f, 11.0f, 11.0f, 2.2f); juce::PathStrokeType(1.4f).createStrokedPath(o, p);
+                for (auto c : { juce::Point<float>(4.6f, 4.6f), juce::Point<float>(9.4f, 9.4f), juce::Point<float>(7.f, 7.f) }) o.addEllipse(c.x - 1.1f, c.y - 1.1f, 2.2f, 2.2f); return o; }();
+            g.fillPath(die, juce::AffineTransform::translation(kPlayer.genIcon.x, kPlayer.genIcon.y));
+            g.setFont(fontOf(kPlayer.play)); drawTextAt(g, "GEN", kPlayer.genL.x, kPlayer.genL.base, 'l');
         } else if (kind == kPrev) icon(2, kPlayer.prevIcon);
         else if (kind == kNext) icon(3, kPlayer.nextIcon);
         else {
@@ -382,13 +387,19 @@ private:
             const auto& gr = jpurrr::libraryGroup(g); header(gr.name, gr.count);
             for (int k = 0; k < gr.count; ++k) { const auto& it = jpurrr::libraryItem(gr.first + k); item(it.name, it.bpm, gr.first + k); }
         }
+        const int ng = host.genCount();
+        if (ng > 0) {
+            header("Generated melodies", ng);
+            for (int k = 0; k < ng; ++k) { const int s = host.genSlotAt(k); item(host.genName(s), juce::roundToInt(host.genBpm(s)), n + k); }
+        }
         if (host.userCount() > 0) {
             header("Your MIDI files", host.userCount());
-            for (int k = 0; k < host.userCount(); ++k) { const int s = host.userSlotAt(k); item(host.userName(s), juce::roundToInt(host.userBpm(s)), n + k); }
+            for (int k = 0; k < host.userCount(); ++k) { const int s = host.userSlotAt(k); item(host.userName(s), juce::roundToInt(host.userBpm(s)), n + ng + k); }
         }
         contentH = y;
         cur = host.selected() >= 0 ? host.selected() : -1;
-        if (cur < 0 && host.fileLoaded()) for (int k = 0; k < host.userCount(); ++k) if (host.userSelected(host.userSlotAt(k))) cur = n + k;
+        if (cur < 0 && host.genLoaded()) for (int k = 0; k < ng; ++k) if (host.genSelected(host.genSlotAt(k))) cur = n + k;
+        if (cur < 0 && host.fileLoaded()) for (int k = 0; k < host.userCount(); ++k) if (host.userSelected(host.userSlotAt(k))) cur = n + ng + k;
     }
     void clampScroll() { scroll = juce::jlimit(0.0f, std::max(0.0f, contentH - viewH), scroll); }
     int rowAt(juce::Point<float> p) const {                                           // a row index, or -1 (also under a sticky header)
@@ -410,7 +421,8 @@ private:
     }
     void pick(int idx) {
         auto& host = bar.proc.midiPlayer; const int n = jpurrr::libraryItemCount();
-        if (idx < n) host.select(idx); else host.selectUser(host.userSlotAt(idx - n));
+        const int ng = host.genCount();
+        if (idx < n) host.select(idx); else if (idx < n + ng) host.selectGen(host.genSlotAt(idx - n)); else host.selectUser(host.userSlotAt(idx - n - ng));
         bar.repaint();
     }
     void choose(int idx) { pick(idx); close(true); }
@@ -428,6 +440,7 @@ PlayerBar::PlayerBar(JPurrr8000AudioProcessor& p, Ctx& ctx, DisplayEnv& e) : pro
     sel = std::make_unique<PlSel>(*this);
     bpm = std::make_unique<PlNum>(*this, true); tr = std::make_unique<PlNum>(*this, false);
     lock = std::make_unique<PlLock>(*this);
+    gen = std::make_unique<PlBtn>(*this, PlBtn::kGen, kPlayer.genR, "plGen"); gen->onClick = [this] { if (onGenClick) onGenClick(); };
     load = std::make_unique<PlBtn>(*this, PlBtn::kText, kPlayer.loadR, "plLoad", "LOAD MIDI FILE"); load->onClick = [this] { doLoad(); };
     exp = std::make_unique<PlBtn>(*this, PlBtn::kText, kPlayer.expR, "plExp", "EXPORT MIDI"); exp->onClick = [this] { doExport(); };
     exp->onDragOut = [this] {                            // drag the button into the DAW: the file is written to a temporary folder first
@@ -435,7 +448,7 @@ PlayerBar::PlayerBar(JPurrr8000AudioProcessor& p, Ctx& ctx, DisplayEnv& e) : pro
         const auto f = exportToFile(dir); if (f.existsAsFile()) juce::DragAndDropContainer::performExternalDragDropOfFiles({ f.getFullPathName() }, false, exp.get());
     };
     pos = std::make_unique<PlPos>(*this, env); pos->setTopLeftPosition(juce::roundToInt(kPlayer.posR.x - kPlayer.bar.x), juce::roundToInt(kPlayer.posR.y));
-    for (auto* c : std::initializer_list<juce::Component*> { play.get(), prev.get(), sel.get(), next.get(), bpm.get(), lock.get(), tr.get(), load.get(), exp.get(), pos.get() }) add(*c);
+    for (auto* c : std::initializer_list<juce::Component*> { play.get(), prev.get(), sel.get(), next.get(), gen.get(), bpm.get(), lock.get(), tr.get(), load.get(), exp.get(), pos.get() }) add(*c);
     menu = std::make_unique<PlMenu>(*this);
     setSize(juce::roundToInt(kPlayer.bar.w), juce::roundToInt(kPlayer.h));
 }
@@ -445,6 +458,7 @@ void PlayerBar::place(float y) {
     barY = y;
     setBounds(juce::roundToInt(kPlayer.bar.x), juce::roundToInt(y), juce::roundToInt(kPlayer.bar.w), juce::roundToInt(kPlayer.h));
 }
+juce::Rectangle<float> PlayerBar::genButtonRect() const { return { kPlayer.genR.x, barY + kPlayer.genR.y, kPlayer.genR.w, kPlayer.genR.h }; }
 juce::Component& PlayerBar::menuComponent() { return *menu; }
 bool PlayerBar::menuOpen() const { return menu->isOpen(); }
 void PlayerBar::closeMenu() { menu->close(false); sel->repaint(); }

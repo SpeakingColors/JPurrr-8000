@@ -5,6 +5,7 @@
 #include <functional>
 #include <map>
 #include <set>
+#include <array>
 #include "../PluginProcessor.h"
 #include "../PresetManager.h"
 
@@ -24,6 +25,8 @@ struct Settings {                       // saved with the plugin settings, not w
     // External input (EXT IN panel, v3.11): where the audio comes from and its level. Plugin settings, not saved with sounds.
     int extIn = 0;                                                  // 0 the sidechain input (the DAW picks the track), 1 the main input
     int extGain = 0;                                                // level trim in dB, -24 to +24
+    // Melody generator (GEN panel, v3.10): the last choices. genKey -1 = ANY, 0..11; genMode 0 minor, 1 major, 2 either; genStyle 0 any, 1..5; genSeed 0 = pick one when first used
+    int genKey = -1, genMode = 0, genStyle = 0, genSeed = 0;
     static inline bool noSave = false;                              // test tools: never write settings.json
     static Settings& get();
     void load(); void save() const;
@@ -101,6 +104,17 @@ public:
     juce::String bankLetter() const { return pm.cur.bank; }
     static juce::String exportText(const PresetEntry& e);
 
+    // ---- undo and redo (v3.11): one step = the whole sound as it was before a change. A second change of the same control within 0.9 s joins the
+    // first (turning a knob in one go is one step). Loading a sound or changing the edited part starts a new history. 100 steps.
+    bool canUndo() const { return !hu.empty(); }
+    bool canRedo() const { return !hr.empty(); }
+    int undoCount() const { return (int) hu.size(); }
+    int redoCount() const { return (int) hr.size(); }
+    bool undo() { return histGo(hu, hr, "Undone"); }
+    bool redo() { return histGo(hr, hu, "Redone"); }
+    void histClear();
+    juce::String undoTip() const, redoTip() const;
+
     // ---- hooks set by the editor
     std::function<void()> openSave, openBrowser, startRename, closeDialog, openDelete;
     std::function<void(int)> openPartBrowser;           // v3.5: the preset browser for one part (0 UPPER, 1 LOWER)
@@ -116,6 +130,12 @@ public:
     bool velHas(int i) const { return velSet.count(i) > 0; }
 
 private:
+    struct HistE { std::array<int, jpurrr::kNumParams> s; juce::String lab; };
+    std::vector<HistE> hu, hr; int hId = -1; juce::uint32 hT = 0; bool hBusy = false;
+    static bool histOk(int i);
+    HistE histSnap(const juce::String& lab) const;
+    void histNote(int i);                               // call before a change of control i
+    bool histGo(std::vector<HistE>& from, std::vector<HistE>& to, const char* word);
     int ribT = -1, ribBase = 0;
     std::set<int> velSet;
     void deps(int i);

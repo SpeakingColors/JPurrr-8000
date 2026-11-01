@@ -99,12 +99,20 @@ struct PlayerGeo {
     Rect bpmG, bpmR; float bpmBase; PlLine bpmL;
     Rect lockG, lockR, led; PlLine lockL;
     Rect trG, trR; float trBase; PlLine trL;
-    Rect loadR, expR; PlLine loadL, expL;
+    Rect loadR, expR; PlLine loadL, expL; Rect genR, genIcon; PlLine genL;
     Rect posG, posR, posTR; PlLine barL; PlLine valL; int posW, posH;
     Rect seps[4];
     PlMenu menu;
-    Span<Tip> tips;                 // data-tip of play, prev, sel, next, bpm group, lock group, transpose group, load, export, position group
+    Span<Tip> tips;                 // data-tip of play, prev, sel, next, bpm group, lock group, transpose group, load, export, position group, GEN
 };
+// v3.11: OSC 2 with EXTRA on: five-row waveform list (SUPER SAW on top); RANGE and FINE (knobs, labels, tips) move down by dy
+struct O2x { Opts opts; Line lab[5]; float dy, tipDy, tipDh; };
+extern const O2x kO2x;
+// v3.11: the EXT IN and melody generator panels. Every position is relative to the panel's own top left corner.
+struct PnLine { const char* id; const char* t; float x, w, base; Font f; signed char tok; Rect el; };     // id: dynamic text (el = its box), else ""
+struct PnBox { char kind; const char* id; int v; Rect r; const char* tip; Font f; const char* text; PlLine line; Rect icon; float base; int cw, ch; };   // kind: c chip, n number box, b button, v canvas
+struct PnGeo { Rect r; Rect sep; Span<PnLine> lines; Span<PnBox> boxes; };
+extern const PnGeo kPnExt, kPnGen;
 extern const PlayerGeo kPlayer;
 extern const PartsGeo kParts;
 extern const KeyStrip kStrip;
@@ -132,7 +140,7 @@ struct MpDef { const char* key; const char* title; int nIds; const char* const* 
 extern const MpDef kMp[]; extern const int kNumMp;
 struct TypeVals { const char* type; int n; const char* const* ids; const int* vals; };  // qvals(type): sound type chain defaults
 extern const TypeVals kQvals[]; extern const int kNumQvals;
-extern const char* const kO1L[7][2]; extern const char* const kO2L[4][2];
+extern const char* const kO1L[7][2]; extern const char* const kO2L[5][2];
 extern const char* const kVmc[27];
 extern const int kStartSlots[]; extern const int kNumStartSlots;      // factory 'START HERE' slots
 extern const char* const kBanks[8]; extern const char* const kTypes[10]; extern const char* const kGenres[9];

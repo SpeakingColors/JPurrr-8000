@@ -88,8 +88,12 @@ public:
     void mouseMove(const juce::MouseEvent&) override;
     void mouseExit(const juce::MouseEvent&) override { hot = -1; repaint(); }
     int idx;
+    // v3.11: OSC 2 with EXTRA on has five rows (SUPER SAW on top): another set of rectangles and caption lines, used while useAlt() is true
+    const layout::Opts* alt = nullptr; const layout::Line* altLab = nullptr; std::function<bool()> useAlt;
 private:
-    const layout::Opts& o; juce::Array<const layout::Text*> labels; int cached = -1, hot = -1;
+    const layout::Opts& o; juce::Array<const layout::Text*> labels; int cached = -1, hot = -1; bool altOn = false;
+    const layout::Opts& active() const { return altOn && alt != nullptr ? *alt : o; }
+    void applyBounds();
     int hit(juce::Point<int> p) const;
 };
 
@@ -122,9 +126,12 @@ public:
     void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); }
     void refresh() override;
     std::function<bool()> isOn; std::function<void()> onClick;
+    std::function<bool()> isEnabled;                     // v3.11: UNDO / REDO are dimmed (opacity .35) and do nothing while there is nothing to go back to
+    std::function<bool()> ledOn, accentBorder;           // v3.11: EXT IN (the dot after the caption lights when the EXT switch is on; the border is accent while its panel is open)
+    std::function<juce::String()> dynTip;                // v3.11: the tip text follows the state (undo and redo name the change)
     const layout::HBtn& b;
 private:
-    const layout::Text* txt; float dy; bool hover = false, on = false;
+    const layout::Text* txt; float dy; bool hover = false, on = false, enabled = true, led = false, bord = false;
 };
 
 class LcdW : public Ctrl {
