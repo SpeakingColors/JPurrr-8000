@@ -51,7 +51,7 @@ function walk() {
     const f = fontOf(el); const [asc] = ascent(f);
     const sv = el.closest('[data-mpsave]'), inK = !!el.closest('#kbd');
     // colour token across looks is resolved later (needs look switch): keep the element for now
-    const it = { k: 'text', id: el.id || (el.closest('[id^=lb_]') || {}).id || (sv ? 'mpsave_' + sv.dataset.mpsave : ''), kbd: inK, f, al: 'c', cls: el.className && el.className.baseVal === undefined ? el.className : '',
+    const it = { k: 'text', id: el.id || (el.closest('[id^=lb_]') || {}).id || (el.closest('#bExt') ? 'bExt' : '') || (sv ? 'mpsave_' + sv.dataset.mpsave : ''), kbd: inK, f, al: 'c', cls: el.className && el.className.baseVal === undefined ? el.className : '',
       lines: lines.map(l => ({ t: (up ? l.t.toUpperCase() : l.t).trim(), x: +(l.left - W0.left).toFixed(2), y: +(l.top - W0.top).toFixed(2), w: +(l.right - l.left).toFixed(2), base: +(l.top - W0.top + Math.round(asc)).toFixed(2) })),
       rect: R(el.getBoundingClientRect()), _el: el };
     // alignment: centre when the element box is centred text

@@ -16,7 +16,7 @@ const { open } = require('./mockup_page.js');
   };
   const reset = async () => { await ev(() => { const J = window.__JP; __JPext.close(); try { __JPplayer.closeGen(); } catch (e) {} J.setP('o2w', 0, false); J.setP('o2ss', 0, false); J.setP('o2ext', 0, false); J.setP('player', 0, false); __JPhist.clear(); }); };
   await ev(() => window.__JP.showPage('sound')); await reset();
-  await ev(() => { const J = window.__JP; J.setP('o2ss', 1, false); J.setP('o2w', 4, false); }); await shot('v311_extra'); await reset();
+  await ev(() => { const J = window.__JP; J.setP('o2ss', 1, false); }); await shot('v311_extra'); await ev(() => { window.__JP.setP('o2w', 4, false); }); await shot('v311_extra_ss'); await reset();
     await ev(() => { window.__JP.setP('o2ext', 1, false); __JPext.open(); }); await shot('v311_extin'); await reset();
   await ev(() => { const J = window.__JP; J.setP('player', 1, false); const pl = window.__JPplayer; pl.select(1); pl.setGen({ seed: 12345, key: 9, mode: 0, style: 1 }); pl.demo(21); pl.openGen(); }); await shot('v311_gen'); await reset();
   await ev(() => { window.__JP.setP('o2r', 5, true); }); await shot('v311_undo');

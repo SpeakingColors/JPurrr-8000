@@ -226,7 +226,7 @@ def pnl_line(l):
 def pnl_box(b):
     ln = b.get('line') or {'x': 0, 'w': 0, 'base': 0}
     return '{\'%s\',%s,%d,%s,%s,%s,%s,%s,%s,%s,%d,%d}' % ({'chip': 'c', 'nbx': 'n', 'btn': 'b', 'canvas': 'v'}[b['k']], cs(b['id']), b.get('v', 0), R(b['rect']), cs(b.get('tip', '')), F(b['f']) if b.get('f') else '{kBody,16.f,500,0.f,false}',
-        cs(b.get('text', '')), PLL(ln), R(b.get('icon') or ZR), f(b.get('base', 0)), b.get('cw', 0), b.get('ch', 0))
+        cs(b.get('text') or ln.get('t', '')), PLL(ln), R(b.get('icon') or ZR), f(b.get('base', 0)), b.get('cw', 0), b.get('ch', 0))
 for nm, key in (('Ext', 'ext'), ('Gen', 'gen')):
     pg = d['panels'][key]
     w('namespace {')

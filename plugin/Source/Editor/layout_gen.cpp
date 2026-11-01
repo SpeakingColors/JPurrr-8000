@@ -1582,7 +1582,7 @@ const Text chrome_texts[] = {
   {"pinfo",{kCond,16.7f,400,0.08f,false},'l',8,0xff9fb0dc,{716.f,17.f,97.52f,20.f},{chrome_lines+6,1}},
   {"tSound",{kCond,21.3f,600,0.06f,false},'c',-1,0xff10141a,{843.52f,12.f,90.42f,30.f},{chrome_lines+7,1}},
   {"tFx",{kCond,21.3f,600,0.06f,false},'c',7,0xffe9eef6,{937.94f,12.f,55.2f,30.f},{chrome_lines+8,1}},
-  {"",{kCond,18.4f,600,0.06f,false},'c',7,0xffe9eef6,{1018.14f,15.f,48.53f,22.f},{chrome_lines+9,1}},
+  {"bExt",{kCond,18.4f,600,0.06f,false},'c',7,0xffe9eef6,{1018.14f,15.f,48.53f,22.f},{chrome_lines+9,1}},
   {"bGuide",{kCond,18.4f,600,0.06f,false},'c',7,0xffe9eef6,{2598.47f,13.f,65.55f,28.f},{chrome_lines+10,1}},
   {"bAbout",{kCond,18.4f,600,0.06f,false},'c',7,0xffe9eef6,{2716.02f,13.f,157.98f,28.f},{chrome_lines+11,1}},
   {"",{kCond,16.7f,500,0.1f,false},'l',8,0xff9fb0dc,{46.f,1083.f,327.73f,20.f},{chrome_lines+12,1}},
@@ -2102,7 +2102,7 @@ const PnBox pnGen_boxes[] = {{'c',"pgKey",-1,{97.f,59.f,55.42f,30.f},"Key note o
   {'c',"pgStyle",4,{752.03f,101.f,71.64f,30.f},"Rhythm family, taken from the 22 melodies: ANTHEM long and short notes, RUN steady eighths, ROLLER sixteenths over a pedal note, STABS groups of three, SPARSE few notes with space.",{kCond,18.4f,600,0.06f,false},"STABS",{765.03f,45.64f,123.f},{0.f,0.f,0.f,0.f},0.f,0,0},
   {'c',"pgStyle",5,{829.67f,101.f,81.22f,30.f},"Rhythm family, taken from the 22 melodies: ANTHEM long and short notes, RUN steady eighths, ROLLER sixteenths over a pedal note, STABS groups of three, SPARSE few notes with space.",{kCond,18.4f,600,0.06f,false},"SPARSE",{842.67f,55.22f,123.f},{0.f,0.f,0.f,0.f},0.f,0,0},
   {'n',"pgSeed",0,{97.f,143.f,150.f,30.f},"The number of the melody, 1 to 16777215. The same seed, key, mode and style always gives the same melody. Type one in to come back to a melody. Drag up or down, or scroll, to try the next ones.",{kMono,21.3f,500,0.f,false},"",{0.f,0.f,0.f},{0.f,0.f,0.f,0.f},166.f,0,0},
-  {'b',"pgNew",0,{261.f,143.f,190.f,30.f},"Writes a new melody with a new seed and plays it. The last 8 stay in the piece list under Generated melodies.",{kCond,18.4f,600,0.06f,false},"",{319.55f,94.91f,165.f},{297.55f,151.f,14.f,14.f},0.f,0,0}};
+  {'b',"pgNew",0,{261.f,143.f,190.f,30.f},"Writes a new melody with a new seed and plays it. The last 8 stay in the piece list under Generated melodies.",{kCond,18.4f,600,0.06f,false},"NEW MELODY",{319.55f,94.91f,165.f},{297.55f,151.f,14.f,14.f},0.f,0,0}};
 }
 const PnGeo kPnGen = {{0.f,0.f,1010.f,188.f},{17.f,46.f,976.f,1.f},Span<PnLine>{pnGen_lines,7},Span<PnBox>{pnGen_boxes,24}};
 const char* const kO2L[5][2] = {{"PULSE WIDTH","PWM DEPTH"},{"SHAPE","LFO1 DEPTH"},{"SHAPE","LFO1 DEPTH"},{"CUTOFF FREQ","RESONANCE"},{"DETUNE","MIX"}};

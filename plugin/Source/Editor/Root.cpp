@@ -627,8 +627,8 @@ bool Root::applyState(const juce::String& s) {
         return true; }
     if (s.startsWith("v311_")) {                         // test hooks (v3.10 / v3.11): v311_extra (OSC 2 EXTRA on, SUPER SAW), v311_extin (EXT on, panel open), v311_gen (PLAYER on, generator panel open), v311_undo, v311_redo
         applyState("reset"); showPage(kSound);
-        if (s == "v311_extra") { ctl.quiet(P_o2ss, 1); ctl.quiet(P_o2w, 4); }
-        else if (s == "v311_extin") { ctl.quiet(P_o2ext, 1); Settings::get().extGain = 6; proc.setExtInput(Settings::get().extIn, 6); layoutStrip(); toggleExt(); }
+        if (s == "v311_extra" || s == "v311_extra_ss") { ctl.quiet(P_o2ss, 1); if (s == "v311_extra_ss") ctl.quiet(P_o2w, 4); }
+        else if (s == "v311_extin") { ctl.quiet(P_o2ext, 1); layoutStrip(); toggleExt(); }
         else if (s == "v311_gen") {
             applyState("sound_player");
             auto& S = Settings::get(); S.genSeed = 12345; S.genKey = 9; S.genMode = 0; S.genStyle = 1; genPanel->generate(false); player->demo(-1, 21.0f); toggleGen();
