@@ -112,6 +112,7 @@ const char* kWarnDly = "Delay type numbering follows the order of the manual's p
 const char* kWarnDist = "DISTORTION is a JP-8080 multi-FX type; the JP-8000 has no such type, so SUPER CHORUS SLW is written instead.";
 constexpr int kJp8000PatchSize = 239;   // "01 6F": the JP-8000 patch is the first 239 bytes of the JP-8080 patch (JP-8000 manual p. 123 to 124)
 const char* kWarnWide = "OSC2 WIDE range is approximated: the manual does not give the step mapping of FINE/WIDE.";
+const char* kWarnO2ss = "OSC 2 SUPER SAW does not exist on the JP-8000 or JP-8080 (only OSC 1 has it): OSC 2 is written as SAW.";
 
 // Name: 16 characters, ASCII 20h..7Dh, padded with spaces.
 void encodeName(const std::string& name, uint8_t* out, std::vector<std::string>& warn) {
@@ -145,7 +146,12 @@ void encodePatch(const Patch& p, uint8_t* out, std::vector<std::string>& warn, S
         switch (f.conv) {
         case 'L': out[f.offset] = uint8_t(clampi(v - kParams[idx].min, 0, f.wireMax)); break;
         case 'N': out[f.offset] = uint8_t(clampi(-v, 0, f.wireMax)); break;
-        case 'P': out[f.offset] = kOsc2Perm[clampi(v, 0, 3)]; break;
+        case 'P': {
+            int vv = clampi(v, 0, 4);
+            if (vv == 4) { vv = 1; addWarn(warn, kWarnO2ss); }   // the OSC 2 SUPER SAW extra has no wire value
+            out[f.offset] = kOsc2Perm[vv];
+            break;
+        }
         case 'O': {
             int r = p.v[idx];
             int fn = fi.o2f >= 0 ? p.v[fi.o2f] : 0;

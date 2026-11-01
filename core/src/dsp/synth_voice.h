@@ -46,8 +46,8 @@ struct PatchParams {
     // v: kNumParams ints. partDetuneCents: from the Part Detune parameter in dual and split.
     void derive(const int* v, float partDetuneCents);
     // Fields that rebuild the signal path (waves, filter type and slope, ring, sync, pan mode, LFO wave): changing them
-    // while notes sound would click, so the engine ducks the output around the change.
-    int structKey() const { return o1w | (o2w << 3) | (od << 5) | (ft << 7) | (ap << 9) | (l1w << 11) | ((f24 ? 1 : 0) << 13) | ((ring ? 1 : 0) << 14) | ((sync ? 1 : 0) << 15); }
+    // while notes sound would click, so the engine ducks the output around the change. (o2w has 3 bits since the OSC 2 SUPER SAW extra.)
+    int structKey() const { return o1w | (o2w << 3) | (od << 6) | (ft << 8) | (ap << 10) | (l1w << 12) | ((f24 ? 1 : 0) << 14) | ((ring ? 1 : 0) << 15) | ((sync ? 1 : 0) << 16); }
     void copyStruct(const PatchParams& t) { o1w = t.o1w; o2w = t.o2w; od = t.od; ft = t.ft; ap = t.ap; l1w = t.l1w; f24 = t.f24; ring = t.ring; sync = t.sync; }
     // Moves s[] toward target.s and copies the other fields (not the structural ones unless applyStruct).
     void smoothToward(const PatchParams& target, float a, bool applyStruct = true);
@@ -108,9 +108,10 @@ struct Voice {
     // oscillators (phases in 0..1)
     double phSaw[7] = {}, ph1 = 0.0, ph2 = 0.0;
     double incSaw[7] = {}, dSaw[7] = {}, inc1 = 0.0, d1 = 0.0, inc2 = 0.0, d2 = 0.0;
-    dsp::BlepOut bo1, bo2, bs[7];   // bs: the seven Super Saw oscillators in CLEAN style
+    double phSaw2[7] = {}, incSaw2[7] = {}, dSaw2[7] = {};   // OSC 2 SUPER SAW (the EXTRA switch)
+    dsp::BlepOut bo1, bo2, bs[7], bs2[7];   // bs, bs2: the seven Super Saw oscillators of OSC 1 and OSC 2 in CLEAN style
     dsp::Decimator2 dec2;           // first stage of the 4x oversampling (the second stage is dec)
-    float lastY2 = 0.f, fbState = 0.f, fbOut = 0.f, ssHp = 0.f;
+    float lastY2 = 0.f, fbState = 0.f, fbOut = 0.f, ssHp = 0.f, ssHp2 = 0.f;
     float nz1[2] = {}, nz2[2] = {};            // noise filter states (osc 1, osc 2)
     dsp::Rng rng;
     dsp::Decimator2 dec;
@@ -122,6 +123,7 @@ struct Voice {
     // per block constants for the oscillator section
     int kind1 = 0, kind2 = 0;                   // wave ids
     float ssGain[7] = {}; float ssHpA = 0.f;
+    float ss2Gain[7] = {}; float ssHpA2 = 0.f;  // OSC 2 SUPER SAW gains and high pass
     float pw1 = 0.5f, pw2 = 0.5f;
     float w1Saw = 1.f, w1Tri = 0.f, w1Sin = 0.f, w2Saw = 1.f, w2Tri = 0.f, w2Sin = 0.f;
     float triModA = 0.f, fbBeta = 0.f, fbLp = 0.5f;

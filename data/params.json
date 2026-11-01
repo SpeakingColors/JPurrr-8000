@@ -390,7 +390,7 @@
    "label": "Indv Trig Dest",
    "min": 0,
    "max": 2,
-   "def": 0,
+   "def": 2,
    "opts": [
     "FILTER",
     "AMP",
@@ -406,7 +406,7 @@
    "label": "Indv Trig Src CH",
    "min": 0,
    "max": 15,
-   "def": 14,
+   "def": 0,
    "opts": [
     "1",
     "2",
@@ -1510,24 +1510,49 @@
    "opts": null,
    "nosave": false,
    "mom": false,
-   "tip": "External input as the OSC 2 source (External Input synthesis)."
+   "tip": "External input as the OSC 2 source (External Input synthesis): OSC 2 plays the audio of the sidechain input instead of its own wave. Open EXT IN in the top bar to see the signal and set the level."
+  },
+  {
+   "id": "o2wide",
+   "t": "w",
+   "label": "WIDE",
+   "min": 0,
+   "max": 1,
+   "def": 0,
+   "opts": null,
+   "nosave": false,
+   "mom": false,
+   "tip": "Wide: range and fine move OSC 2 in whole octaves, from -4 to +4."
+  },
+  {
+   "id": "o2ss",
+   "t": "w",
+   "label": "EXTRA",
+   "min": 0,
+   "max": 1,
+   "def": 0,
+   "opts": null,
+   "nosave": false,
+   "mom": false,
+   "tip": "EXTRA shows SUPER SAW at the top of the OSC 2 waveform list, so OSC 2 can be a 7 saw stack like OSC 1 (CONTROL 1 is DETUNE, CONTROL 2 is MIX). Off by default, like the JP-8000, which has SUPER SAW on OSC 1 only. Your sound keeps this switch. Switching it off while OSC 2 is on SUPER SAW changes OSC 2 to SAW."
   },
   {
    "id": "o2w",
    "t": "o",
    "label": "WAVEFORM",
    "min": 0,
-   "max": 3,
+   "max": 4,
    "def": 0,
    "opts": [
     "SQR (PWM)",
     "SAW",
     "TRI",
-    "NOISE"
+    "NOISE",
+    "SUPER SAW"
    ],
    "nosave": false,
    "mom": false,
-   "tip": "OSC 2 waveform. NOISE is new on the JP-8080."
+   "tip": "OSC 2 waveform. NOISE is new on the JP-8080. SUPER SAW is an extra of this plugin (the JP-8000 has it on OSC 1 only): switch EXTRA on above to show it at the top of the list."
   },
   {
    "id": "o2r",
@@ -1552,18 +1577,6 @@
    "nosave": false,
    "mom": false,
    "tip": "OSC 2 fine tune, about -50 to +50 cent. With WIDE on it moves in whole octaves."
-  },
-  {
-   "id": "o2wide",
-   "t": "w",
-   "label": "WIDE",
-   "min": 0,
-   "max": 1,
-   "def": 0,
-   "opts": null,
-   "nosave": false,
-   "mom": false,
-   "tip": "Wide: range and fine move OSC 2 in whole octaves, from -4 to +4."
   },
   {
    "id": "o2c1",

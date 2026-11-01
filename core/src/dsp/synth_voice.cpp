@@ -52,9 +52,10 @@ void PatchParams::derive(const int* v, float partDetuneCents) {
     s[S_shift] = 12.f * (v[P_os] + v[P_ksh]) + v[P_ptr] + (tuneCents + partDetuneCents) / 100.f;
     s[S_kshift] = 12.f * v[P_ksh] + v[P_ptr];
 
-    o1w = std::min(6, std::max(0, v[P_o1w])); o2w = std::min(3, std::max(0, v[P_o2w]));
+    o1w = std::min(6, std::max(0, v[P_o1w])); o2w = std::min(4, std::max(0, v[P_o2w]));
+    if (o2w == 4 && !v[P_o2ss]) o2w = 1;             // SUPER SAW on OSC 2 only with the EXTRA switch on, else SAW (mockup rule)
     od = v[P_od]; ft = v[P_ft]; f24 = v[P_f24] != 0; ap = v[P_ap];
-    ring = v[P_ring] != 0; sync = v[P_sync] != 0 && o2w != 3;
+    ring = v[P_ring] != 0; sync = v[P_sync] != 0 && o2w != 3 && o2w != 4;   // no hard sync onto NOISE or the 7 saw stack
     mono = v[P_mono] != 0; leg = v[P_leg] != 0; uni = v[P_uni] != 0; porta = v[P_pon] != 0;
     // FEEDBACK OSC is mono only and cannot be used with unison (mockup rule).
     if (o1w == 3) { uni = false; if (!leg) mono = true; }
@@ -98,8 +99,10 @@ void Voice::setEngine(int osFac, bool rawSuperSaw, bool highAA_) {
     osFactor = osFac; osr = sr * osFac; rawSS = rawSuperSaw; highAA = highAA_;
     bo1.hi = bo2.hi = highAA_;
     for (auto& b : bs) b.hi = highAA_;
+    for (auto& b : bs2) b.hi = highAA_;
     dec.reset(); dec2.reset(); bo1.reset(); bo2.reset();
     for (auto& b : bs) b.reset();
+    for (auto& b : bs2) b.reset();
     if (rateChanged) needSnap = true;            // the phase increments depend on the oscillator rate
 }
 
@@ -107,7 +110,8 @@ void Voice::reset() {
     st = VState::Idle; sustained = false; solo = false;
     aenv.kill(); fenv.kill(); filt.reset(); dec.reset(); dec2.reset(); bo1.reset(); bo2.reset();
     for (auto& b : bs) b.reset();
-    lastY2 = fbState = fbOut = ssHp = 0.f; nz1[0] = nz1[1] = nz2[0] = nz2[1] = 0.f;
+    for (auto& b : bs2) b.reset();
+    lastY2 = fbState = fbOut = ssHp = ssHp2 = 0.f; nz1[0] = nz1[1] = nz2[0] = nz2[1] = 0.f;
     declick = 0.f; fadeG = 1.f; ampG = dAmpG = 0.f;
 }
 
@@ -120,13 +124,15 @@ void Voice::start(const PatchParams& P, int partIdx, int ch_, int note_, int vel
     noteSemis = glideFrom ? fromSemis : (double) note_;
     filt.reset(); dec.reset(); dec2.reset(); bo1.reset(); bo2.reset();
     for (auto& b : bs) b.reset();
-    lastY2 = fbState = fbOut = ssHp = 0.f; nz1[0] = nz1[1] = nz2[0] = nz2[1] = 0.f;
+    for (auto& b : bs2) b.reset();
+    lastY2 = fbState = fbOut = ssHp = ssHp2 = 0.f; nz1[0] = nz1[1] = nz2[0] = nz2[1] = 0.f;
     aenv.setTimes(sr, P.aA, P.aD, P.aS, P.aR); fenv.setTimes(sr, P.fA, P.fD, P.fS, P.fR);
     aenv.gate(false); fenv.gate(false);
     penv = 0.f; penvAttack = true;
     lfoPh = 0.0; lfoSH = rng.bi(); lfoFade = 0.f;
-    // Super Saw: a new random phase per note, then held static (Szabo).
+    // Super Saw: a new random phase per note, then held static (Szabo). OSC 2's stack gets its own phases.
     for (int k = 0; k < 7; ++k) phSaw[k] = rng.uni();
+    for (int k = 0; k < 7; ++k) phSaw2[k] = rng.uni();
     const bool spread = uniN > 1;
     ph1 = spread ? rng.uni() : 0.0;
     ph2 = spread ? rng.uni() : 0.0;
@@ -237,6 +243,16 @@ void Voice::control(const PatchParams& P, const BlockCtl& C, bool snap) {
     }
     // OSC 2
     ramp(inc2, d2, std::min(maxInc, f2 * inv));
+    if (kind2 == 4) {
+        // SUPER SAW on OSC 2 (the EXTRA switch): the same 7 saw stack as OSC 1, at the OSC 2 pitch.
+        const double curve = superSawCurve(c21 / 127.0);
+        for (int k = 0; k < 7; ++k) ramp(incSaw2[k], dSaw2[k], std::min(maxInc, f2 * (1.0 + kSuperSawRatio[k] * curve) * inv));
+        const double m = c22 / 127.0;
+        const double cg = superSawCentreGain(m), sg = superSawSideGain(m);
+        const double norm = 0.9 / std::sqrt(cg * cg + 6.0 * sg * sg);
+        for (int k = 0; k < 7; ++k) ss2Gain[k] = (float) ((k == 3 ? cg : sg) * norm);
+        ssHpA2 = (float) (1.0 - std::exp(-kTwoPi * 0.8 * f2 * inv));
+    }
     switch (kind2) {
         case 0: pw2 = clampf(0.1f + 0.8f * c21 / 127.f + l1 * (c22 / 127.f) * 0.3f, 0.05f, 0.95f); break;
         case 1: case 2: {
@@ -400,6 +416,30 @@ inline float Voice::oscStep() {
     if (mix2 > 0.f || ringOn || xmodOct != 0.f) {
         bool w2; float t2;
         switch (kind2) {
+            case 4: {
+                float sum = 0.f;
+                if (rawSS) {                   // CLASSIC: raw saws, like the OSC 1 stack
+                    for (int k = 0; k < 7; ++k) {
+                        double p = phSaw2[k] + incSaw2[k];
+                        if (p >= 1.0) p -= 1.0;
+                        phSaw2[k] = p;
+                        sum += ss2Gain[k] * (float) (2.0 * p - 1.0);
+                    }
+                } else {                       // CLEAN: every saw gets its steps corrected
+                    for (int k = 0; k < 7; ++k) {
+                        double p = phSaw2[k] + incSaw2[k];
+                        bool wr = false;
+                        if (p >= 1.0) { p -= 1.0; wr = true; }
+                        phSaw2[k] = p;
+                        float v = ss2Gain[k] * (float) (2.0 * p - 1.0);
+                        if (wr) bs2[k].step(-2.f * ss2Gain[k], (float) (p / incSaw2[k]), v);
+                        sum += bs2[k].push(v);
+                    }
+                }
+                ssHp2 += ssHpA2 * (sum - ssHp2);
+                y2 = sum - ssHp2;
+                break;
+            }
             case 0: y2 = waveTick(ph2, bo2, inc2, 0, pw2, 0.f, 0.f, 0.f, 0.f, syncOn && mWrap, mT, w2, t2); break;
             case 3: {
                 const float x = rng.bi();
@@ -422,7 +462,7 @@ inline float Voice::oscStep() {
 void Voice::render(int n, float* L, float* R) {
     const HalfbandCoefs& h = *hc;
     for (int i = 0; i < n; ++i) {
-        for (int k = 0; k < 7; ++k) incSaw[k] += dSaw[k];
+        for (int k = 0; k < 7; ++k) { incSaw[k] += dSaw[k]; incSaw2[k] += dSaw2[k]; }
         inc1 += d1; inc2 += d2; g += dg; kf += dkf; ampG += dAmpG; pl += dpl; pr += dpr;
         const float ae = aenv.tick();
         fenv.tick();
