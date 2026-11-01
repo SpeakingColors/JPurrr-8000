@@ -110,6 +110,32 @@ The PLAYER switch (in the VOLUME box on the SOUND page, next to PREVIEW; off by 
 
 The pieces were written for this plugin. The patterns of the uplifting trance melodies come from measured statistics (see docs/trance-patterns-learned.md); no part of any sample pack is included.
 
+## Undo and redo
+
+The two arrow buttons right of the menu undo and redo your changes (Ctrl+Z; Ctrl+Y or Ctrl+Shift+Z), up to 100 steps. Hover a button to see which change it would undo or redo. The history is cleared when you load a sound or switch the part.
+
+## External input
+
+![The EXT IN panel](img/ext-in.png)
+
+Switch EXT on (OSC 2 source) to open the EXT IN panel and play an outside signal through the filter, amp and effects.
+
+- **SOURCE:** SIDECHAIN (the sidechain input your DAW routes to the plugin) or MAIN INPUT.
+- **Meter:** L and R level in dB.
+- **LEVEL:** -24 to +24 dB.
+
+These plugin settings are not saved with the sound. How the sidechain is routed depends on the DAW.
+
+## Melody generator
+
+![The melody generator panel](img/melody-generator.png)
+
+The GEN button in the player bar opens the generator.
+
+- **KEY, MODE, STYLE:** pick the chips.
+- **SEED:** the same seed gives the same piece. NEW MELODY rolls a new seed.
+- The last 8 pieces appear under "Generated melodies" in the piece list. The uplifting trance melodies stay as they are.
+
 # The Sound page
 
 The Sound page is the front panel. Values are whole numbers as on the original; many controls show their real unit (cent, Hz, ms) while you turn them.
@@ -124,9 +150,10 @@ The two line display shows the current sound. BANK buttons 1 to 8 and NUMBER but
 |---|---|
 | OSC 1 WAVEFORM | SUPER SAW (the 7 saw stack), TRIANGLE MOD, NOISE, FEEDBACK OSC, SQUARE (PWM), SAW, TRIANGLE. |
 | OSC 1 CTRL 1, CTRL 2 | Depend on the waveform. For SUPER SAW: CTRL 1 spreads the six outer saws away from the centre, CTRL 2 sets how loud they are against the centre saw. |
+| OSC 2 EXTRA | Switch next to the OSC 2 waveform, off by default. On, SUPER SAW appears at the top of the OSC 2 list and the two controls become DETUNE and MIX. The waveform you had stays selected. Hardware export writes SAW (a warning shows). |
 | OSC 2 WAVEFORM | SQR (PWM), SAW, TRI, NOISE. RANGE sets the pitch against OSC 1 (-24 to +24 semitones), FINE tunes in cent. WIDE moves RANGE and FINE in whole octaves. PULSE WIDTH and PWM DEPTH are for SQR. |
 | SYNC | Hard sync: OSC 2 restarts with OSC 1. |
-| EXT | Use the external input as the OSC 2 source (see Known limits). |
+| EXT | Use the external input as the OSC 2 source. Opens the EXT IN panel (see "External input"). |
 | RING | Ring modulator: OSC 1 times OSC 2, for metallic and bell sounds. |
 | OSC BALANCE | Mix between OSC 1 (left) and OSC 2 (right). |
 | X-MOD DEPTH | OSC 2 modulates the pitch of OSC 1. Not with SUPER SAW or NOISE. |
@@ -326,7 +353,7 @@ This is an early version. Written down plainly so nothing surprises you:
 - The sound engine follows the hardware by ear and by the manual, not by measurement against a real unit. Chorus, phaser and flanger designs and the Super Saw high pass are our own interpretation.
 - DUAL and SPLIT give each part its own sound, but the effects section (bass, treble, multi-FX and delay) is one effect for both parts and follows the UPPER sound.
 - The arpeggiator plays the first six entries of the beat pattern list (steps of 1/4, 1/6, 1/8, 1/12, 1/16 and 1/32); the other entries play as 1/16 for now. REC and ROM PLAY are not working yet.
-- There is no audio input yet, so the EXTERNAL INPUT section and the EXT oscillator source have no sound to work on. The controls are on the panel and are saved with the sound. The same is planned for the VOICE MODULATOR processing.
+- The EXT oscillator source works through the sidechain or main input; DAW routing of the sidechain is not yet checked in every host. The VOICE MODULATOR processing is planned.
 - RPS recording and ROM patterns, MOTION recording, INDIVIDUAL TRIGGER and EXTERNAL TRIGGER are planned.
 - The piano strip has no velocity (every key plays at the same strength, 100) and no aftertouch. It sends no MIDI out.
 - Only the VST3 format is built. There is no AU, CLAP or AAX version.
