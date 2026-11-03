@@ -1,6 +1,6 @@
 // Offline renderer for the synth engine: plays notes on a factory preset (or default patch) and writes a WAV.
 //   render_synth [--preset N|NAME] [--set id=value ...] [--notes "60@0+1.5,64@0+1.5"] [--len 3] [--sr 48000]
-//                [--block 256] [--out file.wav] [--pcm16] [--bench] [--list]
+//                [--os 0|1|2|4] [--style 0 CLASSIC|1 CLEAN] [--aa 0|1] [--block 256] [--out file.wav] [--pcm16] [--bench] [--list]
 // Notes are MIDI note @ start seconds + length seconds, optional :velocity (default 100).
 // Build with tools/build_synth_tools.sh.
 #include "jpurrr/synth.h"
@@ -36,7 +36,7 @@ static void writeWav(const char* path, const std::vector<float>& l, const std::v
 }
 
 int main(int argc, char** argv) {
-    int preset = 0, sr = 48000, block = 256; double len = 3.0; const char* out = "render.wav"; bool pcm16 = false, bench = false;
+    EngineOptions eo; int preset = 0, sr = 48000, block = 256; double len = 3.0; const char* out = "render.wav"; bool pcm16 = false, bench = false;
     std::string notes = "60@0+2"; std::vector<std::pair<int, int>> sets; std::string presetName;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -49,6 +49,9 @@ int main(int argc, char** argv) {
         else if (a == "--block") block = std::atoi(next());
         else if (a == "--out") out = next();
         else if (a == "--pcm16") pcm16 = true;
+        else if (a == "--os") eo.oversampling = std::atoi(next());
+        else if (a == "--style") eo.style = std::atoi(next());
+        else if (a == "--aa") eo.antiAlias = std::atoi(next());
         else if (a == "--bench") bench = true;
         else if (a == "--list") { for (int k = 0; k < factoryCount(); ++k) std::printf("%2d %s\n", k, factoryPatch(k).name.c_str()); return 0; }
         else { std::fprintf(stderr, "unknown option %s\n", a.c_str()); return 1; }
@@ -75,7 +78,7 @@ int main(int argc, char** argv) {
     }
     if (bench) {                                        // 10 voices of Super Saw, 24 dB filter, 10 s at 48 kHz
         p.reset(); p.v[P_vc] = 10;
-        Synth s; s.prepare(sr, block); s.setParams(p.v);
+        Synth s; s.setEngineOptions(eo); s.prepare(sr, block); s.setParams(p.v);
         const int total = sr * 10; std::vector<float> l((size_t) block), r((size_t) block);
         for (int k = 0; k < 10; ++k) s.noteOn(0, 40 + k * 3, 100);
         auto t0 = std::chrono::steady_clock::now();
@@ -85,7 +88,7 @@ int main(int argc, char** argv) {
         std::printf("bench: 10 voices Super Saw + 24 dB filter, %d Hz (oversampling %dx): %.2f %% of one core (sink %g)\n", sr, s.oversampling(), sec / 10.0 * 100.0, sink);
         return 0;
     }
-    Synth s; s.prepare(sr, block); s.setParams(p.v);
+    Synth s; s.setEngineOptions(eo); s.prepare(sr, block); s.setParams(p.v);
     const int total = (int) (len * sr);
     std::vector<float> L((size_t) total), R((size_t) total);
     size_t ei = 0; int done = 0;
