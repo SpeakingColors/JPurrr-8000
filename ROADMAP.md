@@ -47,6 +47,9 @@ Rough order. Nothing here is promised for a date.
 - New headless test `jpurrr_enginecheck` (settings round trip, fallback to defaults, the processor passes the options to the synth).
 - Fixed the docs: the PLAYER switch is in the VOLUME box next to PREVIEW, not in the CONTROLLER box.
 
+## Done in 0.3.2
+- SUPER SAW TYPE on OSC 1 (mockup v3.12): SW 1 is our own Super Saw (default, every earlier sound stays the same), SW 2 is a voicing fitted to a JE-8086 recording (brighter top end, spikier waves), SW 3 is the thick voicing fitted to a Jup-8000 V patch (less low end, more treble). Same detune and mix, tone only. SysEx export writes the normal Super Saw with a warning. The fit is by tone curve against recordings, not a circuit model.
+
 ## Next
 - Level the first 51 factory sounds: 48 of them peak below -12 dBFS on at least one of C2, C4 and C6 and Zap Whisker is the quietest (-37 dBFS at its loudest note); they were left untouched in 0.3.0 (the new sounds sit around -9 dBFS, so they are a few dB louder).
 - Check the three enum orders (OSC1 waveform, Multi-FX type, Delay type) and the SysEx exports on real hardware.

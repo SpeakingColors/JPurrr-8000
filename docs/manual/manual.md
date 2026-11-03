@@ -150,6 +150,7 @@ The two line display shows the current sound. BANK buttons 1 to 8 and NUMBER but
 |---|---|
 | OSC 1 WAVEFORM | SUPER SAW (the 7 saw stack), TRIANGLE MOD, NOISE, FEEDBACK OSC, SQUARE (PWM), SAW, TRIANGLE. |
 | OSC 1 CTRL 1, CTRL 2 | Depend on the waveform. For SUPER SAW: CTRL 1 spreads the six outer saws away from the centre, CTRL 2 sets how loud they are against the centre saw. |
+| OSC 1 SUPER SAW TYPE | Three voicings of the SUPER SAW (shown above the waveform list, used only when the waveform is SUPER SAW). SW 1 is our own Super Saw, the sound of every earlier version and the default. SW 2 follows the JE-8086 (JP-8000 firmware): a brighter top end and spikier waves. SW 3 is the thick voicing, tuned to a Jup-8000 V patch: less low end, more treble, a heavier tone. They change the tone, not the detune. Your sound keeps the choice. Hardware export writes the normal Super Saw (a warning shows). |
 | OSC 2 EXTRA | Switch next to the OSC 2 waveform, off by default. On, SUPER SAW appears at the top of the OSC 2 list and the two controls become DETUNE and MIX. The waveform you had stays selected. Hardware export writes SAW (a warning shows). |
 | OSC 2 WAVEFORM | SQR (PWM), SAW, TRI, NOISE. RANGE sets the pitch against OSC 1 (-24 to +24 semitones), FINE tunes in cent. WIDE moves RANGE and FINE in whole octaves. PULSE WIDTH and PWM DEPTH are for SQR. |
 | SYNC | Hard sync: OSC 2 restarts with OSC 1. |
@@ -350,7 +351,7 @@ This is an early version. Written down plainly so nothing surprises you:
 
 - JPurrr-8000 follows the sound and the front panel of the JP-8000 and JP-8080. It is not a sample or ROM copy and it will not sound identical to the hardware.
 - SysEx export is checked against the JP-8000 and JP-8080 manuals but not yet on real hardware. The CC mapping follows the JP-8080 manual; the Roland NRPN numbers are not used.
-- The sound engine follows the hardware by ear and by the manual, not by measurement against a real unit. Chorus, phaser and flanger designs and the Super Saw high pass are our own interpretation.
+- The sound engine follows the hardware by ear and by the manual, not by measurement against a real unit. Chorus, phaser and flanger designs and the Super Saw high pass are our own interpretation. SW 2 and SW 3 are fitted to recordings (a JE-8086 and a Jup-8000 V) by their tone curve, not by a circuit model.
 - DUAL and SPLIT give each part its own sound, but the effects section (bass, treble, multi-FX and delay) is one effect for both parts and follows the UPPER sound.
 - The arpeggiator plays the first six entries of the beat pattern list (steps of 1/4, 1/6, 1/8, 1/12, 1/16 and 1/32); the other entries play as 1/16 for now. REC and ROM PLAY are not working yet.
 - The EXT oscillator source works through the sidechain or main input; DAW routing of the sidechain is not yet checked in every host. The VOICE MODULATOR processing is planned.
