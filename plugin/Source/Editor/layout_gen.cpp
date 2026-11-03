@@ -699,7 +699,7 @@ const Tip sound_tips[] = {
   {{979.16f,219.94f,34.f,151.31f},"Pitch envelope attack time.","pa"},
   {{1015.16f,219.94f,34.f,151.31f},"Pitch envelope decay time.","pdd"},
   {{1080.16f,282.63f,76.f,88.63f},"How far the pitch envelope bends the pitch. Negative values start high and fall.","pd"},
-  {{1230.75f,94.f,148.14f,64.63f},"SUPER SAW type, for the OSC 1 SUPER SAW waveform. SW 1 is our own Super Saw (the sound of every earlier version). SW 2 and SW 3 are two more voicings of the same 7 saw stack, tuned to measurements of other Super Saw sources: they change the tone, not the detune. Your sound keeps this choice. The JP-8000 has one Super Saw, so SW 2 and SW 3 are written as the normal one when you export to the synth. This mockup preview sounds the same for all three; the plugin does not.","o1sw"},
+  {{1230.75f,94.f,148.14f,64.63f},"SUPER SAW type, for the OSC 1 SUPER SAW waveform. SW 1 is our own Super Saw (the sound of every earlier version). SW 2 and SW 3 are two more voicings of the same 7 saw stack, tuned to measurements of other Super Saw sources: they change the tone, not the detune. Your sound keeps this choice. The JP-8000 has one Super Saw, so SW 2 and SW 3 are written as the normal one when you export to the synth.","o1sw"},
   {{1248.45f,166.63f,112.72f,195.31f},"OSC 1 waveform. SUPER SAW is the 7 saw stack. FEEDBACK OSC is mono only: it forces Mono or Legato and cannot be used with Unison.","o1w"},
   {{1398.8f,260.59f,54.19f,122.f},"CONTROL 1 of OSC 1. For SUPER SAW it spreads the six outer saws away from the centre.","o1c1"},
   {{1454.98f,260.59f,50.f,122.f},"CONTROL 2 of OSC 1. For SUPER SAW it sets how loud the outer saws are against the centre saw.","o1c2"},
