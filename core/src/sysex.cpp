@@ -112,6 +112,7 @@ const char* kWarnDly = "Delay type numbering follows the order of the manual's p
 const char* kWarnDist = "DISTORTION is a JP-8080 multi-FX type; the JP-8000 has no such type, so SUPER CHORUS SLW is written instead.";
 constexpr int kJp8000PatchSize = 239;   // "01 6F": the JP-8000 patch is the first 239 bytes of the JP-8080 patch (JP-8000 manual p. 123 to 124)
 const char* kWarnWide = "OSC2 WIDE range is approximated: the manual does not give the step mapping of FINE/WIDE.";
+const char* kWarnO1sw = "SUPER SAW type SW 2 and SW 3 are voicings of this plugin; the JP-8000 has one Super Saw, so the normal one is written.";
 const char* kWarnO2ss = "OSC 2 SUPER SAW does not exist on the JP-8000 or JP-8080 (only OSC 1 has it): OSC 2 is written as SAW.";
 
 // Name: 16 characters, ASCII 20h..7Dh, padded with spaces.
@@ -172,6 +173,7 @@ void encodePatch(const Patch& p, uint8_t* out, std::vector<std::string>& warn, S
     }
     int o1 = p.v[paramIndexById("o1w")], xt = p.v[paramIndexById("xt")], dty = p.v[paramIndexById("dty")];
     if (o1 == 2 || o1 == 3) addWarn(warn, kWarnO1);
+    if (o1 == 0 && p.v[paramIndexById("o1sw")] > 0) addWarn(warn, kWarnO1sw);
     if (xt > 0 && xt < 12) addWarn(warn, kWarnFx);
     if (model == SysexModel::JP8000) {
         if (out[61] > 11) { out[61] = 0; addWarn(warn, kWarnDist); }   // 00 3D: multi-FX type, 0..0Bh on the JP-8000

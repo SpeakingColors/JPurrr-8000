@@ -236,6 +236,7 @@ void OptionsW::refresh() {
     const bool a = alt != nullptr && useAlt && useAlt();
     if (a != altOn) { altOn = a; applyBounds(); hot = -1; repaint(); }
     const int v = x.c.get(idx); if (v != cached) { cached = v; repaint(); }
+    if (idx == P_o1sw) { const float al = x.c.get(P_o1w) == 0 ? 1.0f : 0.4f; if (getAlpha() != al) setAlpha(al); }   // SUPER SAW TYPE only matters on the SUPER SAW waveform (mockup v3.12)
 }
 int OptionsW::hit(juce::Point<int> p) const {
     const Opts& oo = active();

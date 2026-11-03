@@ -32,6 +32,7 @@ struct PatchParams {
         S_count
     };
     float s[S_count] = {};
+    int swType = 0;   // SUPER SAW type of OSC 1 (live, not structural)
     int o1w = 0, o2w = 0, od = 0, ft = 2, ap = 0, l1w = 0, pgSel = 0;
     bool f24 = true, ring = false, sync = false, mono = false, leg = false, uni = false, porta = false, o2ext = false;
     bool velMorph = false, analogEnv = false, l1sync = false;
@@ -123,6 +124,10 @@ struct Voice {
     // per block constants for the oscillator section
     int kind1 = 0, kind2 = 0;                   // wave ids
     float ssGain[7] = {}; float ssHpA = 0.f;
+    int swType = 0;                             // SUPER SAW type of OSC 1: 0 SW 1 (ours), 1 SW 2 (JE-8086 voicing), 2 SW 3 (thick voicing)
+    float swB0 = 1.f, swB1 = 0.f, swB2 = 0.f, swA1 = 0.f, swA2 = 0.f, swZ1 = 0.f, swZ2 = 0.f;   // voicing high shelf (biquad, transposed direct form 2)
+    float tB0 = 1.f, tB1 = 0.f, tB2 = 0.f, tA1 = 0.f, tA2 = 0.f, tZ1 = 0.f, tZ2 = 0.f, swTrim = 1.f;   // second shelf (SW 3 tilt) and level trim
+    float swIn = 1.f, swOut = 1.f;              // filter input headroom (SW 2/3 keep the raw saw peaks) and its make-up
     float ss2Gain[7] = {}; float ssHpA2 = 0.f;  // OSC 2 SUPER SAW gains and high pass
     float pw1 = 0.5f, pw2 = 0.5f;
     float extCur = 0.f;                         // external input sample of the host sample being rendered (EXT on OSC 2)
@@ -142,6 +147,7 @@ struct Voice {
     uint32_t noteCounter = 0;
     // last control block copies used by render
     float invCB = 1.f / kControlBlock;
+    void setVoicing();
     bool ssMode() const { return kind1 == 0; }
     inline float oscStep();
     inline float waveTick(double& ph, dsp::BlepOut& bo, double inc, int kind, float pw, float wSaw, float wTri, float wSin,

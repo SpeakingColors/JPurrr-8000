@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <cstdio>
 #include "synth_voice.h"
 
 namespace jpurrr {
@@ -52,6 +54,7 @@ void PatchParams::derive(const int* v, float partDetuneCents) {
     s[S_shift] = 12.f * (v[P_os] + v[P_ksh]) + v[P_ptr] + (tuneCents + partDetuneCents) / 100.f;
     s[S_kshift] = 12.f * v[P_ksh] + v[P_ptr];
 
+    swType = std::min(2, std::max(0, v[P_o1sw]));
     o1w = std::min(6, std::max(0, v[P_o1w])); o2w = std::min(4, std::max(0, v[P_o2w]));
     if (o2w == 4 && !v[P_o2ss]) o2w = 1;             // SUPER SAW on OSC 2 only with the EXTRA switch on, else SAW (mockup rule)
     od = v[P_od]; ft = v[P_ft]; f24 = v[P_f24] != 0; ap = v[P_ap];
@@ -89,6 +92,29 @@ void PatchParams::smoothToward(const PatchParams& t, float a, bool applyStruct) 
 }
 
 // ================= Voice =================
+// SUPER SAW voicings of OSC 1. SW 1 is untouched. SW 2 and SW 3 add a high shelf in front of the filter and give the filter
+// input more headroom so the raw saw peaks are not rounded off (the JE-8086 and the Jup-8000 V are spikier than SW 1).
+void Voice::setVoicing() {
+    swIn = 1.f; swOut = 1.f; swTrim = 1.f;
+    tB0 = 1.f; tB1 = tB2 = tA1 = tA2 = 0.f;
+    if (swType == 0 || kind1 != 0) { swB0 = 1.f; swB1 = swB2 = swA1 = swA2 = 0.f; return; }
+    // SW 2: fitted to the JE-8086 (+12 dB shelf at 10 kHz). SW 3: SW 2 plus the tilt of the thick Jup-8000 V patch (+12.5 dB shelf at 1.5 kHz).
+    double g1 = 12.0, f1 = 10000.0, hr = 0.5, g2 = 12.5, f2 = 1500.0, trim = 1.0;
+    if (swType == 1) { g2 = 0.0; trim = 0.92; } else trim = 0.60;
+    if (const char* e = std::getenv("JP_SW_TUNE")) { double a, b, c2, d, e2, f; int t; if (std::sscanf(e, "%d,%lf,%lf,%lf,%lf,%lf,%lf", &t, &a, &b, &c2, &d, &e2, &f) == 7 && t == swType) { g1 = a; f1 = b; hr = c2; g2 = d; f2 = e2; trim = f; } }
+    auto shelf = [&](double gainDb, double fc, float& B0, float& B1, float& B2, float& A1, float& A2) {
+        if (gainDb == 0.0) { B0 = 1.f; B1 = B2 = A1 = A2 = 0.f; return; }
+        const double A = std::pow(10.0, gainDb / 40.0), w0 = kTwoPi * std::min(fc, 0.45 * osr) / osr, cw = std::cos(w0), sn = std::sin(w0);
+        const double alpha = sn / 2.0 * std::sqrt(2.0), sq = 2.0 * std::sqrt(A) * alpha;
+        const double b0 = A * ((A + 1) + (A - 1) * cw + sq), b1 = -2 * A * ((A - 1) + (A + 1) * cw), b2 = A * ((A + 1) + (A - 1) * cw - sq);
+        const double a0 = (A + 1) - (A - 1) * cw + sq, a1 = 2 * ((A - 1) - (A + 1) * cw), a2 = (A + 1) - (A - 1) * cw - sq;
+        B0 = (float) (b0 / a0); B1 = (float) (b1 / a0); B2 = (float) (b2 / a0); A1 = (float) (a1 / a0); A2 = (float) (a2 / a0);
+    };
+    shelf(g1, f1, swB0, swB1, swB2, swA1, swA2);
+    shelf(g2, f2, tB0, tB1, tB2, tA1, tA2);
+    swIn = (float) hr; swOut = (float) (trim / hr);
+}
+
 void Voice::init(double hostSr, int osFac) {
     sr = hostSr; osFactor = osFac; osr = hostSr * osFac;
     hc = &HalfbandCoefs::get();
@@ -205,7 +231,7 @@ void Voice::control(const PatchParams& P, const BlockCtl& C, bool snap) {
         if (snap) { cur = target; d = 0.0; } else d = (target - cur) / kControlBlock;
     };
 
-    kind1 = P.o1w; kind2 = P.o2ext ? 8 : P.o2w;                             // 8: the external input is the OSC 2 source
+    swType = P.swType; kind1 = P.o1w; kind2 = P.o2ext ? 8 : P.o2w;                             // 8: the external input is the OSC 2 source
     const float c11 = P.s[PatchParams::S_o1c1], c12 = P.s[PatchParams::S_o1c2];
     const float c21 = P.s[PatchParams::S_o2c1], c22 = P.s[PatchParams::S_o2c2];
 
@@ -219,7 +245,9 @@ void Voice::control(const PatchParams& P, const BlockCtl& C, bool snap) {
         for (int k = 0; k < 7; ++k) ssGain[k] = (float) ((k == 3 ? cg : sg) * norm);
         // High pass following the pitch (Szabo: the real unit has one). Cutoff not measured: 0.8 x note frequency. Unverified.
         ssHpA = (float) (1.0 - std::exp(-kTwoPi * 0.8 * f1 * inv));
+        setVoicing();
     } else {
+        swIn = 1.f; swOut = 1.f;
         ramp(inc1, d1, std::min(maxInc, f1 * inv));
     }
     switch (kind1) {
@@ -389,6 +417,10 @@ inline float Voice::oscStep() {
             }
             ssHp += ssHpA * (sum - ssHp);
             y1 = sum - ssHp;
+            if (swType > 0) {
+                float o = swB0 * y1 + swZ1; swZ1 = swB1 * y1 - swA1 * o + swZ2; swZ2 = swB2 * y1 - swA2 * o; y1 = o;
+                if (swType > 1) { o = tB0 * y1 + tZ1; tZ1 = tB1 * y1 - tA1 * o + tZ2; tZ2 = tB2 * y1 - tA2 * o; y1 = o; }
+            }
             break;
         }
         case 1: y1 = waveTick(ph1, bo1, i1, 2, 0.5f, 0.f, 1.f, 0.f, triModA, false, 0.f, mWrap, mT); break;
@@ -477,7 +509,7 @@ void Voice::render(int n, float* L, float* R, const float* ext) {
         } else if (osFactor == 2) { const float a = oscStep(); const float b = oscStep(); x = dec.push(a, b, h); }
         else x = oscStep();
         // Tiny noise seed so a fully resonant filter starts to ring on its own (about -112 dBFS).
-        float y = filt.process(x + 2.5e-6f * rng.bi(), g, kf, ftype, p24);
+        float y = filt.process((x + 2.5e-6f * rng.bi()) * swIn, g, kf, ftype, p24) * swOut;
         float a = ae + declick;
         if (declick > 0.f) { declick -= declickStep; if (declick < 0.f) declick = 0.f; }
         float o = y * a * ampG;

@@ -290,6 +290,7 @@ const ParamDef kParams[kNumParams] = {
     {"qm4x", PType::Switch, "ON", 0, 1, 1, 0, 0, 0, "HIGH limiter on or off. Every band has its own limiter at the end, so a loud band cannot punch through the others."},
     {"qm4y", PType::Knob, "RELEASE", 0, 127, 64, 0, 0, 0, "HIGH limiter release, 5 to 500 ms. Far left is AUTO."},
     {"qm4z", PType::Knob, "OUTPUT", -12, 0, 0, 0, 0, 0, "HIGH limiter ceiling, the loudest this band can get."},
+    {"o1sw", PType::Option, "SUPER SAW TYPE", 0, 2, 0, 0, 740, 3, "SUPER SAW type, for the OSC 1 SUPER SAW waveform. SW 1 is our own Super Saw (the sound of every earlier version). SW 2 and SW 3 are two more voicings of the same 7 saw stack, tuned to measurements of other Super Saw sources: they change the tone, not the detune. Your sound keeps this choice. The JP-8000 has one Super Saw, so SW 2 and SW 3 are written as the normal one when you export to the synth."},
 };
 const char* const kOptionText[] = {
     "C-1",
@@ -1032,7 +1033,10 @@ const char* const kOptionText[] = {
     "HAAS",
     "COMPRESS",
     "LIMIT",
+    "SW 1",
+    "SW 2",
+    "SW 3",
 };
-const int kNumOptionText = 740;
+const int kNumOptionText = 743;
 int paramIndexById(const char* id) { for (int i = 0; i < kNumParams; ++i) if (!std::strcmp(kParams[i].id, id)) return i; return -1; }
 }

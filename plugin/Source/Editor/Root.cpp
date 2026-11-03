@@ -625,6 +625,11 @@ bool Root::applyState(const juce::String& s) {
         layoutStrip(); syncHeight();
         if (t.contains("menu")) player->openMenu();
         return true; }
+    if (s == "v312_sw" || s == "v312_sw_dim") {          // test hooks (v3.12): SUPER SAW TYPE row, SW 2 chosen; v312_sw_dim: OSC 1 is not SUPER SAW so the row is dimmed
+        applyState("reset"); showPage(kSound);
+        ctl.quiet(P_o1sw, 1); if (s == "v312_sw_dim") ctl.quiet(P_o1w, 1);
+        ctl.msgUntil = 0; return true;
+    }
     if (s.startsWith("v311_")) {                         // test hooks (v3.10 / v3.11): v311_extra (OSC 2 EXTRA on, SUPER SAW), v311_extin (EXT on, panel open), v311_gen (PLAYER on, generator panel open), v311_undo, v311_redo
         applyState("reset"); showPage(kSound);
         if (s == "v311_extra" || s == "v311_extra_ss") { ctl.quiet(P_o2ss, 1); if (s == "v311_extra_ss") ctl.quiet(P_o2w, 4); }
@@ -636,7 +641,7 @@ bool Root::applyState(const juce::String& s) {
         else if (s == "v311_undo" || s == "v311_redo") { ctl.user(P_o2r, 5); if (s == "v311_redo") ctl.undo(); }
         if (s != "v311_redo") ctl.msgUntil = 0;
         return true; }
-    if (s == "reset") { closePanels(); ctl.quiet(P_o2w, kParams[P_o2w].def); ctl.quiet(P_o2ss, 0); ctl.quiet(P_o2r, kParams[P_o2r].def); ctl.quiet(P_o2ext, 0); ctl.histClear(); Settings::get().extGain = 0; Settings::get().genSeed = 0; Settings::get().genKey = -1; Settings::get().genMode = 0; Settings::get().genStyle = 0; proc.setExtInput(0, 0); if (exportWarnApplied) { for (int i = 0; i < 4; ++i) ctl.quiet(Controller::idx(kExportWarnIds[i]), exportWarnOld[i]); ctl.pm.cur.dirty = false; exportWarnApplied = false; }
+    if (s == "reset") { closePanels(); ctl.quiet(P_o2w, kParams[P_o2w].def); ctl.quiet(P_o2ss, 0); ctl.quiet(P_o2r, kParams[P_o2r].def); ctl.quiet(P_o2ext, 0); ctl.quiet(P_o1sw, 0); ctl.quiet(P_o1w, kParams[P_o1w].def); ctl.histClear(); Settings::get().extGain = 0; Settings::get().genSeed = 0; Settings::get().genKey = -1; Settings::get().genMode = 0; Settings::get().genStyle = 0; proc.setExtInput(0, 0); if (exportWarnApplied) { for (int i = 0; i < 4; ++i) ctl.quiet(Controller::idx(kExportWarnIds[i]), exportWarnOld[i]); ctl.pm.cur.dirty = false; exportWarnApplied = false; }
         player->closeMenu(); player->stopDemo(); proc.midiPlayer.setBpmLock(false); proc.midiPlayer.setTranspose(0); ctl.quiet(P_player, 0); setPartsOpen(false); ctl.quiet(P_km, 0); ctl.quiet(P_ps, 1); strip->releaseAll(); strip->setComputerKeys(jpurrr::kCkBaseDefault, 100); ctl.quiet(P_bend, 0); ctl.quiet(P_mod, 0); strip->snapshotState(-1, -1); dialogs->close(); menu->setVisible(false); hideBlockMenu(); applyLook("jp"); ctl.editOn = false; ctl.quiet(P_prev, 1); showPage(kSound); return true; }
     if (s.startsWith("sound_parts_")) {                  // test hook: sound_parts_<split|dual|single>[_ps0|_ps2|_ps3][_nokbd]: the PARTS band open on the SOUND page
         juce::StringArray t; t.addTokens(s, "_", ""); t.removeEmptyStrings();

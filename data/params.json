@@ -4245,6 +4245,22 @@
    "nosave": false,
    "mom": false,
    "tip": "HIGH limiter ceiling, the loudest this band can get."
+  },
+  {
+   "id": "o1sw",
+   "t": "o",
+   "label": "SUPER SAW TYPE",
+   "min": 0,
+   "max": 2,
+   "def": 0,
+   "opts": [
+    "SW 1",
+    "SW 2",
+    "SW 3"
+   ],
+   "nosave": false,
+   "mom": false,
+   "tip": "SUPER SAW type, for the OSC 1 SUPER SAW waveform. SW 1 is our own Super Saw (the sound of every earlier version). SW 2 and SW 3 are two more voicings of the same 7 saw stack, tuned to measurements of other Super Saw sources: they change the tone, not the detune. Your sound keeps this choice. The JP-8000 has one Super Saw, so SW 2 and SW 3 are written as the normal one when you export to the synth."
   }
  ],
  "types": [

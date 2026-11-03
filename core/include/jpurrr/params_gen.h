@@ -290,7 +290,8 @@ enum ParamIndex : int {
     P_qm4x = 284,
     P_qm4y = 285,
     P_qm4z = 286,
-    kNumParams = 287
+    P_o1sw = 287,
+    kNumParams = 288
 };
 
 enum class PType : uint8_t { Knob, Slider, Switch, Option, Display };
