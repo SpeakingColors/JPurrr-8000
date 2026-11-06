@@ -1167,6 +1167,7 @@ function gateTick(){if(!ctx||!gateG)return;const now=ctx.currentTime;
  while(gNext<now+.12){const on=(P.gpat.v>>(gStep%16))&1,nx=(P.gpat.v>>((gStep+1)%16))&1;gateG.gain.setTargetAtTime(on?1:lo,gNext,sm/3);if(on&&dc>.01)gateG.gain.setTargetAtTime(lo,gNext+sm*1.2,gDur*(1.2*(1-dc)+.05));if(!on&&nx&&sw>.01){gateG.gain.setValueAtTime(lo,gNext+gDur*(1-sw));gateG.gain.linearRampToValueAtTime(1,gNext+gDur);}gNext+=gDur;gStep++;}}
 function gatePhase(){if(!ctx||!P.gon.v||!voices.size||!gNext)return -1;return Math.floor(Math.max(0,ctx.currentTime-gT0)/gDur)%16;}
 function curveD(x){const co=[10028.7312891634,-50818.8652045924,111363.4808729368,-138150.6761080548,106649.6679158292,-53046.9642751875,17019.9518580080,-3425.0836591318,404.2703938388,-24.1878824391,0.6717417634,0.0030115596];let r=0;for(const k of co)r=r*x+k;return r;}
+let _satC=null;function satCurve(){if(_satC)return _satC;const N=2049,a=new Float32Array(N);for(let i=0;i<N;i++){const x=3*(-1+2*i/(N-1));a[i]=Math.abs(x)>=3?Math.sign(x):x*(27+x*x)/(27+9*x*x);}_satC=a;return a;}
 function noteOn(n,vel){ensureAudio();if(!ctx||!S.sound)return;if(ctx.state==='suspended')ctx.resume();if(voices.has(n))return;bendAudio();if(voices.size>=16){const k=voices.keys().next().value;noteOff(k,true);}
  const t=ctx.currentTime,nk=n+12*P.ksh.v,f0=440*Math.pow(2,(nk-69)/12)*Math.pow(2,P.os.v);
  master.gain.value=.22*P.vol.v/127;toneL.gain.value=P.tb.v/64*12;toneH.gain.value=P.tt.v/64*12;
@@ -1184,7 +1185,7 @@ function noteOn(n,vel){ensureAudio();if(!ctx||!S.sound)return;if(ctx.state==='su
   if(sw>0){/* SW 2 (JE-8086 voicing): +12 dB high shelf at 10 kHz. SW 3: plus the thick tilt, +12.5 dB shelf at 1.5 kHz. Level trims 0.92 and 0.60, as in the plugin. */
    o1.disconnect();const sh=(fr,gn)=>{const x=ctx.createBiquadFilter();x.type='highshelf';x.frequency.value=fr;x.gain.value=gn;return x;};
    const a=sh(10000,12);o1.connect(a);let last=a;if(sw===2){const b2=sh(1500,12.5);a.connect(b2);last=b2;}
-   const tr=ctx.createGain();tr.gain.value=sw===2?.60:.92;last.connect(tr);tr.connect(mixO);}
+   last.connect(mixO);}
   const K7b=K7;K7b.forEach((k,i)=>{const gcn=-0.55366*m+0.99785,gsd=-0.73764*m*m+1.2841*m+0.044372;mk('sawtooth',f0,1200*Math.log2(1+k*cr),dst,(i===3?gcn:gsd)*.22,P.od.v===0);});}
  else if(w1===2){const nb=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate);const dd=nb.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=nb;s.loop=true;const gg=ctx.createGain();gg.gain.value=.4;s.connect(gg);gg.connect(o1);s.start(t);oscs.push(s);}
  else mk(w1===4?'square':w1===5||w1===3?'sawtooth':'triangle',f0,0,o1,.5,P.od.v===0);
@@ -1203,7 +1204,12 @@ function noteOn(n,vel){ensureAudio();if(!ctx||!S.sound)return;if(ctx.state==='su
  const amp=ctx.createGain();amp.gain.setValueAtTime(0,t);const aa=tm(P.aea.v,.002,3),ad=tm(P.aed.v,.01,4),as=P.aes.v/127*.9;
  const vs=(vel||100)/100;amp.gain.linearRampToValueAtTime(vs,t+aa);amp.gain.setTargetAtTime(as*vs,t+aa,ad/3);
  if(modF){modF.connect(fl1.detune);modF.connect(fl2.detune);oscs[0].addEventListener('ended',()=>{try{modF.disconnect(fl1.detune);modF.disconnect(fl2.detune)}catch(e){}});}
- mixO.connect(fl1);fl1.connect(fl2);fl2.connect(amp);amp.connect(master);
+ /* The plugin filter has a soft saturating input (satD) that rounds the saw peaks. SW 1 keeps it as it was; SW 2 and SW 3 give it 2x headroom (peaks stay spiky) and carry the level trim after it. Only modelled for the SUPER SAW waveform. */
+ if(w1===0){const sw=P.o1sw?P.o1sw.v:0,m1=P.o1c2.v/127,cg=-0.55366*m1+0.99785,sg=-0.73764*m1*m1+1.2841*m1+0.044372,nrm=0.9/Math.sqrt(cg*cg+6*sg*sg),K=0.7*nrm/.22,hr=sw===0?1:.5,trim=sw===0?1:sw===2?.60:.92;
+  const pre=ctx.createGain();pre.gain.value=K*hr/3;const ws=ctx.createWaveShaper();ws.curve=satCurve();ws.oversample='4x';const post=ctx.createGain();post.gain.value=trim/(hr*K);
+  mixO.connect(pre);pre.connect(ws);ws.connect(post);post.connect(fl1);}
+ else mixO.connect(fl1);
+ fl1.connect(fl2);fl2.connect(amp);amp.connect(master);
  const vo={oscs,amp,fl1,fl2,rel:tm(P.aer.v,.01,5),t0:t,aa,ad,fa,fd,pa:pa_,pdc,tr:null};voices.set(n,vo);LV.last=vo;setActive(n,true);}
 function noteOff(n,quick){const v=voices.get(n);if(!v||!ctx)return;voices.delete(n);setActive(n,false);const t=ctx.currentTime,r=quick?.03:v.rel;v.tr=t;
  v.amp.gain.cancelScheduledValues(t);v.amp.gain.setValueAtTime(v.amp.gain.value,t);v.amp.gain.setTargetAtTime(0,t,r/4);v.oscs.forEach(o=>{try{o.stop(t+r+.2)}catch(e){}});}

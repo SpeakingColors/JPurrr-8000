@@ -48,6 +48,7 @@ Rough order. Nothing here is promised for a date.
 - Fixed the docs: the PLAYER switch is in the VOLUME box next to PREVIEW, not in the CONTROLLER box.
 
 ## Done in 0.3.3
+- The mockup preview also has the filter input peak rounding (SW 1) and the extra headroom (SW 2 and SW 3), like the plugin; modelled for the SUPER SAW waveform only.
 - Mockup v3.12 preview now sounds like the plugin for SW 2 and SW 3 (same shelves and levels), and the SUPER SAW TYPE tooltip no longer says the preview sounds the same.
 
 ## Done in 0.3.2
