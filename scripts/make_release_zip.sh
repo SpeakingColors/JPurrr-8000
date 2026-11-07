@@ -1,7 +1,7 @@
 #!/bin/sh
 # Build the one-file download for a release: all installers, manual, INSTALL.txt, checksums.
 #   scripts/make_release_zip.sh <dist dir> <tag> [out dir]
-# <dist dir> holds the three installers and JPurrr-8000-manual.pdf (as the release workflow collects them).
+# <dist dir> holds the three installers (macOS has a .pkg and a .dmg) and JPurrr-8000-manual.pdf (as the release workflow collects them).
 # Writes <out dir>/JPurrr-8000-v<version>.zip (out dir defaults to <dist dir>). The zip has one top folder,
 # JPurrr-8000-v<version>/, as the SupurrSaw zip does. In it: INSTALL.txt, LICENSE, SHA256SUMS, the manual, and the
 # folders linux, macos, windows.
@@ -15,11 +15,12 @@ printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$' || { 
 NAME="JPurrr-8000-$VER"
 WIN="$NAME-Windows-x64-Setup.exe"
 MAC="$NAME-macOS.pkg"
+DMG="$NAME-macOS.dmg"
 LIN="$NAME-Linux-x86_64.tar.gz"
 MANUAL="JPurrr-8000-manual.pdf"
 
 need="$WIN $LIN $MANUAL"
-[ "${SKIP_MACOS:-false}" = true ] || need="$need $MAC"
+[ "${SKIP_MACOS:-false}" = true ] || need="$need $MAC $DMG"
 for f in $need; do
     [ -f "$DIST/$f" ] || { echo "Error: $DIST/$f not found" >&2; exit 1; }
 done
@@ -43,7 +44,7 @@ cp "$DIST/$WIN" "$D/windows/"
 cp "$DIST/$LIN" "$D/linux/"
 if [ "${SKIP_MACOS:-false}" != true ]; then
     mkdir -p "$D/macos"
-    cp "$DIST/$MAC" "$D/macos/"
+    cp "$DIST/$MAC" "$DIST/$DMG" "$D/macos/"
 fi
 cp "$DIST/$MANUAL" "$D/"
 cp "$ROOT/LICENSE" "$D/LICENSE"

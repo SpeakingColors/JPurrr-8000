@@ -226,6 +226,31 @@ jobs:
           manual=""
           [ -f docs/manual/JPurrr-8000-manual.pdf ] && manual=docs/manual/JPurrr-8000-manual.pdf
           bash scripts/package_macos.sh "build/plugin/JPurrr8000_artefacts/$BUILD_TYPE" "$VERSION" dist "$manual"
+          bash scripts/package_macos_dmg.sh "build/plugin/JPurrr8000_artefacts/$BUILD_TYPE" "$VERSION" dist
+      - name: Test the disk image (mount, check, copy the plugin out)
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          set -eu
+          dmg="dist/JPurrr-8000-$VERSION-macOS.dmg"
+          hdiutil verify "$dmg"
+          mnt=$(mktemp -d)
+          hdiutil attach "$dmg" -readonly -nobrowse -mountpoint "$mnt"
+          ls -la "$mnt"
+          test -f "$mnt/READ ME FIRST.txt"
+          test -f "$mnt/LICENSE"
+          test -d "$mnt/JPurrr-8000.vst3"
+          link="$mnt/Drop JPurrr-8000.vst3 here (VST3 folder)"
+          test -L "$link"
+          test "$(readlink "$link")" = /Library/Audio/Plug-Ins/VST3
+          # Same as a user dragging it out: copy to a scratch folder, then check the copy.
+          copy=$(mktemp -d)
+          cp -R "$mnt/JPurrr-8000.vst3" "$copy/"
+          hdiutil detach "$mnt"
+          test -f "$copy/JPurrr-8000.vst3/Contents/MacOS/JPurrr-8000"
+          lipo -archs "$copy/JPurrr-8000.vst3/Contents/MacOS/JPurrr-8000"
+          codesign --verify --deep --strict "$copy/JPurrr-8000.vst3"
+          bash scripts/check_icons.sh mac-bundle "$copy/JPurrr-8000.vst3"
       - name: Test the package (install, check files, uninstall)
         env:
           VERSION: ${{ needs.meta.outputs.version }}
@@ -248,7 +273,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: pkg-macos
-          path: dist/*.pkg
+          path: |
+            dist/*.pkg
+            dist/*.dmg
           if-no-files-found: error
 
   publish:
@@ -319,6 +346,6 @@ jobs:
           set -eu
           gh release view "$TAG" --json assets --jq '.assets[].name' | tee assets.txt
           need="JPurrr-8000-$VERSION-Linux-x86_64.tar.gz JPurrr-8000-$VERSION-Windows-x64-Setup.exe JPurrr-8000-$TAG.zip JPurrr-8000-manual.pdf SHA256SUMS.txt"
-          [ "$SKIP_MACOS" = true ] || need="$need JPurrr-8000-$VERSION-macOS.pkg"
+          [ "$SKIP_MACOS" = true ] || need="$need JPurrr-8000-$VERSION-macOS.pkg JPurrr-8000-$VERSION-macOS.dmg"
           for f in $need; do grep -qxF "$f" assets.txt || { echo "Missing asset: $f" >&2; exit 1; }; done
           echo "Release page: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG}"

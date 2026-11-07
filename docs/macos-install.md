@@ -30,6 +30,18 @@ Your browser marks every download as "from the internet", and that mark triggers
 
 macOS 14 and older: right click the .pkg, choose Open, then Open again.
 
+## Drag and drop instead of the installer (.dmg)
+
+Starting with the first release that lists it, each release also has `JPurrr-8000-<version>-macOS.dmg`. It holds only the plugin (no standalone app, no uninstaller) and a shortcut to the VST3 folder.
+
+1. Close your DAW and open the .dmg.
+2. Drag `JPurrr-8000.vst3` onto the VST3 folder shortcut in the window and enter your password.
+3. Rescan plugins in your DAW.
+
+This does not remove the warning: the .dmg is not signed or notarized either, and a copy downloaded in the browser carries the same "from the internet" mark. If macOS blocks the plugin when your DAW loads it, run `xattr -dr com.apple.quarantine /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3` once and rescan. To avoid the mark from the start, download the .dmg in Terminal like Method 1: `curl -L -o ~/Downloads/JPurrr-8000.dmg https://github.com/SpeakingColors/JPurrr-8000/releases/download/v<version>/JPurrr-8000-<version>-macOS.dmg`, using the version on the release page.
+
+The plugin is signed ad hoc (needed on Apple silicon), which is not the same as Apple's notarization. We have not yet tried the .dmg on a Mac with a downloaded copy, so treat the steps above as untested until this line is removed.
+
 Your DAW can load the plugin after the install without more warnings, because the installer puts it in place. If you copy the plugin yourself, run `xattr -dr com.apple.quarantine JPurrr-8000.vst3` on it first.
 
 ## Is it safe?

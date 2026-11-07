@@ -5,7 +5,8 @@ JPurrr-8000 is a free and open source synth (VST3 plugin and standalone app).
 This zip has one installer per system, the manual, and a checksum list.
 
   windows/   JPurrr-8000-@VERSION@-Windows-x64-Setup.exe
-  macos/     JPurrr-8000-@VERSION@-macOS.pkg
+  macos/     JPurrr-8000-@VERSION@-macOS.pkg (installer) and
+             JPurrr-8000-@VERSION@-macOS.dmg (drag and drop the plugin)
   linux/     JPurrr-8000-@VERSION@-Linux-x86_64.tar.gz
   JPurrr-8000-manual.pdf, SHA256SUMS, LICENSE, this file
 
@@ -53,6 +54,16 @@ the message comes back, run this in Terminal and open the file again:
 
 On macOS 14 and older you can also right click the .pkg, choose Open, then
 Open again. Only do this for files from the official release page.
+
+Drag and drop instead of the installer: open the .dmg, drag
+JPurrr-8000.vst3 onto the VST3 folder shortcut in the window and enter your
+password. A .dmg downloaded in the browser can be blocked the same way. If
+macOS blocks the plugin when your DAW loads it, run this once in Terminal:
+
+  xattr -dr com.apple.quarantine /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3
+
+The .dmg has the plugin only. The standalone app and the uninstaller are in
+the .pkg.
 
 The plugin goes to /Library/Audio/Plug-Ins/VST3 and the app to
 /Applications. The uninstaller is uninstall.command in
