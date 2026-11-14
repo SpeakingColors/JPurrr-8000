@@ -47,7 +47,7 @@ jobs:
       prerelease: ${{ steps.v.outputs.prerelease }}
       skip_macos: ${{ steps.v.outputs.skip_macos }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Read and check the version
         id: v
         env:
@@ -80,7 +80,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install build packages
         run: |
           sudo apt-get update
@@ -88,7 +88,7 @@ jobs:
             libasound2-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
             libfreetype-dev libfontconfig1-dev libgl1-mesa-dev libxext-dev
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .ccache
           key: ccache-release-${{ runner.os }}-${{ github.sha }}
@@ -135,7 +135,7 @@ jobs:
           test ! -e "$HOME/.vst3/JPurrr-8000.vst3"
           test ! -e "$HOME/.local/share/icons/hicolor/256x256/apps/jpurrr-8000.png"
           test ! -e "$HOME/.local/share/applications/jpurrr-8000.desktop"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pkg-linux
           path: dist/*.tar.gz
@@ -150,7 +150,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build (static runtime, x64)
         run: |
           cmake -S . -B build -A x64 \
@@ -197,7 +197,7 @@ jobs:
           Start-Process -FilePath $unins -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           for ($i = 0; $i -lt 30 -and (Test-Path $vst3); $i++) { Start-Sleep -Seconds 1 }
           if (Test-Path $vst3) { throw "uninstall left $vst3" }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pkg-windows
           path: dist/*.exe
@@ -211,7 +211,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build (universal arm64 + x86_64)
         run: |
           command -v ninja >/dev/null || brew install ninja
@@ -270,7 +270,7 @@ jobs:
           sh "/Library/Application Support/Studio 87/JPurrr-8000/uninstall.command"
           test ! -e /Library/Audio/Plug-Ins/VST3/JPurrr-8000.vst3
           test ! -e /Applications/JPurrr-8000.app
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pkg-macos
           path: |
@@ -288,8 +288,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: pkg-*
           path: dist
