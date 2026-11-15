@@ -2,17 +2,17 @@
   {
     "file": "anthem-cat.mp3",
     "preset": "Anthem Cat",
-    "description": "Uplifting Super Saw lead playing a short Am F C G hook."
+    "description": "Anthem Cat: syncopated Super Saw anthem hook over Am F C G at 138 BPM, octave doubled, building in dynamics."
   },
   {
     "file": "hands-up-lead.mp3",
     "preset": "Hands Up Lead",
-    "description": "Bright hands up style lead, high and singing."
+    "description": "Hands Up Lead: bouncy bright octave riff over Am F C G at 138 BPM."
   },
   {
     "file": "rolling-saw-bass.mp3",
     "preset": "Rolling Saw Bass",
-    "description": "Offbeat rolling saw bass line in A minor."
+    "description": "Rolling Saw Bass: rolling 16th bass off the kick, one octave higher than before."
   },
   {
     "file": "moonlit-meow-pad.mp3",
@@ -22,11 +22,11 @@
   {
     "file": "trance-pluck-arp.mp3",
     "preset": "Trance Pluck",
-    "description": "Plucked 16th arpeggio with a moving root."
+    "description": "Trance Pluck: Super Saw pluck arpeggio, longer decay and a wider filter opening (demo settings, the factory preset is unchanged)."
   },
   {
     "file": "uplift-stab.mp3",
     "preset": "Uplift Stab",
-    "description": "Syncopated uplifting chord stabs."
+    "description": "Uplift Stab: fast syncopated chord stabs at 138 BPM, rising in energy."
   }
 ]
