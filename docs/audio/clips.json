@@ -1,0 +1,32 @@
+[
+  {
+    "file": "anthem-cat.mp3",
+    "preset": "Anthem Cat",
+    "description": "Uplifting Super Saw lead playing a short Am F C G hook."
+  },
+  {
+    "file": "hands-up-lead.mp3",
+    "preset": "Hands Up Lead",
+    "description": "Bright hands up style lead, high and singing."
+  },
+  {
+    "file": "rolling-saw-bass.mp3",
+    "preset": "Rolling Saw Bass",
+    "description": "Offbeat rolling saw bass line in A minor."
+  },
+  {
+    "file": "moonlit-meow-pad.mp3",
+    "preset": "Moonlit Meow Pad",
+    "description": "Slow wide pad over Am F C G chords."
+  },
+  {
+    "file": "trance-pluck-arp.mp3",
+    "preset": "Trance Pluck",
+    "description": "Plucked 16th arpeggio with a moving root."
+  },
+  {
+    "file": "uplift-stab.mp3",
+    "preset": "Uplift Stab",
+    "description": "Syncopated uplifting chord stabs."
+  }
+]
