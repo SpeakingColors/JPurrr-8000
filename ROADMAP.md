@@ -49,6 +49,7 @@ Rough order. Nothing here is promised for a date.
 
 ## Done in 0.3.4
 - SW 2 and SW 3 now differ in more than brightness: SW 2 is tighter and punchier (15% narrower detune, stronger centre saw, -3 dB low shelf at 160 Hz); SW 3 is fatter and heavier (15% wider detune, +4 dB low shelf at 130 Hz, 1.5x saturation drive). SW 1 is unchanged. Mockup preview has the same changes.
+- Melody generator and the 22 piece names show only sharps (C#, D#, F#, G#, A#), no flats, in the plugin and the mockup.
 - The mockup page is clean for the GitHub website (no description texts) and fits the window to the page width on load.
 
 ## Done in 0.3.3

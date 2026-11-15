@@ -14,8 +14,8 @@ using gendata::Rhythm; using gendata::Step; using gendata::Prog;
 
 constexpr int MINOR[7] = { 0, 2, 3, 5, 7, 8, 10 }, MAJOR[7] = { 0, 2, 4, 5, 7, 9, 11 };
 constexpr int LO = 72, HI = 98, WR = 12;
-const char* const NAMES_MIN[12] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
-const char* const NAMES_MAJ[12] = { "C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B" };
+const char* const NAMES_MIN[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+const char* const NAMES_MAJ[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 const char* const STYLES[6] = { "Any", "Anthem", "Run", "Roller", "Stabs", "Sparse" };
 constexpr int GATE[5] = { 92, 92, 80, 60, 92 };            // anthem run roller stabs sparse
 constexpr int SHAPES[4][8] = { { 0, 0, 2, 0, 5, 7, 9, 2 }, { 0, 2, 0, 3, 6, 8, 6, 2 }, { 0, 0, 0, 0, 6, 6, 8, 0 }, { 0, 1, 2, 3, 6, 8, 9, 3 } };

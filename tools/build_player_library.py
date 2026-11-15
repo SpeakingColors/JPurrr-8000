@@ -50,7 +50,7 @@ GRIDS = [
         "B5 B5 B5 -  B5 B5 B5 -  D6 D6 D6 -  G5 G5 G5 -",
         "C6 C6 C6 -  C6 C6 C6 -  E6 E6 E6 -  A5 A5 A5 -",
         "E6- D6-  C6- B5-  A5- G4-  B4- C5-"]),
-    ('octave_dm', 'Octave pedal arp (D minor)', 'D', True, ['Dm', 'Bb', 'F', 'C'], 138, [
+    ('octave_dm', 'Octave pedal arp (D minor)', 'D', True, ['Dm', 'A#', 'F', 'C'], 138, [
         "D5 D6 A5 D6  F5 D6 E5 D6  F5 D6 A5 D6  F5 D6 E5 D6",
         "D5 D6 Bb5 D6 F5 D6 G5 D6  F5 D6 Bb5 D6 F5 D6 G5 D6",
         "C5 C6 A5 C6  F5 C6 G5 C6  A5 C6 C6 C6  A5 C6 G5 C6",
@@ -75,12 +75,12 @@ GRIDS = [
         "A5-  C#6- D#6- E6-  D#6- C#6- A5-  B5-",
         "B5-  D#6- E6-  F#6- E6-  D#6- B5-  D#6-",
         "G#5- B5-  D#6- F#6- E6-  D#6- B5-  G#5-"]),
-    ('roller_gm', 'Hypnotic 16th roller (G minor)', 'G', True, ['Gm', 'F', 'Eb', 'D'], 138, [
+    ('roller_gm', 'Hypnotic 16th roller (G minor)', 'G', True, ['Gm', 'F', 'D#', 'D'], 138, [
         "G5 G5 D5 G5  Bb5 G5 D5 G5  C5 G5 Bb5 G5  A5 F#5 D5 F#5",
         "F5 F5 C5 F5  A5 F5 C5 F5   Bb5 F5 A5 F5  G5 E5 C5 E5",
         "Eb5 Eb5 Bb4 Eb5  G5 Eb5 Bb4 Eb5  A5 Eb5 G5 Eb5  F5 D5 Bb4 D5",
         "D5 D5 A4 D5  F#5 D5 A4 D5  G5 D5 A5 D5   B5 D5 C6 D5"]),
-    ('pedal_gm', 'Pedal tone arp (G minor)', 'G', True, ['Gm', 'Eb', 'Bb', 'F'], 138, [
+    ('pedal_gm', 'Pedal tone arp (G minor)', 'G', True, ['Gm', 'D#', 'A#', 'F'], 138, [
         "G5 D5 Bb5 D5  C5 D5 Bb5 D5  A5 D5 G5 D5  F#5 D5 A5 D5",
         "G5 D5 Bb5 D5  C5 D5 Bb5 D5  A5 D5 G5 D5  Eb5 D5 G5 D5",
         "F5 D5 Bb5 D5  C5 D5 D5 D5   Eb5 D5 D5 D5  F5 D5 Bb5 D5",
@@ -97,8 +97,8 @@ GRIDS = [
 # ---- backings -----------------------------------------------------------------------------------------
 PROGS = [  # id, name, tonic, chords (one per bar, 4 or 8), bpm
     ('am_f_c_g', 'Am F C G', ['Am', 'F', 'C', 'G'], 138),
-    ('fm_epic', 'Fm Db Ab Eb Bbm Fm Db Eb', ['Fm', 'Db', 'Ab', 'Eb', 'Bbm', 'Fm', 'Db', 'Eb'], 138),
-    ('gm_lift', 'Gm Eb Cm F Bb Eb Cm D', ['Gm', 'Eb', 'Cm', 'F', 'Bb', 'Eb', 'Cm', 'D'], 138),
+    ('fm_epic', 'Fm C# G# D# A#m Fm C# D#', ['Fm', 'C#', 'G#', 'D#', 'A#m', 'Fm', 'C#', 'D#'], 138),
+    ('gm_lift', 'Gm D# Cm F A# D# Cm D', ['Gm', 'D#', 'Cm', 'F', 'A#', 'D#', 'Cm', 'D'], 138),
     ('bm_drive', 'Bm G D A Em Bm G A', ['Bm', 'G', 'D', 'A', 'Em', 'Bm', 'G', 'A'], 138),
     ('csm_neo', 'C#m A E B F#m C#m A B', ['C#m', 'A', 'E', 'B', 'F#m', 'C#m', 'A', 'B'], 138),
     ('c_g_am_f', 'C G Am F (major key anthem)', ['C', 'G', 'Am', 'F'], 138),
@@ -110,10 +110,10 @@ PROGS = [  # id, name, tonic, chords (one per bar, 4 or 8), bpm
     ('anthem_c', 'C G Am F C G F G', ['C', 'G', 'Am', 'F', 'C', 'G', 'F', 'G'], 138),
     ('arp_lift_am', 'F G Am Am F G Am E', ['F', 'G', 'Am', 'Am', 'F', 'G', 'Am', 'E'], 138),
     ('pulse_fsm', 'F#m D A E F#m D A E', ['F#m', 'D', 'A', 'E', 'F#m', 'D', 'A', 'E'], 138),
-    ('pump_gm', 'Gm Eb Bb F Gm Eb Bb F', ['Gm', 'Eb', 'Bb', 'F', 'Gm', 'Eb', 'Bb', 'F'], 138),
-    ('step_dm', 'Dm Bb F C Dm Bb F C', ['Dm', 'Bb', 'F', 'C', 'Dm', 'Bb', 'F', 'C'], 138),
+    ('pump_gm', 'Gm D# A# F Gm D# A# F', ['Gm', 'D#', 'A#', 'F', 'Gm', 'D#', 'A#', 'F'], 138),
+    ('step_dm', 'Dm A# F C Dm A# F C', ['Dm', 'A#', 'F', 'C', 'Dm', 'A#', 'F', 'C'], 138),
     ('sunrise_d', 'D A Bm G D A G A', ['D', 'A', 'Bm', 'G', 'D', 'A', 'G', 'A'], 138),
-    ('descent_cm', 'Cm Bb Gm Ab Cm Bb Gm Ab', ['Cm', 'Bb', 'Gm', 'Ab', 'Cm', 'Bb', 'Gm', 'Ab'], 138),
+    ('descent_cm', 'Cm A# Gm G# Cm A# Gm G#', ['Cm', 'A#', 'Gm', 'G#', 'Cm', 'A#', 'Gm', 'G#'], 138),
 ]
 
 

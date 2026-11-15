@@ -74,7 +74,7 @@ NEW = [
         "D6:2 F#6:2 A6:2 F#6:2 A6:4 B6:2 A6:2",
         "C#6:2 E6:2 A6:2 E6:2 C#7:4 B6:2 A6:2",
         "B5:2 E6:2 G#6:2 B6:2 G#6:4 E6:2 B5:2"]),
-    ('pump_gm', 'Pedal pump', 'G', True, ['Gm', 'Eb', 'Bb', 'F', 'Gm', 'Eb', 'Bb', 'F'], 138, 0.55, [
+    ('pump_gm', 'Pedal pump', 'G', True, ['Gm', 'D#', 'A#', 'F', 'Gm', 'D#', 'A#', 'F'], 138, 0.55, [
         "G5 G6 G5 D6 G5 Bb5 G5 D6 G5 G6 G5 F6 G5 D6 G5 Bb5",
         "Eb5 Eb6 Eb5 Bb5 Eb5 G5 Eb5 Bb5 Eb5 Eb6 Eb5 D6 Eb5 Bb5 Eb5 G5",
         "Bb5 Bb6 Bb5 F6 Bb5 D6 Bb5 F6 Bb5 Bb6 Bb5 A6 Bb5 F6 Bb5 D6",
@@ -83,7 +83,7 @@ NEW = [
         "Eb5 Bb6 Eb5 G6 Eb5 Bb6 Eb5 G6 Eb5 Eb6 Eb5 G6 Eb5 Bb5 Eb5 G6",
         "Bb5 D6 Bb5 F6 Bb5 Bb6 Bb5 F6 Bb5 D6 Bb5 F6 Bb5 D6 Bb5 F6",
         "F5 A5 F5 C6 F5 A5 F5 C6 F5 A5 F5 C6 F5:4"]),
-    ('step_dm', 'Stepwise hook', 'D', True, ['Dm', 'Bb', 'F', 'C', 'Dm', 'Bb', 'F', 'C'], 138, 0.85, [
+    ('step_dm', 'Stepwise hook', 'D', True, ['Dm', 'A#', 'F', 'C', 'Dm', 'A#', 'F', 'C'], 138, 0.85, [
         "A5:2 A5:2 D6:2 A5:2 F6:2 E6:2 D6:2 A5:2",
         "Bb5:2 Bb5:2 D6:2 F6:2 D6:2 C6:2 Bb5:2 D6:2",
         "C6:2 C6:2 F6:2 C6:2 A6:2 G6:2 F6:2 C6:2",
@@ -101,7 +101,7 @@ NEW = [
         "C#6:2 E6:2 A6:2 E6:2 A6:4 B6:2 C#7:2",
         "B5:2 D6:2 G6:2 D6:2 B6:6 A6:2",
         "E6:2 C#6:2 A5:2 C#6:2 E6:4 .4"]),
-    ('descent_cm', 'Falling vamp', 'C', True, ['Cm', 'Bb', 'Gm', 'Ab', 'Cm', 'Bb', 'Gm', 'Ab'], 138, 0.85, [
+    ('descent_cm', 'Falling vamp', 'C', True, ['Cm', 'A#', 'Gm', 'G#', 'Cm', 'A#', 'Gm', 'G#'], 138, 0.85, [
         "G5:2 C6:2 Eb6:2 C6:2 G6:4 F6:2 Eb6:2",
         "F5:2 Bb5:2 D6:2 Bb5:2 F6:4 Eb6:2 D6:2",
         "G5:2 Bb5:2 D6:2 Bb5:2 D6:4 C6:2 Bb5:2",

@@ -10,8 +10,8 @@
   const DATA = /*DATA*/null/*END*/;
   const MINOR = [0, 2, 3, 5, 7, 8, 10], MAJOR = [0, 2, 4, 5, 7, 9, 11];
   const LO = 72, HI = 98, WR = 12;                    // written register (the piece is played WR semitones lower, like the 22 melodies)
-  const NAMES_MIN = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'];
-  const NAMES_MAJ = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+  const NAMES_MIN = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const NAMES_MAJ = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const STYLE_NAMES = ['Any', 'Anthem', 'Run', 'Roller', 'Stabs', 'Sparse'];
   const FAM = ['anthem', 'run', 'roller', 'stabs', 'sparse'];
   const GATE = { anthem: 92, run: 92, roller: 80, stabs: 60, sparse: 92 };   // percent of the note length
