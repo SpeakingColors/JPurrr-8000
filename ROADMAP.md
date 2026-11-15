@@ -47,6 +47,10 @@ Rough order. Nothing here is promised for a date.
 - New headless test `jpurrr_enginecheck` (settings round trip, fallback to defaults, the processor passes the options to the synth).
 - Fixed the docs: the PLAYER switch is in the VOLUME box next to PREVIEW, not in the CONTROLLER box.
 
+## Done in 0.3.4
+- SW 2 and SW 3 now differ in more than brightness: SW 2 is tighter and punchier (15% narrower detune, stronger centre saw, -3 dB low shelf at 160 Hz); SW 3 is fatter and heavier (15% wider detune, +4 dB low shelf at 130 Hz, 1.5x saturation drive). SW 1 is unchanged. Mockup preview has the same changes.
+- The mockup page is clean for the GitHub website (no description texts) and fits the window to the page width on load.
+
 ## Done in 0.3.3
 - The mockup preview also has the filter input peak rounding (SW 1) and the extra headroom (SW 2 and SW 3), like the plugin; modelled for the SUPER SAW waveform only.
 - Mockup v3.12 preview now sounds like the plugin for SW 2 and SW 3 (same shelves and levels), and the SUPER SAW TYPE tooltip no longer says the preview sounds the same.

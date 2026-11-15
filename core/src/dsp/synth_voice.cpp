@@ -96,11 +96,12 @@ void PatchParams::smoothToward(const PatchParams& t, float a, bool applyStruct) 
 // input more headroom so the raw saw peaks are not rounded off (the JE-8086 and the Jup-8000 V are spikier than SW 1).
 void Voice::setVoicing() {
     swIn = 1.f; swOut = 1.f; swTrim = 1.f;
-    tB0 = 1.f; tB1 = tB2 = tA1 = tA2 = 0.f;
+    tB0 = 1.f; tB1 = tB2 = tA1 = tA2 = 0.f; lB0 = 1.f; lB1 = lB2 = lA1 = lA2 = 0.f;
     if (swType == 0 || kind1 != 0) { swB0 = 1.f; swB1 = swB2 = swA1 = swA2 = 0.f; return; }
     // SW 2: fitted to the JE-8086 (+12 dB shelf at 10 kHz). SW 3: SW 2 plus the tilt of the thick Jup-8000 V patch (+12.5 dB shelf at 1.5 kHz).
-    double g1 = 12.0, f1 = 10000.0, hr = 0.5, g2 = 12.5, f2 = 1500.0, trim = 1.0;
-    if (swType == 1) { g2 = 0.0; trim = 0.92; } else trim = 0.60;
+    double g1 = 12.0, f1 = 10000.0, hr = 0.5, g2 = 12.5, f2 = 1500.0, trim = 1.0, gl = 0.0, fl = 150.0, drive = 1.0;
+    // SW 2 is tighter and punchier (less low weight); SW 3 is fatter and heavier (more low weight, warmer saturation).
+    if (swType == 1) { g2 = 0.0; trim = 0.98; gl = -3.0; fl = 160.0; } else { trim = 0.66; gl = 4.0; fl = 130.0; drive = 1.5; }
     if (const char* e = std::getenv("JP_SW_TUNE")) { double a, b, c2, d, e2, f; int t; if (std::sscanf(e, "%d,%lf,%lf,%lf,%lf,%lf,%lf", &t, &a, &b, &c2, &d, &e2, &f) == 7 && t == swType) { g1 = a; f1 = b; hr = c2; g2 = d; f2 = e2; trim = f; } }
     auto shelf = [&](double gainDb, double fc, float& B0, float& B1, float& B2, float& A1, float& A2) {
         if (gainDb == 0.0) { B0 = 1.f; B1 = B2 = A1 = A2 = 0.f; return; }
@@ -112,7 +113,14 @@ void Voice::setVoicing() {
     };
     shelf(g1, f1, swB0, swB1, swB2, swA1, swA2);
     shelf(g2, f2, tB0, tB1, tB2, tA1, tA2);
-    swIn = (float) hr; swOut = (float) (trim / hr);
+    if (gl != 0.0) {
+        const double A = std::pow(10.0, gl / 40.0), w0 = kTwoPi * fl / osr, cw = std::cos(w0), sn = std::sin(w0);
+        const double alpha = sn / 2.0 * std::sqrt(2.0), sq = 2.0 * std::sqrt(A) * alpha;
+        const double b0 = A * ((A + 1) - (A - 1) * cw + sq), b1 = 2 * A * ((A - 1) - (A + 1) * cw), b2 = A * ((A + 1) - (A - 1) * cw - sq);
+        const double a0 = (A + 1) + (A - 1) * cw + sq, a1 = -2 * ((A - 1) + (A + 1) * cw), a2 = (A + 1) + (A - 1) * cw - sq;
+        lB0 = (float) (b0 / a0); lB1 = (float) (b1 / a0); lB2 = (float) (b2 / a0); lA1 = (float) (a1 / a0); lA2 = (float) (a2 / a0);
+    }
+    swIn = (float) (hr * drive); swOut = (float) (trim / (hr * drive));
 }
 
 void Voice::init(double hostSr, int osFac) {
@@ -237,10 +245,11 @@ void Voice::control(const PatchParams& P, const BlockCtl& C, bool snap) {
 
     // OSC 1
     if (kind1 == 0) {
-        const double curve = superSawCurve(c11 / 127.0);
+        const double detSc = swType == 1 ? 0.85 : swType == 2 ? 1.15 : 1.0, ctrSc = swType == 1 ? 1.25 : 1.0;   // SW 2 tighter with a stronger centre saw, SW 3 wider
+        const double curve = superSawCurve(c11 / 127.0) * detSc;
         for (int k = 0; k < 7; ++k) ramp(incSaw[k], dSaw[k], std::min(maxInc, f1 * (1.0 + kSuperSawRatio[k] * curve) * inv));
         const double m = c12 / 127.0;
-        const double cg = superSawCentreGain(m), sg = superSawSideGain(m);
+        const double cg = superSawCentreGain(m) * ctrSc, sg = superSawSideGain(m);
         const double norm = 0.9 / std::sqrt(cg * cg + 6.0 * sg * sg);
         for (int k = 0; k < 7; ++k) ssGain[k] = (float) ((k == 3 ? cg : sg) * norm);
         // High pass following the pitch (Szabo: the real unit has one). Cutoff not measured: 0.8 x note frequency. Unverified.
@@ -420,6 +429,7 @@ inline float Voice::oscStep() {
             if (swType > 0) {
                 float o = swB0 * y1 + swZ1; swZ1 = swB1 * y1 - swA1 * o + swZ2; swZ2 = swB2 * y1 - swA2 * o; y1 = o;
                 if (swType > 1) { o = tB0 * y1 + tZ1; tZ1 = tB1 * y1 - tA1 * o + tZ2; tZ2 = tB2 * y1 - tA2 * o; y1 = o; }
+                o = lB0 * y1 + lZ1; lZ1 = lB1 * y1 - lA1 * o + lZ2; lZ2 = lB2 * y1 - lA2 * o; y1 = o;
             }
             break;
         }

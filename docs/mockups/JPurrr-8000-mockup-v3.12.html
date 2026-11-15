@@ -1178,13 +1178,14 @@ function noteOn(n,vel){ensureAudio();if(!ctx||!S.sound)return;if(ctx.state==='su
   if(bendSrc){bendSrc.connect(o.detune);modP.connect(o.detune);o.onended=()=>{try{bendSrc.disconnect(o.detune);modP.disconnect(o.detune)}catch(e){}};}
   const gg=ctx.createGain();gg.gain.value=g;o.connect(gg);gg.connect(dest);o.start(t);oscs.push(o);return o;};
  const w1=P.o1w.v;
- if(w1===0){const m=P.o1c2.v/127,d=P.o1c1.v/127,cr=curveD(d);const K7=[-0.11002313,-0.06288439,-0.01952356,0,0.01991221,0.06216538,0.10745242];
+ if(w1===0){const m=P.o1c2.v/127,d=P.o1c1.v/127,swt=P.o1sw?P.o1sw.v:0,detSc=swt===1?.85:swt===2?1.15:1,ctrSc=swt===1?1.25:1,cr=curveD(d)*detSc;const K7=[-0.11002313,-0.06288439,-0.01952356,0,0.01991221,0.06216538,0.10745242];
   const sw=P.o1sw?P.o1sw.v:0;let dst=o1;
-  if(sw>0){/* SW 2 (JE-8086 voicing): +12 dB high shelf at 10 kHz. SW 3: plus the thick tilt, +12.5 dB shelf at 1.5 kHz. Level trims 0.92 and 0.60, as in the plugin. */
+  if(sw>0){/* SW 2 (JE-8086 voicing, tighter): +12 dB high shelf at 10 kHz, 15% narrower detune, stronger centre saw, -3 dB low shelf at 160 Hz. SW 3 (thick, heavier): plus the tilt +12.5 dB shelf at 1.5 kHz, 15% wider detune, +4 dB low shelf at 130 Hz, 1.5x saturation drive. Level trims 0.98 and 0.66, as in the plugin. */
    o1.disconnect();const sh=(fr,gn)=>{const x=ctx.createBiquadFilter();x.type='highshelf';x.frequency.value=fr;x.gain.value=gn;return x;};
    const a=sh(10000,12);o1.connect(a);let last=a;if(sw===2){const b2=sh(1500,12.5);a.connect(b2);last=b2;}
+   const lo=ctx.createBiquadFilter();lo.type='lowshelf';lo.frequency.value=sw===2?130:160;lo.gain.value=sw===2?4:-3;last.connect(lo);last=lo;
    last.connect(mixO);}
-  const K7b=K7;K7b.forEach((k,i)=>{const gcn=-0.55366*m+0.99785,gsd=-0.73764*m*m+1.2841*m+0.044372;mk('sawtooth',f0,1200*Math.log2(1+k*cr),dst,(i===3?gcn:gsd)*.22,P.od.v===0);});}
+  const K7b=K7;K7b.forEach((k,i)=>{const gcn=(-0.55366*m+0.99785)*ctrSc,gsd=-0.73764*m*m+1.2841*m+0.044372;mk('sawtooth',f0,1200*Math.log2(1+k*cr),dst,(i===3?gcn:gsd)*.22,P.od.v===0);});}
  else if(w1===2){const nb=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate);const dd=nb.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=nb;s.loop=true;const gg=ctx.createGain();gg.gain.value=.4;s.connect(gg);gg.connect(o1);s.start(t);oscs.push(s);}
  else mk(w1===4?'square':w1===5||w1===3?'sawtooth':'triangle',f0,0,o1,.5,P.od.v===0);
  const w2=P.o2w.v;const semi=P.o2wide.v?P.o2r.v*12/ 24*4:P.o2r.v,cents=P.o2wide.v?0:P.o2f.v*50/64;
@@ -1203,7 +1204,7 @@ function noteOn(n,vel){ensureAudio();if(!ctx||!S.sound)return;if(ctx.state==='su
  const vs=(vel||100)/100;amp.gain.linearRampToValueAtTime(vs,t+aa);amp.gain.setTargetAtTime(as*vs,t+aa,ad/3);
  if(modF){modF.connect(fl1.detune);modF.connect(fl2.detune);oscs[0].addEventListener('ended',()=>{try{modF.disconnect(fl1.detune);modF.disconnect(fl2.detune)}catch(e){}});}
  /* The plugin filter has a soft saturating input (satD) that rounds the saw peaks. SW 1 keeps it as it was; SW 2 and SW 3 give it 2x headroom (peaks stay spiky) and carry the level trim after it. Only modelled for the SUPER SAW waveform. */
- if(w1===0){const sw=P.o1sw?P.o1sw.v:0,m1=P.o1c2.v/127,cg=-0.55366*m1+0.99785,sg=-0.73764*m1*m1+1.2841*m1+0.044372,nrm=0.9/Math.sqrt(cg*cg+6*sg*sg),K=0.7*nrm/.22,hr=sw===0?1:.5,trim=sw===0?1:sw===2?.60:.92;
+ if(w1===0){const sw=P.o1sw?P.o1sw.v:0,m1=P.o1c2.v/127,cg=(-0.55366*m1+0.99785)*(sw===1?1.25:1),sg=-0.73764*m1*m1+1.2841*m1+0.044372,nrm=0.9/Math.sqrt(cg*cg+6*sg*sg),K=0.7*nrm/.22,hr=sw===0?1:sw===2?.75:.5,trim=sw===0?1:sw===2?.66:.98;
   const pre=ctx.createGain();pre.gain.value=K*hr/3;const ws=ctx.createWaveShaper();ws.curve=satCurve();ws.oversample='4x';const post=ctx.createGain();post.gain.value=trim/(hr*K);
   mixO.connect(pre);pre.connect(ws);ws.connect(post);post.connect(fl1);}
  else mixO.connect(fl1);

@@ -126,7 +126,8 @@ struct Voice {
     float ssGain[7] = {}; float ssHpA = 0.f;
     int swType = 0;                             // SUPER SAW type of OSC 1: 0 SW 1 (ours), 1 SW 2 (JE-8086 voicing), 2 SW 3 (thick voicing)
     float swB0 = 1.f, swB1 = 0.f, swB2 = 0.f, swA1 = 0.f, swA2 = 0.f, swZ1 = 0.f, swZ2 = 0.f;   // voicing high shelf (biquad, transposed direct form 2)
-    float tB0 = 1.f, tB1 = 0.f, tB2 = 0.f, tA1 = 0.f, tA2 = 0.f, tZ1 = 0.f, tZ2 = 0.f, swTrim = 1.f;   // second shelf (SW 3 tilt) and level trim
+    float tB0 = 1.f, tB1 = 0.f, tB2 = 0.f, tA1 = 0.f, tA2 = 0.f, tZ1 = 0.f, tZ2 = 0.f, swTrim = 1.f;
+    float lB0 = 1.f, lB1 = 0.f, lB2 = 0.f, lA1 = 0.f, lA2 = 0.f, lZ1 = 0.f, lZ2 = 0.f;   // low shelf of the voicing (SW 2 tighter, SW 3 heavier)   // second shelf (SW 3 tilt) and level trim
     float swIn = 1.f, swOut = 1.f;              // filter input headroom (SW 2/3 keep the raw saw peaks) and its make-up
     float ss2Gain[7] = {}; float ssHpA2 = 0.f;  // OSC 2 SUPER SAW gains and high pass
     float pw1 = 0.5f, pw2 = 0.5f;
