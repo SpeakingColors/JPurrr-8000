@@ -1,5 +1,7 @@
 # JPurrr-8000
 
+<p align="center"><a href="https://ko-fi.com/studio87"><img src="https://raw.githubusercontent.com/SpeakingColors/.github/main/assets/kofi-banner.svg" alt="Support Studio 87 on Ko-fi" width="440"></a></p>
+
 Nice twist on a trance classic, a nod to the famous JP-8000.
 
 A free and open source VST3 synth and standalone app for Linux, Windows and macOS, in the spirit of the late 90s JP-8000 and JP-8080.
