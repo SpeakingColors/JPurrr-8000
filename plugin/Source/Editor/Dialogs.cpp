@@ -619,6 +619,7 @@ void DialogLayer::openAbout() {
     f.button("Ko-fi", false, link("https://ko-fi.com/studio87"));
     // Studio 87 Gear Updater link: asks the OS to open studio87://open?product=JPurrr-8000. No network call by the plugin.
     f.button(studio87link::buttonText(), false, [] { studio87link::openUpdater("JPurrr-8000"); })->setTip(studio87link::tipText());
+    f.button(studio87link::githubButtonText(), false, [] { studio87link::openGitHub("JPurrr-8000"); })->setTip(studio87link::githubTipText());
     f.button("Close", false, [this] { this->close(); });
     gh->ring = true;
     finish(f); focusIf(gh);
