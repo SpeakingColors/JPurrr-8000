@@ -1,4 +1,5 @@
 #include "Dialogs.h"
+#include "Studio87Link.h"
 #include "Root.h"
 #include "BlockPresets.h"
 #include "../BlockPresetFile.h"
@@ -31,10 +32,24 @@ void drawRing(juce::Graphics& g, Fl r, float radius, juce::Colour c = juce::Colo
 }
 
 // ------------------------------------------------------------------------------------------------ plain widgets
+// Info bubble of a dialog control (the mockup's data-tip on a label): shown after about one second of hovering, when bubbles are on.
+class DTip : private juce::Timer {
+public:
+    DTip(Root& r, juce::Component& c) : root(r), owner(c) {}
+    ~DTip() override { stopTimer(); }
+    String text;
+    void enter() { if (text.isNotEmpty()) startTimer(1000); }
+    void leave() { stopTimer(); if (shown) { shown = false; root.hideTip(); } }
+private:
+    void timerCallback() override { stopTimer(); if (Settings::get().bubbles && owner.isShowing()) { shown = true; root.showTipBelow(owner, text); } }
+    Root& root; juce::Component& owner; bool shown = false;
+};
+
 class DBtn : public juce::Component {
 public:
-    DBtn(Root& r, const String& t, bool g) : root(r), text(t.toUpperCase()), go(g) { setWantsKeyboardFocus(true); setPaintingIsUnclipped(true); }
+    DBtn(Root& r, const String& t, bool g) : root(r), text(t.toUpperCase()), go(g), tipHover(r, *this) { setWantsKeyboardFocus(true); setPaintingIsUnclipped(true); }
     std::function<void()> onClick; bool ring = false;
+    void setTip(const String& t) { tipHover.text = t; }
     static juce::Font font() { return fc(18.4, 600, 0.06f); }
     static inline bool viaKey = false;                         // the last press on a dialog button came from the keyboard (Enter or Space)
     float prefWidth() const { return 2.0f + 2 * 10 * Z + jp::textWidth(font(), text); }
@@ -48,8 +63,9 @@ public:
         drawTextAt(g, text, r.getX() + 1 + 10 * Z, std::round(r.getY() + 1 + (r.getHeight() - 2 - nrm(f)) / 2 + asc(f)), 'l');
         if (ring || (hasKeyboardFocus(false) && !mouseFocus)) drawRing(g, r, 4 * Z, lk[layout::acc], 2 * Z, 1 * Z);
     }
-    void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); }
-    void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); }
+    void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); tipHover.enter(); }
+    void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); tipHover.leave(); }
+    void mouseDown(const juce::MouseEvent&) override { tipHover.leave(); }
     void mouseUp(const juce::MouseEvent& e) override { if (contains(e.getPosition()) && !e.mods.isPopupMenu() && onClick) { viaKey = false; onClick(); } }
     bool keyPressed(const juce::KeyPress& k) override {
         if (k == juce::KeyPress::returnKey || k == juce::KeyPress::spaceKey) { if (onClick) { viaKey = true; onClick(); } return true; }
@@ -58,7 +74,7 @@ public:
     void focusLost(FocusChangeType) override { ring = false; repaint(); }
     void focusGained(FocusChangeType cause) override { mouseFocus = cause == focusChangedByMouseClick; repaint(); }
 private:
-    Root& root; String text; bool go, hover = false, mouseFocus = false;
+    Root& root; String text; bool go, hover = false, mouseFocus = false; DTip tipHover;
 };
 
 class DChk : public juce::Component {                          // label.chk with a native checkbox
@@ -85,19 +101,6 @@ public:
     void focusLost(FocusChangeType) override { ring = false; repaint(); }
 private:
     Root& root; String text;
-};
-
-// Info bubble of a dialog control (the mockup's data-tip on a label): shown after about one second of hovering, when bubbles are on.
-class DTip : private juce::Timer {
-public:
-    DTip(Root& r, juce::Component& c) : root(r), owner(c) {}
-    ~DTip() override { stopTimer(); }
-    String text;
-    void enter() { if (text.isNotEmpty()) startTimer(1000); }
-    void leave() { stopTimer(); if (shown) { shown = false; root.hideTip(); } }
-private:
-    void timerCallback() override { stopTimer(); if (Settings::get().bubbles && owner.isShowing()) { shown = true; root.showTipBelow(owner, text); } }
-    Root& root; juce::Component& owner; bool shown = false;
 };
 
 // Caption of a form field: `.dlg label` text.
@@ -614,6 +617,8 @@ void DialogLayer::openAbout() {
     auto* gh = f.button("GitHub", false, link("https://github.com/SpeakingColors/JPurrr-8000"));
     f.button("Releases", false, link("https://github.com/SpeakingColors/JPurrr-8000/releases"));
     f.button("Ko-fi", false, link("https://ko-fi.com/studio87"));
+    // Studio 87 Gear Updater link: asks the OS to open studio87://open?product=JPurrr-8000. No network call by the plugin.
+    f.button(studio87link::buttonText(), false, [] { studio87link::openUpdater("JPurrr-8000"); })->setTip(studio87link::tipText());
     f.button("Close", false, [this] { this->close(); });
     gh->ring = true;
     finish(f); focusIf(gh);

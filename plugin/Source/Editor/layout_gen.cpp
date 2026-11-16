@@ -1571,7 +1571,7 @@ const Line chrome_lines[] = {
   {"OSC 2",1238.88f,46.19f,67.56f},
   {"FILTER",1615.47f,54.57f,67.56f},
   {"AMP",1958.84f,32.53f,67.56f},
-  {"Studio 87 \302\267 JPurrr-8000 v3.12 design mockup",33.12f,237.98f,796.76f},
+  {"Studio 87 \302\267 JPurrr-8000 v3.13 design mockup",33.12f,237.98f,796.76f},
   {"2102 \303\227 796 px \302\267 100%",1960.2f,109.08f,796.76f}
 };
 const Text chrome_texts[] = {
