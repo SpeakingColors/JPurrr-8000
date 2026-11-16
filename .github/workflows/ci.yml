@@ -206,6 +206,7 @@ jobs:
 
       # Informational: pluginval is downloaded from its latest release and does not fail the build.
       - name: pluginval (informational)
+        timeout-minutes: 20
         continue-on-error: true
         run: |
           art=build/plugin/JPurrr8000_artefacts/$BUILD_TYPE
